@@ -56,12 +56,16 @@ extension PilihLayarModel {
     }
 
     func openPreviewWindow() {
+        let controlWidth = NSApp.keyWindow?.frame.width ?? 680
+        let previewWidth = max(controlWidth, 320)
+        let previewHeight = previewWidth * 9 / 16
         if let window = PreviewWindowStore.shared.window {
+            window.setContentSize(NSSize(width: previewWidth, height: previewHeight))
             window.makeKeyAndOrderFront(nil)
             isPreviewVisible = true
             return
         }
-        var frame = NSRect(x: 200, y: 400, width: 640, height: 360)
+        var frame = NSRect(x: 200, y: 400, width: previewWidth, height: previewHeight)
         if let control = NSApp.keyWindow {
             let controlFrame = control.frame
             frame.origin.x = controlFrame.midX - frame.width / 2
@@ -75,7 +79,7 @@ extension PilihLayarModel {
         }
         let window = NSWindow(
             contentRect: frame,
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )

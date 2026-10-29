@@ -62,7 +62,7 @@ struct ContentView: View {
             }
             .padding(16)
         }
-        .frame(minWidth: 600)
+        .frame(width: 680)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(
             RoundedRectangle(cornerRadius: 20)
@@ -89,13 +89,22 @@ struct ContentView: View {
     }
 
     private func configureFramelessWindow(_ window: NSWindow) {
-        guard !window.styleMask.contains(.borderless) else { return }
-        window.styleMask = [.borderless, .resizable]
+        if window.styleMask.contains(.fullSizeContentView)
+            && !window.styleMask.contains(.resizable)
+            && window.titlebarAppearsTransparent {
+            return
+        }
+        window.styleMask.remove(.resizable)
+        window.styleMask.insert(.fullSizeContentView)
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.standardWindowButton(.closeButton)?.isHidden = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
         window.backgroundColor = .clear
         window.isOpaque = false
         window.hasShadow = false
         window.isMovableByWindowBackground = true
-        window.titlebarAppearsTransparent = true
     }
 
     private var header: some View {

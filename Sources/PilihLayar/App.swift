@@ -8,13 +8,13 @@ struct PilihLayarApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(model)
-                .frame(minWidth: 600, idealWidth: 680, maxWidth: .infinity)
+                .frame(width: 680)
                 .onAppear {
                     model.refreshSources()
                     model.applyAlwaysOnTop()
                 }
         }
-        .windowResizability(.automatic)
+        .windowResizability(.contentSize)
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandMenu("PilihLayar") {
