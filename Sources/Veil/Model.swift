@@ -445,36 +445,56 @@ final class VeilModel: NSObject, ObservableObject {
     func openFilePicker() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = true
+        panel.message = "Select PDF or PPT files, or a folder containing them."
         panel.allowedContentTypes = [
             .pdf,
             UTType(filenameExtension: "ppt") ?? .data,
-            UTType(filenameExtension: "pptx") ?? .data
+            UTType(filenameExtension: "pptx") ?? .data,
+            .folder
         ]
-        if panel.runModal() == .OK, let url = panel.url {
-            addFile(url: url)
+        guard panel.runModal() == .OK else { return }
+        var urls: [URL] = []
+        for url in panel.urls {
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+               isDirectory.boolValue,
+               let enumerator = FileManager.default.enumerator(
+                   at: url, includingPropertiesForKeys: nil,
+                   options: [.skipsHiddenFiles, .skipsPackageDescendants]
+               ) {
+                for case let fileURL as URL in enumerator {
+                    urls.append(fileURL)
+                }
+            } else {
+                urls.append(url)
+            }
+        }
+        let added = urls.sorted { $0.path < $1.path }.compactMap { addFile(url: $0) }.count
+        if added == 0 {
+            status = "No new PDF or PPT files added."
+        } else if added == 1 {
+            status = "1 file added. Click a file name to show it."
+        } else {
+            status = "\(added) files added. Click a file name to show it."
         }
     }
-    func addFile(url: URL) {
+    func addFile(url: URL) -> FileSource? {
+        if fileSources.contains(where: { $0.url.path == url.path }) { return nil }
         let ext = url.pathExtension.lowercased()
         let name = url.lastPathComponent
         if ext == "pdf" {
-            guard let document = PDFDocument(url: url) else {
-                status = "Failed to open PDF: \(name)"
-                return
-            }
+            guard let document = PDFDocument(url: url) else { return nil }
             let item = FileSource(name: name, url: url, kind: .pdf, pageCount: max(1, document.pageCount))
             fileSources.append(item)
-            activateFile(item)
-            status = "PDF added: \(name) (\(document.pageCount) pages)."
+            return item
         } else if ext == "ppt" || ext == "pptx" {
             let item = FileSource(name: name, url: url, kind: .ppt, pageCount: 1)
             fileSources.append(item)
-            activateFile(item)
-            status = "PPT added: \(name). First-slide preview (QuickLook)."
+            return item
         } else {
-            status = "Unsupported format: PDF, PPT, and PPTX only."
+            return nil
         }
     }
     func activateFile(_ item: FileSource) {
@@ -620,7 +640,9 @@ final class VeilModel: NSObject, ObservableObject {
                 }
             } else if FileManager.default.fileExists(atPath: path) {
                 closeFile()
-                addFile(url: url)
+                if let added = addFile(url: url) {
+                    activateFile(added)
+                }
                 if preset.filePageIndex > 0, let current = activeFile,
                    current.kind == .pdf, preset.filePageIndex < current.pageCount {
                     filePageIndex = preset.filePageIndex
