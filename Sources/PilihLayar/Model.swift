@@ -65,23 +65,23 @@ enum CameraPosition: String, CaseIterable, Codable {
 
     var label: String {
         switch self {
-        case .topLeft: return "Kiri atas"
-        case .topCenter: return "Atas"
-        case .topRight: return "Kanan atas"
-        case .middleLeft: return "Kiri"
-        case .middleCenter: return "Tengah"
-        case .middleRight: return "Kanan"
-        case .bottomLeft: return "Kiri bawah"
-        case .bottomCenter: return "Bawah"
-        case .bottomRight: return "Kanan bawah"
+        case .topLeft: return "Top left"
+        case .topCenter: return "Top"
+        case .topRight: return "Top right"
+        case .middleLeft: return "Left"
+        case .middleCenter: return "Center"
+        case .middleRight: return "Right"
+        case .bottomLeft: return "Bottom left"
+        case .bottomCenter: return "Bottom"
+        case .bottomRight: return "Bottom right"
         }
     }
 }
 
 enum CameraShape: String, CaseIterable, Codable {
-    case circle = "Lingkaran"
-    case square = "Kotak"
-    case rounded = "Membulat"
+    case circle = "Circle"
+    case square = "Square"
+    case rounded = "Rounded"
 }
 
 enum FileKind: String, Codable {
@@ -124,7 +124,7 @@ struct Preset: Identifiable, Codable {
 // MARK: - Model utama
 
 @MainActor
-final class PilihLayarModel: NSObject, ObservableObject {
+final class VeilModel: NSObject, ObservableObject {
     @Published var sources: [SourceItem] = []
     @Published var displays: [SCDisplay] = []
     @Published var selectedDisplayID: UInt32?
@@ -145,7 +145,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
     @Published var isPanic = false
     @Published var isPaused = false
     @Published var previewImage: NSImage?
-    @Published var status = "Siap. Tekan Refresh, pilih jendela, lalu Mulai Stream."
+    @Published var status = "Ready. Press Refresh, choose a window, then Start Stream."
     @Published var presets: [Preset] = []
     @Published var activePresetID: UUID?
     @Published var isPreviewVisible = false
@@ -160,7 +160,8 @@ final class PilihLayarModel: NSObject, ObservableObject {
     private var pdfDocument: PDFDocument?
     private var captureWatchdog: Timer?
     private var lastCaptureSignature = ""
-    private let presetsKey = "PilihLayar.v2.presets"
+    private let presetsKey = "Veil.v2.presets"
+    private let legacyPresetsKey = "PilihLayar.v2.presets"
 
     override init() {
         super.init()
@@ -193,7 +194,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
         if let display = displays.first(where: { $0.displayID == selectedDisplayID }) {
             return "\(display.width)x\(display.height)"
         }
-        return displays.isEmpty ? "Pilih layar" : "Layar \(selectedDisplayID ?? 0)"
+        return displays.isEmpty ? "Choose a display" : "Display \(selectedDisplayID ?? 0)"
     }
 
     var groupedSources: [(app: String, items: [SourceItem])] {
@@ -205,7 +206,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
         for window in NSApp.windows {
             if window.title.contains("Output") {
                 window.level = .normal
-            } else if window.title.contains("Kontrol File") || window.title.contains("Preview") {
+            } else if window.title.contains("File Control") || window.title.contains("Preview") {
                 window.level = .floating
             } else {
                 window.level = alwaysOnTop ? .floating : .normal
@@ -221,7 +222,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
                 // Label argumen di bawah ini adalah yang cocok dengan
                 // SDK terbaru; label lama sudah tidak diterima compiler.
                 let content = try await SCShareableContent.excludingDesktopWindows(
-                    false, onScreenWindowsOnly: true
+                    false, onScreenWindowsOnly: false
                 )
                 displays = content.displays
                 if selectedDisplayID == nil {
@@ -229,18 +230,18 @@ final class PilihLayarModel: NSObject, ObservableObject {
                 }
                 capturedWindows = content.windows
                 sources = content.windows
-                    .filter { $0.owningApplication != nil && !($0.title ?? "").isEmpty }
+                    .filter { $0.owningApplication != nil }
                     .map { window in
                         SourceItem(
                             id: window.windowID,
-                            appName: window.owningApplication?.applicationName ?? "Aplikasi",
-                            title: window.title ?? ""
+                            appName: window.owningApplication?.applicationName ?? "App",
+                            title: (window.title?.isEmpty == false ? window.title! : (window.owningApplication?.applicationName ?? "App"))
                         )
                     }
                     .sorted { $0.appName < $1.appName }
-                status = "\(sources.count) jendela di \(content.displays.count) layar."
+                status = "\(sources.count) windows on \(content.displays.count) displays."
             } catch {
-                status = "Gagal membaca jendela: \(error.localizedDescription). Periksa izin Screen Recording."
+                status = "Failed to read windows: \(error.localizedDescription). Check Screen Recording permission."
             }
         }
     }
@@ -272,12 +273,12 @@ final class PilihLayarModel: NSObject, ObservableObject {
 
     func startCapture() {
         guard !isPanic else {
-            status = "Mode Panik aktif, output disembunyikan."
+            status = "Panic mode is on, output is hidden."
             isSharing = false
             return
         }
         guard let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first else {
-            status = "Tidak ada layar. Tekan Refresh dulu."
+            status = "No display found. Press Refresh first."
             isSharing = false
             return
         }
@@ -327,7 +328,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
             let newStream = SCStream(filter: filter, configuration: config, delegate: nil)
             try newStream.addStreamOutput(
                 self, type: .screen,
-                sampleHandlerQueue: DispatchQueue(label: "pilihlayar.capture")
+                sampleHandlerQueue: DispatchQueue(label: "veil.capture")
             )
             stream = newStream
             Task {
@@ -335,18 +336,18 @@ final class PilihLayarModel: NSObject, ObservableObject {
                     try await newStream.startCapture()
                     await MainActor.run {
                         isSharing = true
-                        status = "Berbagi aktif (\(selectedWindowIDs.count) jendela). Bagikan jendela Output di Zoom/Meet/Teams."
+                        status = "Sharing is live (\(selectedWindowIDs.count) windows). Share the Output window in Zoom/Meet/Teams."
                         startCaptureWatchdog()
                     }
                 } catch {
                     await MainActor.run {
-                        status = "Gagal mulai capture: \(error.localizedDescription)"
+                        status = "Failed to start capture: \(error.localizedDescription)"
                         isSharing = false
                     }
                 }
             }
         } catch {
-            status = "Gagal membuat stream: \(error.localizedDescription)"
+            status = "Failed to create stream: \(error.localizedDescription)"
             isSharing = false
         }
     }
@@ -389,12 +390,12 @@ final class PilihLayarModel: NSObject, ObservableObject {
     private func checkCaptureStability() async {
         guard isSharing, stream != nil else { return }
         do {
-            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
             capturedWindows = content.windows
             displays = content.displays
             sources = content.windows
-                .filter { $0.owningApplication != nil && !($0.title ?? "").isEmpty }
-                .map { SourceItem(id: $0.windowID, appName: $0.owningApplication?.applicationName ?? "Aplikasi", title: $0.title ?? "") }
+                .filter { $0.owningApplication != nil }
+                .map { SourceItem(id: $0.windowID, appName: $0.owningApplication?.applicationName ?? "App", title: ($0.title?.isEmpty == false ? $0.title! : ($0.owningApplication?.applicationName ?? "App"))) }
                 .sorted { $0.appName < $1.appName }
             let signature = captureSignature()
             if signature != lastCaptureSignature {
@@ -414,9 +415,9 @@ final class PilihLayarModel: NSObject, ObservableObject {
         if isPanic {
             stopCapture()
             previewImage = nil
-            status = "Panik: output langsung dihitamkan."
+            status = "Panic: output blacked out immediately."
         } else {
-            status = "Panik nonaktif. Tekan Mulai Stream untuk berbagi lagi."
+            status = "Panic off. Press Start Stream to share again."
         }
     }
 
@@ -442,13 +443,13 @@ final class PilihLayarModel: NSObject, ObservableObject {
         let name = url.lastPathComponent
         if ext == "pdf" {
             guard let document = PDFDocument(url: url) else {
-                status = "Gagal membuka PDF: \(name)"
+                status = "Failed to open PDF: \(name)"
                 return
             }
             let item = FileSource(name: name, url: url, kind: .pdf, pageCount: max(1, document.pageCount))
             fileSources.append(item)
             activateFile(item)
-            status = "PDF ditambahkan: \(name) (\(document.pageCount) halaman)."
+            status = "PDF added: \(name) (\(document.pageCount) pages)."
         } else if ext == "ppt" || ext == "pptx" {
             // macOS tidak punya renderer slide-per-slide bawaan untuk PPT.
             // Pratinjau yang dipakai adalah thumbnail QuickLook, biasanya
@@ -456,9 +457,9 @@ final class PilihLayarModel: NSObject, ObservableObject {
             let item = FileSource(name: name, url: url, kind: .ppt, pageCount: 1)
             fileSources.append(item)
             activateFile(item)
-            status = "PPT ditambahkan: \(name). Pratinjau slide pertama (QuickLook)."
+            status = "PPT added: \(name). First-slide preview (QuickLook)."
         } else {
-            status = "Format tidak didukung: hanya PDF, PPT, dan PPTX."
+            status = "Unsupported format: PDF, PPT, and PPTX only."
         }
     }
 
@@ -539,7 +540,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
         presets[index] = updated
         activePresetID = updated.id
         persistPresets()
-        status = "Preset '\(updated.name)' diganti dengan setup saat ini."
+        status = "Preset '\(updated.name)' replaced with the current setup."
     }
 
     func saveCurrentAsPreset(named name: String) {
@@ -579,7 +580,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
         presets.append(preset)
         activePresetID = preset.id
         persistPresets()
-        status = "Preset '\(preset.name)' tersimpan."
+        status = "Preset '\(preset.name)' saved."
     }
 
     func applyPreset(_ preset: Preset) {
@@ -615,7 +616,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
                 }
             } else {
                 closeFile()
-                status = "Preset '\(preset.name)' diterapkan, tapi file tidak ditemukan."
+                status = "Preset '\(preset.name)' applied, but the file was not found."
                 if isSharing { restartCapture() }
                 return
             }
@@ -623,7 +624,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
             closeFile()
         }
         if isSharing { restartCapture() }
-        status = "Preset '\(preset.name)' diterapkan."
+        status = "Preset '\(preset.name)' applied."
     }
 
     func deletePreset(_ preset: Preset) {
@@ -639,7 +640,8 @@ final class PilihLayarModel: NSObject, ObservableObject {
     }
 
     private func loadPresets() {
-        if let data = UserDefaults.standard.data(forKey: presetsKey),
+        let key = UserDefaults.standard.data(forKey: presetsKey) != nil ? presetsKey : legacyPresetsKey
+        if let data = UserDefaults.standard.data(forKey: key),
            let decoded = try? JSONDecoder().decode([Preset].self, from: data) {
             let userPresets = decoded.filter { !$0.isBuiltIn }
             presets = userPresets
@@ -653,7 +655,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
 
 // MARK: - SCStreamOutput
 
-extension PilihLayarModel: SCStreamOutput {
+extension VeilModel: SCStreamOutput {
     nonisolated func stream(
         _ stream: SCStream,
         didOutputSampleBuffer sampleBuffer: CMSampleBuffer,

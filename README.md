@@ -1,75 +1,89 @@
-# PilihLayar v2
+# Veil
 
-Aplikasi macOS gratis untuk berbagi layar presentasi: pilih jendela atau
-aplikasi yang ingin ditampilkan, atur kanvas dan kamera, lalu bagikan
-jendela Output di Zoom, Google Meet, atau Microsoft Teams. PilihLayar
-ditulis dari nol dengan SwiftUI dan ScreenCaptureKit, dengan kode asli.
+![Veil logo](Assets/veil-icon.png)
 
-## Fitur
+Veil is a free macOS app for presenting on screen: choose the windows or
+apps you want to show, arrange the canvas and camera, then share the
+Output window in Zoom, Google Meet, or Microsoft Teams. Veil is written
+from scratch with SwiftUI and ScreenCaptureKit, with original code.
 
-- **Sources**: daftar jendela yang dikelompokkan per aplikasi, dengan
-  pencarian, mode Allow List dan Block List, serta tombol Clear dan Refresh.
-- **Display**: pilih layar yang ditangkap, dengan penjelasan Full Display
-  dan Isolated di dalam popup.
-- **Framing & Canvas**: framing Full (seluruh layar) atau Dynamic
-  (area tangkapan mengikuti gabungan bingkai jendela yang dipilih);
-  kanvas Full Display atau Isolated, dengan latar abu-abu, putih, hitam,
-  atau gambar custom.
-- **Presets**: tiga preset bawaan (Presentasi, Demo Aplikasi, Layar Penuh),
-  plus preset custom yang bisa disimpan, diterapkan, dan dihapus.
-  Preset tersimpan di UserDefaults dengan key `PilihLayar.v2.presets`.
-- **Camera**: overlay kamera dengan 9 posisi, 3 bentuk (lingkaran, kotak,
-  membulat), ukuran 100–320, dan opsi mirror.
-- **Files**: sumber file PDF (navigasi halaman penuh lewat PDFKit) dan
-  PPT/PPTX (pratinjau slide pertama lewat QuickLook).
-- **Panic**: tombol Panik dan pintasan `Cmd+Shift+P` langsung menghitamkan
-  output dan menghentikan capture.
-- **Always on Top**: jendela kontrol dibuat floating secara default,
-  sedangkan jendela Output dibiarkan normal supaya tidak menutupi
-  pekerjaan lain.
-- **Pintasan**: `Cmd+Shift+P` untuk Panik, `Cmd+Shift+S` untuk
-  Mulai/Berhenti Stream.
+The idea behind the name: a veil sits between your desktop and your
+audience. Only what you lift the veil for is seen. Everything else —
+other windows, notifications, private chats — stays behind it. Panic
+drops the veil instantly.
 
-## Cara build via Xcode
+## Features
 
-1. Buka folder proyek ini di Xcode, atau jalankan dari Terminal:
+- **Sources**: windows grouped by app, with search, Allow List and
+  Block List modes, plus Clear and Refresh. The list refreshes every
+  time Sources is opened, and includes windows that are minimized or
+  on another Space, not just windows currently on screen. Windows with
+  an empty title are shown under their app name.
+- **Display**: choose the display to capture, with Full Display and
+  Isolated explanations inside the popup.
+- **Framing & Canvas**: framing Full (the whole display) or Dynamic
+  (the capture area follows the combined frames of the selected
+  windows); canvas Full Display or Isolated, with gray, white, black,
+  or custom image backgrounds.
+- **Presets**: no built-in presets — only presets you create yourself,
+  which can be saved, applied, replaced, and deleted. A preset stores
+  the mode, framing, canvas, windows, display, camera, and the active
+  file. Presets are stored in UserDefaults under the key
+  `Veil.v2.presets` (presets saved under the previous app name are
+  migrated automatically on first launch).
+- **Camera**: camera overlay with 9 positions, 3 shapes (circle, square,
+  rounded), size 100–320, and a mirror option. The camera is on by
+  default at size 110.
+- **Files**: PDF sources (full page navigation via PDFKit) and
+  PPT/PPTX sources (first-slide preview via QuickLook).
+- **Panic**: the Panic button and the `Cmd+Shift+P` shortcut black out
+  the output and stop capture immediately.
+- **Always on Top**: the control window floats by default, while the
+  Output window stays normal so it does not cover other work.
+- **Shortcuts**: `Cmd+Shift+P` for Panic, `Cmd+Shift+S` for
+  Start/Stop Stream.
+
+## How to build with Xcode
+
+1. Open this project folder in Xcode, or run from Terminal:
    `swift build -c release`
-2. Izinkan Screen Recording dan Camera saat aplikasi pertama kali
-   memintanya (System Settings > Privacy & Security).
-3. Tekan Refresh, pilih jendela, tekan Mulai Stream, lalu buka Preview.
+2. Allow Screen Recording and Camera when the app first asks for them
+   (System Settings > Privacy & Security).
+3. Press Refresh, choose a window, press Start Stream, then open Preview.
 
-## Cara build via GitHub Actions
+## How to build with GitHub Actions
 
-Setiap push ke branch `main` (atau pemicu manual) menjalankan workflow
-`.github/workflows/build-macos.yml`: build release, membungkus biner
-menjadi `PilihLayar.app`, menandatangani secara ad-hoc, lalu mengunggah
-artefak bernama `PilihLayar-macOS`. Unduh artefak itu dari tab Actions
-di repositori, ekstrak, lalu buka dengan klik kanan > Open pada
-peluncuran pertama (tanda tangan ad-hoc bukan Developer ID).
+Every push to the `main` branch (or a manual trigger) runs the workflow
+`.github/workflows/build-macos.yml`: it builds in release mode, wraps
+the binary as `Veil.app` (bundle id `com.veil.app`, with the Veil icon
+generated from `Assets/veil-icon.png` when that file is present),
+signs it ad-hoc, then uploads an artifact named `Veil-macOS`.
+Download that artifact from the Actions tab of the repository, extract
+it, then right-click > Open on first launch (an ad-hoc signature is
+not a Developer ID signature).
 
-## Cara pakai
+## How to use
 
-1. Tekan Refresh dan pilih jendela di popup Sources.
-2. Atur Display, Framing, Canvas, dan Camera bila perlu, atau terapkan
-   sebuah preset.
-3. Tekan Mulai Stream, lalu tekan Preview untuk membuka jendela
-   "PilihLayar Output — bagikan jendela ini".
-4. Di Zoom/Meet/Teams, pilih Share Screen > Window > jendela Output
-   tersebut, bukan seluruh layar.
-5. Untuk menyembunyikan output seketika, tekan Panik
-   (`Cmd+Shift+P`). Tekan Mulai Stream lagi untuk melanjutkan.
+1. Press Refresh and choose windows in the Sources popup.
+2. Adjust Display, Framing, Canvas, and Camera if needed, or apply
+   a preset.
+3. Press Start Stream, then press Preview to open the
+   "Veil Output — share this window" window.
+4. In Zoom/Meet/Teams, choose Share Screen > Window > that Output
+   window, not the whole display.
+5. To hide the output instantly, press Panic
+   (`Cmd+Shift+P`). Press Start Stream again to resume.
 
-## Yang sengaja tidak ada
+## What is deliberately not included
 
-- **Tanpa sistem lisensi**: aplikasi ini gratis dan tidak punya validasi
-  lisensi, kunci, aktivasi, atau pembatasan preset berbayar.
-- **Tanpa kamera virtual / DriverKit**: tidak ada kamera virtual.
-  Yang dibagikan adalah jendela Output biasa.
-- **Tanpa menyalin aset/branding aplikasi referensi**: nama, ikon,
-  aset, dan kalimat dari aplikasi lain tidak dipakai di sini.
-  Yang ditiru hanyalah gagasan fungsinya, diimplementasikan ulang
-  dengan kode asli.
-- **PPT hanya pratinjau slide pertama**: macOS tidak punya renderer
-  slide-per-slide bawaan untuk PPT/PPTX, jadi yang ditampilkan adalah
-  thumbnail QuickLook. Untuk navigasi slide penuh, konversi PPT ke PDF
-  dulu, lalu tambahkan PDF-nya sebagai sumber file.
+- **No license system**: the app is free, with no license validation,
+  keys, activation, or paid preset limits.
+- **No virtual camera / DriverKit**: there is no virtual camera.
+  What is shared is a regular Output window.
+- **No copied assets or branding from a reference app**: the name,
+  icon, assets, and wording of other apps are not used here.
+  Only the functional idea is reimplemented, with original code.
+- **PPT is first-slide preview only**: macOS has no built-in
+  per-slide renderer for PPT/PPTX, so what is shown is the QuickLook
+  thumbnail. For full slide navigation, convert the PPT to PDF first,
+  then add the PDF as a file source.

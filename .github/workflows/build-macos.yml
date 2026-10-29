@@ -14,34 +14,52 @@ jobs:
       - name: Build (release)
         run: swift build -c release
 
-      - name: Bungkus jadi PilihLayar.app
+      - name: Wrap as Veil.app (with icon when present)
         run: |
-          mkdir -p PilihLayar.app/Contents/MacOS
-          cp .build/release/PilihLayar PilihLayar.app/Contents/MacOS/PilihLayar
-          chmod +x PilihLayar.app/Contents/MacOS/PilihLayar
-          cat > PilihLayar.app/Contents/Info.plist <<'EOF'
+          mkdir -p Veil.app/Contents/MacOS Veil.app/Contents/Resources
+          cp .build/release/Veil Veil.app/Contents/MacOS/Veil
+          chmod +x Veil.app/Contents/MacOS/Veil
+          ICON_KEY=""
+          if [ -f Assets/veil-icon.png ]; then
+            mkdir -p Veil.iconset
+            sips -z 16 16     Assets/veil-icon.png --out Veil.iconset/icon_16x16.png
+            sips -z 32 32     Assets/veil-icon.png --out Veil.iconset/icon_16x16@2x.png
+            sips -z 32 32     Assets/veil-icon.png --out Veil.iconset/icon_32x32.png
+            sips -z 64 64     Assets/veil-icon.png --out Veil.iconset/icon_32x32@2x.png
+            sips -z 128 128   Assets/veil-icon.png --out Veil.iconset/icon_128x128.png
+            sips -z 256 256   Assets/veil-icon.png --out Veil.iconset/icon_128x128@2x.png
+            sips -z 256 256   Assets/veil-icon.png --out Veil.iconset/icon_256x256.png
+            sips -z 512 512   Assets/veil-icon.png --out Veil.iconset/icon_256x256@2x.png
+            sips -z 512 512   Assets/veil-icon.png --out Veil.iconset/icon_512x512.png
+            sips -z 1024 1024 Assets/veil-icon.png --out Veil.iconset/icon_512x512@2x.png
+            iconutil -c icns Veil.iconset
+            cp Veil.icns Veil.app/Contents/Resources/Veil.icns
+            ICON_KEY="<key>CFBundleIconFile</key><string>Veil</string>"
+          fi
+          cat > Veil.app/Contents/Info.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
-            <key>CFBundleExecutable</key><string>PilihLayar</string>
-            <key>CFBundleIdentifier</key><string>com.pilihlayar.app</string>
-            <key>CFBundleName</key><string>PilihLayar</string>
+            <key>CFBundleExecutable</key><string>Veil</string>
+            <key>CFBundleIdentifier</key><string>com.veil.app</string>
+            <key>CFBundleName</key><string>Veil</string>
+            $ICON_KEY
             <key>CFBundlePackageType</key><string>APPL</string>
             <key>CFBundleShortVersionString</key><string>1.0</string>
             <key>LSMinimumSystemVersion</key><string>14.0</string>
-            <key>NSCameraUsageDescription</key><string>PilihLayar memakai kamera untuk overlay kamera saat presentasi.</string>
+            <key>NSCameraUsageDescription</key><string>Veil uses the camera for the camera overlay during presentations.</string>
             <key>NSHighResolutionCapable</key><true/>
           </dict>
           </plist>
           EOF
-          codesign --force --deep --sign - PilihLayar.app
-          codesign --verify --verbose PilihLayar.app || true
-          ditto -c -k --keepParent PilihLayar.app PilihLayar-macOS.zip
-          ls -lh PilihLayar-macOS.zip
+          codesign --force --deep --sign - Veil.app
+          codesign --verify --verbose Veil.app || true
+          ditto -c -k --keepParent Veil.app Veil-macOS.zip
+          ls -lh Veil-macOS.zip
 
-      - name: Upload hasil build
+      - name: Upload build result
         uses: actions/upload-artifact@v4
         with:
-          name: PilihLayar-macOS
-          path: PilihLayar-macOS.zip
+          name: Veil-macOS
+          path: Veil-macOS.zip

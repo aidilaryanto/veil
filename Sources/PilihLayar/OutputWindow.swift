@@ -24,7 +24,7 @@ final class FileControlWindowStore {
     private init() {}
 }
 
-extension PilihLayarModel {
+extension VeilModel {
     func openFileControlWindow() {
         if let window = FileControlWindowStore.shared.window {
             window.makeKeyAndOrderFront(nil)
@@ -36,7 +36,7 @@ extension PilihLayarModel {
             backing: .buffered,
             defer: false
         )
-        window.title = "PilihLayar Kontrol File"
+        window.title = "Veil File Control"
         window.level = .floating
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: FileControlView().environmentObject(self))
@@ -83,7 +83,7 @@ extension PilihLayarModel {
             backing: .buffered,
             defer: false
         )
-        window.title = "PilihLayar Preview — pratinjau, bukan untuk di-share"
+        window.title = "Veil Preview — preview only, not for sharing"
         window.level = .floating
         window.isReleasedWhenClosed = false
         window.contentAspectRatio = NSSize(width: 16, height: 9)
@@ -124,7 +124,7 @@ extension PilihLayarModel {
             backing: .buffered,
             defer: false
         )
-        window.title = "PilihLayar Output — bagikan jendela ini"
+        window.title = "Veil Output — share this window"
         window.contentAspectRatio = NSSize(width: 16, height: 9)
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden

@@ -2,14 +2,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "PilihLayar",
+    name: "Veil",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "PilihLayar", targets: ["PilihLayar"])
+        .executable(name: "Veil", targets: ["Veil"])
     ],
     targets: [
         .executableTarget(
-            name: "PilihLayar",
+            name: "Veil",
             path: "Sources/PilihLayar"
         )
     ]

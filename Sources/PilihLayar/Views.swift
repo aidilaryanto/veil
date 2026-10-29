@@ -70,7 +70,7 @@ extension View {
 // MARK: - Jendela kontrol utama (control bar, grid 5x2)
 
 struct ContentView: View {
-    @EnvironmentObject var model: PilihLayarModel
+    @EnvironmentObject var model: VeilModel
     @State private var popup: PopupKind?
     @State private var newPresetName = ""
 
@@ -151,7 +151,7 @@ struct ContentView: View {
             }
             .allowsHitTesting(false)
             VStack(alignment: .leading, spacing: 2) {
-                Text(model.isSharing ? "Stream Running" : "Stream Berhenti")
+                Text(model.isSharing ? "Stream Running" : "Stream Stopped")
                     .font(.headline)
                 Text("\(model.appCount) apps • \(model.sources.count) windows")
                     .font(.caption)
@@ -188,7 +188,7 @@ struct ContentView: View {
                     .fill(Color.black.opacity(0.45))
             )
             .contentShape(RoundedRectangle(cornerRadius: 8))
-            .help(model.isSharing ? "Berhenti Stream" : "Mulai Stream")
+            .help(model.isSharing ? "Stop Stream" : "Start Stream")
             .pointingHandOnHover()
             Button {
                 model.togglePause()
@@ -203,7 +203,7 @@ struct ContentView: View {
                     .fill(Color.black.opacity(0.45))
             )
             .contentShape(RoundedRectangle(cornerRadius: 8))
-            .help(model.isPaused ? "Lanjutkan" : "Pause")
+            .help(model.isPaused ? "Resume" : "Pause")
             .pointingHandOnHover()
             .disabled(!model.isSharing)
             Toggle("Always on Top", isOn: $model.alwaysOnTop)
@@ -253,12 +253,12 @@ struct ContentView: View {
             gridButton(title: "Sources", subtitle: "\(model.selectedWindowIDs.count) rules", icon: "list.bullet") { popup = .sources }
             gridButton(title: "Display", subtitle: model.displaySubtitle, icon: "display") { popup = .display }
             gridButton(title: "Frame", subtitle: model.framing.rawValue, icon: "rectangle") { popup = .frame }
-            gridButton(title: "Panic", subtitle: model.isPanic ? "Aktif" : "Blank now", icon: "hand.raised", tint: .red) {
+            gridButton(title: "Panic", subtitle: model.isPanic ? "Active" : "Blank now", icon: "hand.raised", tint: .red) {
                 model.togglePanic()
             }
             gridButton(title: "Mode", subtitle: model.mode == .allow ? "Allow List" : "Block List", icon: "switch.2") { popup = .mode }
             gridButton(title: "Canvas", subtitle: model.canvasBackground == .custom ? "Image" : model.canvasBackground.rawValue.capitalized, icon: "photo") { popup = .canvas }
-            gridButton(title: "Presets", subtitle: model.activePreset?.name ?? "Pilih", icon: "bookmark") { popup = .presets }
+            gridButton(title: "Presets", subtitle: model.activePreset?.name ?? "Choose", icon: "bookmark") { popup = .presets }
             gridButton(title: "Camera", subtitle: model.cameraEnabled ? "On" : "Off", icon: "video") { popup = .camera }
             gridButton(title: "Quit", subtitle: "Exit app", icon: "power", tint: .red) {
                 NSApplication.shared.terminate(nil)
@@ -291,7 +291,8 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
-        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .padding(4)
+        .contentShape(Rectangle())
         .pointingHandOnHover()
     }
 
@@ -310,7 +311,7 @@ struct ContentView: View {
             .buttonStyle(.plain)
             .contentShape(Circle())
             .pointingHandOnHover()
-            .help("Tutup")
+            .help("Close")
         }
     }
 
@@ -319,7 +320,7 @@ struct ContentView: View {
     private var sourcesPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
             popupHeader("Sources")
-            TextField("Cari aplikasi / jendela…", text: $model.searchText)
+            TextField("Search apps / windows…", text: $model.searchText)
                 .textFieldStyle(.roundedBorder)
             Picker("Mode", selection: $model.mode) {
                 ForEach(ShareMode.allCases, id: \.self) { mode in
@@ -330,8 +331,13 @@ struct ContentView: View {
             .onChange(of: model.mode) { _, _ in
                 if model.isSharing { model.restartCapture() }
             }
+            Text(model.visibleSources.isEmpty
+                 ? (model.sources.isEmpty ? model.status : "No matching windows for this search.")
+                 : "\(model.visibleSources.count) windows in \(Set(model.visibleSources.map { $0.appName }).count) apps")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             if model.visibleSources.isEmpty {
-                Text("No Matching Sources")
+                Text(model.sources.isEmpty ? "No windows found. Press Refresh, and check Screen Recording permission if the list stays empty." : "No Matching Sources")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 20)
@@ -361,20 +367,23 @@ struct ContentView: View {
                         }
                     }
                 }
-                .frame(maxHeight: 320)
+                .frame(maxHeight: .infinity)
             }
             Divider()
             FileTwoPartControl(showPageControls: false)
             HStack {
                 Button("Clear") { model.clearSelection() }
+                    .contentShape(Rectangle())
                     .pointingHandOnHover()
                 Spacer()
                 Button("Refresh") { model.refreshSources() }
+                    .contentShape(Rectangle())
                     .pointingHandOnHover()
             }
         }
         .padding(16)
-        .frame(width: 430)
+        .frame(width: 430, height: 640)
+        .onAppear { model.refreshSources() }
     }
 
     // MARK: - Popup Display
@@ -382,19 +391,19 @@ struct ContentView: View {
     private var displayPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
             popupHeader("Display")
-            Picker("Layar", selection: $model.selectedDisplayID) {
+            Picker("Display", selection: $model.selectedDisplayID) {
                 ForEach(model.displays, id: \.displayID) { display in
-                    Text("Layar \(display.displayID) (\(display.width)x\(display.height))")
+                    Text("Display \(display.displayID) (\(display.width)x\(display.height))")
                         .tag(Optional(display.displayID))
                 }
             }
             .onChange(of: model.selectedDisplayID) { _, _ in
                 if model.isSharing { model.restartCapture() }
             }
-            Text("Canvas — penjelasan singkat")
+            Text("Canvas — a quick explanation")
                 .font(.subheadline).bold()
-            Text("Full Display: kanvas mengisi seluruh layar yang dipilih, jadi output selalu memenuhi jendela Output.")
-            Text("Isolated: hanya jendela yang dipilih yang ditampilkan di atas latar kanvas, dengan ruang kosong di sekelilingnya.")
+            Text("Full Display: the canvas fills the selected display, so the output always fills the Output window.") 
+            Text("Isolated: only the selected windows are shown on top of the canvas background, with empty space around them.") 
             Spacer()
         }
         .padding(16)
@@ -414,7 +423,7 @@ struct ContentView: View {
             .onChange(of: model.framing) { _, _ in
                 if model.isSharing { model.restartCapture() }
             }
-            Text("Full: seluruh layar ditangkap. Dynamic: area tangkapan mengikuti gabungan bingkai jendela yang dipilih.")
+            Text("Full: the entire display is captured. Dynamic: the capture area follows the combined frames of the selected windows.") 
                 .font(.caption).foregroundStyle(.secondary)
             Spacer()
         }
@@ -433,7 +442,7 @@ struct ContentView: View {
             .onChange(of: model.mode) { _, _ in
                 if model.isSharing { model.restartCapture() }
             }
-            Text("Allow List: hanya jendela yang dipilih yang dibagikan. Block List: semua dibagikan kecuali jendela yang dipilih.")
+            Text("Allow List: only the selected windows are shared. Block List: everything is shared except the selected windows.") 
                 .font(.caption).foregroundStyle(.secondary)
             Spacer()
         }
@@ -450,8 +459,8 @@ struct ContentView: View {
                 Text("Isolated").tag(CanvasMode.isolated)
             }
             .pickerStyle(.segmented)
-            Text("Latar").font(.subheadline).bold()
-            Picker("Latar", selection: $model.canvasBackground) {
+            Text("Background").font(.subheadline).bold()
+            Picker("Background", selection: $model.canvasBackground) {
                 Text("Gray").tag(CanvasBackground.gray)
                 Text("White").tag(CanvasBackground.white)
                 Text("Black").tag(CanvasBackground.black)
@@ -459,7 +468,7 @@ struct ContentView: View {
             }
             .pickerStyle(.segmented)
             if model.canvasBackground == .custom {
-                Button(model.canvasImage == nil ? "Pilih Gambar…" : "Ganti Gambar…") {
+                Button(model.canvasImage == nil ? "Choose Image…" : "Change Image…") {
                     pickCanvasImage()
                 }
                 .pointingHandOnHover()
@@ -490,7 +499,7 @@ struct ContentView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     if model.presets.isEmpty {
-                        Text("Belum ada preset. Buat preset dari setup saat ini lewat Save Current di bawah.")
+                        Text("No presets yet. Create one from the current setup with Save Current below.") 
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .padding(.vertical, 12)
@@ -507,7 +516,7 @@ struct ContentView: View {
                                 }
                             }
                             Spacer()
-                            Button("Terapkan") { model.applyPreset(preset) }
+                            Button("Apply") { model.applyPreset(preset) }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
                                 .tint(model.activePresetID == preset.id ? Color.accentColor : Color.secondary)
@@ -515,9 +524,9 @@ struct ContentView: View {
                             Button("Replace") { model.replacePreset(preset) }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
-                                .help("Timpa preset ini dengan setup saat ini")
+                                .help("Replace this preset with the current setup")
                                 .pointingHandOnHover()
-                            Button("Hapus") { model.deletePreset(preset) }
+                            Button("Delete") { model.deletePreset(preset) }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
                                 .pointingHandOnHover()
@@ -527,11 +536,11 @@ struct ContentView: View {
             }
             .frame(maxHeight: 240)
             Divider()
-            Text("Tips: ketik nama preset yang sudah ada lalu Save Current untuk me-replace-nya, atau pakai tombol Replace di baris preset.")
+            Text("Tip: type the name of an existing preset and press Save Current to replace it, or use the Replace button on a preset row.") 
                 .font(.caption)
                 .foregroundStyle(.secondary)
             HStack {
-                TextField("Nama preset baru", text: $newPresetName)
+                TextField("New preset name", text: $newPresetName)
                     .textFieldStyle(.roundedBorder)
                 Button("Save Current") {
                     model.saveCurrentAsPreset(named: newPresetName)
@@ -550,7 +559,7 @@ struct ContentView: View {
     private var cameraPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
             popupHeader("Camera")
-            Toggle("Aktifkan kamera", isOn: $model.cameraEnabled)
+            Toggle("Enable camera", isOn: $model.cameraEnabled)
             Toggle("Mirror", isOn: $model.cameraMirrored)
             HStack {
                 Text("Ukuran")
@@ -585,17 +594,17 @@ struct ContentView: View {
 }
 
 struct FileTwoPartControl: View {
-    @EnvironmentObject var model: PilihLayarModel
+    @EnvironmentObject var model: VeilModel
     var showPageControls: Bool = true
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("File PDF / PPT").font(.subheadline).bold()
-                Text("PDF: halaman penuh. PPT/PPTX: slide pertama (QuickLook).")
+                Text("PDF: full pages. PPT/PPTX: first slide (QuickLook).") 
                     .font(.caption).foregroundStyle(.secondary)
                 if model.fileSources.isEmpty {
-                    Text("Belum ada file.")
+                    Text("No files yet.") 
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 ForEach(model.fileSources) { file in
@@ -614,7 +623,7 @@ struct FileTwoPartControl: View {
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(model.activeFileID == file.id ? Color.accentColor : Color.primary)
-                        .help("Tampilkan file ini")
+                        .help("Show this file")
                         .contentShape(Rectangle())
                         .pointingHandOnHover()
                         Button {
@@ -625,7 +634,7 @@ struct FileTwoPartControl: View {
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(.secondary)
-                        .help("Hapus file")
+                        .help("Delete file")
                         .contentShape(Circle())
                         .pointingHandOnHover()
                     }
@@ -669,7 +678,7 @@ struct FileTwoPartControl: View {
                             .fill(Color.black.opacity(0.45))
                     )
                     .disabled(model.filePageIndex == 0)
-                    .help("Halaman sebelumnya")
+                    .help("Previous page")
                     .contentShape(RoundedRectangle(cornerRadius: 12))
                     .pointingHandOnHover()
                     Button {
@@ -687,7 +696,7 @@ struct FileTwoPartControl: View {
                             .fill(Color.black.opacity(0.45))
                     )
                     .disabled(model.filePageIndex + 1 >= active.pageCount)
-                    .help("Halaman berikutnya")
+                    .help("Next page")
                     .contentShape(RoundedRectangle(cornerRadius: 12))
                     .pointingHandOnHover()
                     Button {
@@ -704,7 +713,7 @@ struct FileTwoPartControl: View {
                         RoundedRectangle(cornerRadius: 12)
                             .fill(Color.black.opacity(0.45))
                     )
-                    .help("Tutup file")
+                    .help("Close file")
                     .contentShape(RoundedRectangle(cornerRadius: 12))
                     .pointingHandOnHover()
                 } else {
@@ -719,7 +728,7 @@ struct FileTwoPartControl: View {
 }
 
 struct FileControlView: View {
-    @EnvironmentObject var model: PilihLayarModel
+    @EnvironmentObject var model: VeilModel
 
     var body: some View {
         FileTwoPartControl(showPageControls: true)
@@ -729,7 +738,7 @@ struct FileControlView: View {
 }
 
 struct PreviewContentView: View {
-    @EnvironmentObject var model: PilihLayarModel
+    @EnvironmentObject var model: VeilModel
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -764,7 +773,7 @@ struct PreviewContentView: View {
 // MARK: - Jendela Output
 
 struct OutputContentView: View {
-    @EnvironmentObject var model: PilihLayarModel
+    @EnvironmentObject var model: VeilModel
 
     var body: some View {
         ZStack {
@@ -827,7 +836,7 @@ struct OutputContentView: View {
                 Image(systemName: "rectangle.on.rectangle")
                     .font(.largeTitle)
                     .foregroundStyle(.secondary)
-                Text("Belum ada pratinjau. Mulai Stream atau tampilkan file.")
+                Text("No preview yet. Start the stream or show a file.") 
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
