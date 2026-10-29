@@ -5,36 +5,28 @@ import QuickLookThumbnailing
 import ScreenCaptureKit
 import SwiftUI
 import UniformTypeIdentifiers
-
-// MARK: - Tipe data
-
 struct SourceItem: Identifiable, Hashable {
     let id: CGWindowID
     let appName: String
     let title: String
 }
-
 enum ShareMode: String, CaseIterable, Codable {
     case allow = "Allow"
     case block = "Block"
 }
-
 enum Framing: String, CaseIterable, Codable {
     case full = "Full"
     case dynamic = "Dynamic"
 }
-
 enum CanvasMode: String, CaseIterable, Codable {
     case fullDisplay = "Full Display"
     case isolated = "Isolated"
 }
-
 enum CanvasBackground: String, CaseIterable, Codable {
     case gray = "gray"
     case white = "white"
     case black = "black"
     case custom = "custom"
-
     var color: Color {
         switch self {
         case .gray: return Color(nsColor: .darkGray)
@@ -43,12 +35,10 @@ enum CanvasBackground: String, CaseIterable, Codable {
         }
     }
 }
-
 enum CameraPosition: String, CaseIterable, Codable {
     case topLeft, topCenter, topRight
     case middleLeft, middleCenter, middleRight
     case bottomLeft, bottomCenter, bottomRight
-
     var alignment: Alignment {
         switch self {
         case .topLeft: return .topLeading
@@ -62,7 +52,6 @@ enum CameraPosition: String, CaseIterable, Codable {
         case .bottomRight: return .bottomTrailing
         }
     }
-
     var label: String {
         switch self {
         case .topLeft: return "Top left"
@@ -77,29 +66,24 @@ enum CameraPosition: String, CaseIterable, Codable {
         }
     }
 }
-
 enum CameraShape: String, CaseIterable, Codable {
     case circle = "Circle"
     case square = "Square"
     case rounded = "Rounded"
 }
-
 enum FileKind: String, Codable {
     case pdf = "PDF"
     case ppt = "PPT"
 }
-
 struct FileSource: Identifiable, Hashable {
     let id = UUID()
     let name: String
     let url: URL
     let kind: FileKind
     let pageCount: Int
-
     static func == (lhs: FileSource, rhs: FileSource) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
-
 struct Preset: Identifiable, Codable {
     var id = UUID()
     var name: String
@@ -120,9 +104,6 @@ struct Preset: Identifiable, Codable {
     var fileKind: FileKind? = nil
     var filePageIndex: Int = 0
 }
-
-// MARK: - Model utama
-
 @MainActor
 final class VeilModel: NSObject, ObservableObject {
     @Published var sources: [SourceItem] = []
@@ -150,36 +131,15 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var activePresetID: UUID?
     @Published var isPreviewVisible = false
     @Published var isOutputVisible = false
-    /// Rasio (lebar / tinggi) dari sumber yang sedang ditampilkan.
-    /// Default 16:9, tapi diperbarui setiap kali sumber berubah:
-    /// jendela yang dipilih, gabungan jendela (framing Dynamic),
-    /// layar (framing Full / Block), atau frame stream yang masuk.
-    /// Jendela Output dan Preview memakai rasio ini (bukan 16:9
-    /// tetap), supaya sumber yang bukan 16:9 tidak terpotong oleh
-    /// scaledToFill di dalam jendela 16:9.
     @Published var sourceAspectRatio: CGFloat = 16.0 / 9.0
     @Published var fileSources: [FileSource] = []
     @Published var activeFileID: UUID?
     @Published var filePageIndex = 0
     @Published var filePreviewImage: NSImage?
-
-    /// Apakah ada frame stream yang LAYAK ditampilkan (bukan
-    /// sekadar previewImage != nil). Kasus yang dilaporkan:
-    /// pertama kali Start dengan mode Allow tapi belum ada
-    /// jendela yang dipilih — SCStream tetap berjalan dan
-    /// mengirim frame layar hitam (semua jendela di-exclude)
-    /// + kursor, sehingga Output/Preview menampilkan layar
-    /// hitam berkursor, bukan placeholder "No preview yet".
-    /// Jadi frame stream hanya layak tampil kalau sedang sharing
-    /// DAN ada frame-nya DAN bukan kasus Allow tanpa pilihan
-    /// (yang memang tidak ada sumber untuk ditampilkan).
-    /// Mode Block tanpa pilihan justru valid: itu berarti
-    /// share seluruh layar (tidak ada yang di-block).
     var shouldShowStreamPreview: Bool {
         isSharing && previewImage != nil
             && !(mode == .allow && selectedWindowIDs.isEmpty)
     }
-
     private var capturedWindows: [SCWindow] = []
     private var stream: SCStream?
     private var pdfDocument: PDFDocument?
@@ -187,17 +147,14 @@ final class VeilModel: NSObject, ObservableObject {
     private var lastCaptureSignature = ""
     private let presetsKey = "Veil.v2.presets"
     private let legacyPresetsKey = "PilihLayar.v2.presets"
-
     override init() {
         super.init()
         loadPresets()
     }
-
     var activeFile: FileSource? {
         guard let id = activeFileID else { return nil }
         return fileSources.first { $0.id == id }
     }
-
     var visibleSources: [SourceItem] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else { return sources }
@@ -205,37 +162,23 @@ final class VeilModel: NSObject, ObservableObject {
             $0.appName.lowercased().contains(query) || $0.title.lowercased().contains(query)
         }
     }
-
     var appCount: Int {
         Set(sources.map { $0.appName }).count
     }
-
     var activePreset: Preset? {
         guard let id = activePresetID else { return nil }
         return presets.first { $0.id == id }
     }
-
     var displaySubtitle: String {
         if let display = displays.first(where: { $0.displayID == selectedDisplayID }) {
             return "\(display.width)x\(display.height)"
         }
         return displays.isEmpty ? "Choose a display" : "Display \(selectedDisplayID ?? 0)"
     }
-
     var groupedSources: [(app: String, items: [SourceItem])] {
         let grouped = Dictionary(grouping: visibleSources, by: { $0.appName })
         return grouped.keys.sorted().map { (app: $0, items: grouped[$0] ?? []) }
     }
-
-    /// Menghitung ulang sourceAspectRatio dari sumber yang sedang
-    /// ditampilkan, dengan prioritas: file yang sedang tampil >
-    /// frame stream (kalau sedang sharing) > frame jendela yang
-    /// dipilih (supaya ganti pilihan sebelum Start pun langsung
-    /// mengubah rasio Preview/Output, bukan tertahan frame lama) >
-    /// frame stream lama > gabungan frame (Dynamic) > layar yang
-    /// dipilih. Hanya mengubah nilai kalau rasionya benar-benar
-    /// berubah (> 0,01), supaya jendela Output/Preview tidak
-    /// di-resize setiap frame.
     func updateSourceAspectRatio() {
         var size: CGSize?
         if let image = filePreviewImage {
@@ -264,7 +207,6 @@ final class VeilModel: NSObject, ObservableObject {
             sourceAspectRatio = ratio
         }
     }
-
     func applyAlwaysOnTop() {
         for window in NSApp.windows {
             if window.title.contains("Output") {
@@ -276,21 +218,6 @@ final class VeilModel: NSObject, ObservableObject {
             }
         }
     }
-
-    // MARK: - Sumber (ScreenCaptureKit)
-
-    /// Mengubah daftar SCWindow mentah menjadi SourceItem tanpa duplikat.
-    /// ScreenCaptureKit dengan onScreenWindowsOnly: false mengembalikan
-    /// semua jendela milik sebuah aplikasi, termasuk jendela tersembunyi /
-    /// helper tanpa judul. Judul kosong diganti nama aplikasi, sehingga
-    /// satu aplikasi bisa tampil berkali-kali dengan baris yang identik
-    /// (mis. "Acrobat" tujuh kali di screenshot). Karena itu baris dengan
-    /// pasangan (appName, title) yang sama digabung jadi satu.
-    /// Urutan sebelum deduplikasi sengaja mendahulukan jendela aktif dan
-    /// on-screen, supaya windowID yang dipertahankan adalah jendela yang
-    /// benar-benar terlihat, bukan jendela helper tersembunyi. Jendela
-    /// minimized / Space lain tetap dipertahankan (hanya duplikatnya
-    /// yang dibuang), jadi perbaikan list kosong sebelumnya tidak mundur.
     private static func sourceItems(from windows: [SCWindow]) -> [SourceItem] {
         var seen = Set<String>()
         return windows
@@ -318,12 +245,9 @@ final class VeilModel: NSObject, ObservableObject {
                 return $0.title < $1.title
             }
     }
-
     func refreshSources() {
         Task {
             do {
-                // Label argumen di bawah ini adalah yang cocok dengan
-                // SDK terbaru; label lama sudah tidak diterima compiler.
                 let content = try await SCShareableContent.excludingDesktopWindows(
                     false, onScreenWindowsOnly: false
                 )
@@ -340,7 +264,6 @@ final class VeilModel: NSObject, ObservableObject {
             }
         }
     }
-
     func toggleSource(_ id: CGWindowID) {
         if selectedWindowIDs.contains(id) {
             selectedWindowIDs.remove(id)
@@ -350,36 +273,23 @@ final class VeilModel: NSObject, ObservableObject {
         updateSourceAspectRatio()
         if isSharing { restartCapture() }
     }
-
     func clearSelection() {
         selectedWindowIDs.removeAll()
         updateSourceAspectRatio()
         if isSharing { restartCapture() }
     }
-
-    // MARK: - Capture
-
     func toggleSharing() {
         if isSharing {
             stopCapture()
         } else {
-            // Start dari tombol Start/Stop (bukan restart):
-            // kosongkan frame lama dulu, supaya saat pertama
-            // kali distart — dan setiap start ulang setelah stop
-            // — yang tampil di Preview maupun Output adalah
-            // placeholder "No preview yet", bukan frame beku
-            // dari stream sebelumnya, sampai frame baru pertama
-            // dari SCStream benar-benar datang.
             previewImage = nil
             startCapture()
         }
     }
-
     func restartCapture() {
         stopCapture(keepSharing: true)
         startCapture()
     }
-
     func startCapture() {
         guard !isPanic else {
             status = "Panic mode is on, output is hidden."
@@ -395,16 +305,6 @@ final class VeilModel: NSObject, ObservableObject {
         config.minimumFrameInterval = CMTime(value: 1, timescale: 30)
         config.queueDepth = 5
         config.showsCursor = true
-        // Ketajaman: frame SCWindow dinyatakan dalam poin,
-        // sementara config.width/height adalah PIKSEL output. Di layar
-        // Retina (scale 2x), memakai ukuran poin apa adanya berarti
-        // capture hanya setengah resolusi piksel layar, lalu gambar
-        // itu di-upscale ke backing store 2x jendela Output — inilah
-        // yang terasa "terkompres" / buram. Jadi ukuran output
-        // dikalikan scale layar tempat sumber berada, supaya capture
-        // berjalan di resolusi piksel native dan tidak perlu
-        // di-upscale lagi. Untuk capture layar penuh, display.width
-        // sudah dalam piksel, jadi tidak dikalikan lagi.
         let scaleFactor: (CGRect) -> CGFloat = { rect in
             NSScreen.screens.first(where: { $0.frame.intersects(rect) })?.backingScaleFactor
                 ?? NSScreen.main?.backingScaleFactor ?? 1
@@ -463,12 +363,6 @@ final class VeilModel: NSObject, ObservableObject {
                         isSharing = true
                         status = "Sharing is live (\(selectedWindowIDs.count) windows). Share the Output window in Zoom/Meet/Teams."
                         startCaptureWatchdog()
-                        // Stream start => Output langsung muncul,
-                        // tanpa perlu menekan tombol mata lagi.
-                        // Hanya dibuka kalau belum terlihat, supaya
-                        // restart di tengah streaming (ganti preset /
-                        // sumber) tidak mengangkat Output ke depan
-                        // berulang-ulang dan mengganggu panel kontrol.
                         if !isOutputVisible {
                             openOutputWindow()
                         }
@@ -485,44 +379,18 @@ final class VeilModel: NSObject, ObservableObject {
             isSharing = false
         }
     }
-
     func stopCapture(keepSharing: Bool = false) {
         stopCaptureWatchdog()
         let oldStream = stream
         stream = nil
         if !keepSharing {
             isSharing = false
-            // Stream stop (tombol Stop maupun Panic) => kembali
-            // ke "No preview yet": frame terakhir stream dihapus,
-            // jadi Preview yang masih terbuka — dan Output kalau
-            // dibuka lagi manual lewat tombol mata — tidak lagi
-            // menampilkan frame beku terakhir, melainkan placeholder
-            // yang sama seperti saat aplikasi pertama kali dibuka
-            // (previewImage dan filePreviewImage sama-sama nil).
-            // Termasuk file PDF/PPT: Stop juga menutup tampilan
-            // file (closeFile — daftar file di Sources tetap ada,
-            // hanya yang sedang tampil yang ditutup, beserta
-            // flyer-nya), jadi Preview/Output tidak tertahan di
-            // halaman PDF/PPT terakhir, melainkan kembali ke
-            // placeholder. Restart (keepSharing: true) sengaja
-            // TIDAK menutup file, supaya ganti preset/sumber di
-            // tengah streaming tidak menghilangkan file yang
-            // sedang ditampilkan.
             previewImage = nil
             closeFile()
-            // Stream stop (tombol Stop maupun Panic) => Output
-            // langsung ditutup. Di Zoom/Meet, yang di-share adalah
-            // jendela Output ini, jadi begitu jendelanya hilang,
-            // share screen di Zoom/Meet ikut terhenti — Veil tidak
-            // punya API langsung ke Zoom/Meet, menutup sumber
-            // share-nya inilah caranya. Restart sengaja TIDAK
-            // menutup Output (keepSharing: true), supaya Output
-            // tidak berkedip hilang-muncul saat ganti preset/sumber.
             closeOutputWindow()
         }
         Task { try? await oldStream?.stopCapture() }
     }
-
     private func captureSignature() -> String {
         let ids = capturedWindows.map { String($0.windowID) }.sorted().joined(separator: ",")
         let frames = capturedWindows
@@ -532,7 +400,6 @@ final class VeilModel: NSObject, ObservableObject {
             .joined(separator: "|")
         return "\(mode.rawValue)|\(ids)|\(frames)"
     }
-
     private func startCaptureWatchdog() {
         stopCaptureWatchdog()
         guard !(mode == .allow && selectedWindowIDs.count == 1) else { return }
@@ -542,12 +409,10 @@ final class VeilModel: NSObject, ObservableObject {
             }
         }
     }
-
     private func stopCaptureWatchdog() {
         captureWatchdog?.invalidate()
         captureWatchdog = nil
     }
-
     private func checkCaptureStability() async {
         guard isSharing, stream != nil else { return }
         do {
@@ -564,11 +429,9 @@ final class VeilModel: NSObject, ObservableObject {
         } catch {
         }
     }
-
     func togglePause() {
         isPaused.toggle()
     }
-
     func togglePanic() {
         isPanic.toggle()
         if isPanic {
@@ -579,9 +442,6 @@ final class VeilModel: NSObject, ObservableObject {
             status = "Panic off. Press Start Stream to share again."
         }
     }
-
-    // MARK: - File PDF / PPT
-
     func openFilePicker() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
@@ -596,7 +456,6 @@ final class VeilModel: NSObject, ObservableObject {
             addFile(url: url)
         }
     }
-
     func addFile(url: URL) {
         let ext = url.pathExtension.lowercased()
         let name = url.lastPathComponent
@@ -610,9 +469,6 @@ final class VeilModel: NSObject, ObservableObject {
             activateFile(item)
             status = "PDF added: \(name) (\(document.pageCount) pages)."
         } else if ext == "ppt" || ext == "pptx" {
-            // macOS tidak punya renderer slide-per-slide bawaan untuk PPT.
-            // Pratinjau yang dipakai adalah thumbnail QuickLook, biasanya
-            // slide pertama. Untuk navigasi slide penuh, konversi ke PDF.
             let item = FileSource(name: name, url: url, kind: .ppt, pageCount: 1)
             fileSources.append(item)
             activateFile(item)
@@ -621,7 +477,6 @@ final class VeilModel: NSObject, ObservableObject {
             status = "Unsupported format: PDF, PPT, and PPTX only."
         }
     }
-
     func activateFile(_ item: FileSource) {
         activeFileID = item.id
         filePageIndex = 0
@@ -631,10 +486,6 @@ final class VeilModel: NSObject, ObservableObject {
             renderFilePage()
         } else {
             pdfDocument = nil
-            // SDK terbaru: QLThumbnailGenerator.Request dengan label fileAt:.
-            // scale = scale layar Retina (2x), bukan 1: thumbnail
-            // 1280x720 poin diraster jadi 2560x1440 piksel, supaya
-            // tidak di-upscale lagi di jendela Output.
             let request = QLThumbnailGenerator.Request(
                 fileAt: item.url,
                 size: CGSize(width: 1280, height: 720),
@@ -645,72 +496,42 @@ final class VeilModel: NSObject, ObservableObject {
                 guard let self, let image = representation?.nsImage else { return }
                 Task { @MainActor in
                     self.filePreviewImage = image
-                    // Thumbnail PPT baru diterima => rasio jendela
-                    // ikut rasio slide, supaya tidak ada bar canvas
-                    // di kiri/kanan seperti kasus PDF di bawah.
                     self.updateSourceAspectRatio()
                     self.applySourceRatioToWindows()
                 }
             }
         }
     }
-
     func closeFile() {
         activeFileID = nil
         pdfDocument = nil
         filePreviewImage = nil
         filePageIndex = 0
         closeFileControlWindow()
-        // Kembali ke rasio stream/sumber setelah file ditutup,
-        // supaya jendela tidak tertahan di rasio halaman file.
         updateSourceAspectRatio()
         applySourceRatioToWindows()
     }
-
     func removeFile(_ item: FileSource) {
         fileSources.removeAll { $0.id == item.id }
         if activeFileID == item.id { closeFile() }
     }
-
     func nextFilePage() {
         guard let item = activeFile, filePageIndex + 1 < item.pageCount else { return }
         filePageIndex += 1
         renderFilePage()
     }
-
     func previousFilePage() {
         guard filePageIndex > 0 else { return }
         filePageIndex -= 1
         renderFilePage()
     }
-
     private func renderFilePage() {
         guard let document = pdfDocument,
               let page = document.page(at: filePageIndex) else { return }
-        // Sebelumnya thumbnail dibatasi 1280x720: halaman PDF
-        // (misalnya A4 portrait) diraster kecil lalu di-upscale
-        // ke jendela Output yang backing store-nya 2x — hasilnya
-        // buram / seperti terkompres. Sekarang thumbnail diminta
-        // dalam kotak 3000x3000 (sisi panjang sampai 3000 piksel,
-        // rasio halaman dipertahankan), jadi Output tidak perlu
-        // meng-upscale lagi pada ukuran jendela biasa.
         filePreviewImage = page.thumbnail(of: NSSize(width: 3000, height: 3000), for: .mediaBox)
-        // AKAR BAR ABU-ABU di screenshot: fungsi ini sebelumnya
-        // tidak pernah memanggil updateSourceAspectRatio, jadi
-        // saat PDF dibuka / halaman diganti, jendela Output dan
-        // Preview tetap di rasio lama (misalnya 16:9 / rasio
-        // stream), sementara halaman PDF di-scaledToFit ke dalam
-        // jendela itu — selisih rasionya muncul sebagai bar
-        // canvas abu-abu (default canvasBackground .gray) di
-        // kiri dan kanan halaman. Sekarang rasio jendela ikut
-        // rasio halaman file, jadi halaman mengisi jendela penuh
-        // tanpa bar di kiri/kanan, dan tanpa tercrop (masih Fit).
         updateSourceAspectRatio()
         applySourceRatioToWindows()
     }
-
-    // MARK: - Preset
-
     func replacePreset(_ preset: Preset) {
         guard let index = presets.firstIndex(where: { $0.id == preset.id }) else { return }
         var updated = preset
@@ -734,7 +555,6 @@ final class VeilModel: NSObject, ObservableObject {
         persistPresets()
         status = "Preset '\(updated.name)' replaced with the current setup."
     }
-
     func saveCurrentAsPreset(named name: String) {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if !cleanName.isEmpty,
@@ -774,7 +594,6 @@ final class VeilModel: NSObject, ObservableObject {
         persistPresets()
         status = "Preset '\(preset.name)' saved."
     }
-
     func applyPreset(_ preset: Preset) {
         activePresetID = preset.id
         mode = preset.mode
@@ -819,19 +638,16 @@ final class VeilModel: NSObject, ObservableObject {
         if isSharing { restartCapture() }
         status = "Preset '\(preset.name)' applied."
     }
-
     func deletePreset(_ preset: Preset) {
         presets.removeAll { $0.id == preset.id }
         if activePresetID == preset.id { activePresetID = nil }
         persistPresets()
     }
-
     private func persistPresets() {
         if let data = try? JSONEncoder().encode(presets) {
             UserDefaults.standard.set(data, forKey: presetsKey)
         }
     }
-
     private func loadPresets() {
         let key = UserDefaults.standard.data(forKey: presetsKey) != nil ? presetsKey : legacyPresetsKey
         if let data = UserDefaults.standard.data(forKey: key),
@@ -845,9 +661,6 @@ final class VeilModel: NSObject, ObservableObject {
         persistPresets()
     }
 }
-
-// MARK: - SCStreamOutput
-
 extension VeilModel: SCStreamOutput {
     nonisolated func stream(
         _ stream: SCStream,
@@ -864,13 +677,8 @@ extension VeilModel: SCStreamOutput {
             size: NSSize(width: cgImage.width, height: cgImage.height)
         )
         Task { @MainActor in
-            // Saat dijeda, frame terakhir dibekukan: preview tidak diperbarui.
             if !self.isPaused {
                 self.previewImage = image
-                // Frame stream inilah "ukuran yang ditampilkan":
-                // kalau sumber di-resize, rasio frame ikut berubah
-                // dan jendela Output/Preview menyesuaikan lewat
-                // onChange sourceAspectRatio di Views.
                 self.updateSourceAspectRatio()
             }
         }

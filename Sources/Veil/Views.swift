@@ -1,15 +1,12 @@
 import AppKit
 import ScreenCaptureKit
 import SwiftUI
-
 enum PopupKind: String, Identifiable {
     case sources, display, frame, mode, canvas, presets, camera
     var id: String { rawValue }
 }
-
 struct VisualEffectView: NSViewRepresentable {
     var material: NSVisualEffectView.Material = .hudWindow
-
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
         view.material = material
@@ -18,13 +15,10 @@ struct VisualEffectView: NSViewRepresentable {
         view.appearance = NSAppearance(named: .darkAqua)
         return view
     }
-
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
-
 struct WindowAccessor: NSViewRepresentable {
     var onWindow: (NSWindow) -> Void
-
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         DispatchQueue.main.async {
@@ -32,29 +26,24 @@ struct WindowAccessor: NSViewRepresentable {
         }
         return view
     }
-
     func updateNSView(_ nsView: NSView, context: Context) {
         DispatchQueue.main.async {
             if let window = nsView.window { onWindow(window) }
         }
     }
 }
-
 final class WindowDragNSView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func mouseDown(with event: NSEvent) {
         window?.performDrag(with: event)
     }
 }
-
 struct WindowDragView: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         WindowDragNSView()
     }
-
     func updateNSView(_ nsView: NSView, context: Context) {}
 }
-
 extension View {
     func pointingHandOnHover() -> some View {
         onHover { hovering in
@@ -66,19 +55,11 @@ extension View {
         }
     }
 }
-
-// MARK: - Jendela kontrol utama (control bar, grid 5x2)
-
 struct ContentView: View {
     @EnvironmentObject var model: VeilModel
     @State private var popup: PopupKind?
     @State private var newPresetName = ""
-    // Konfirmasi Quit: bukan NSAlert / sheet sistem (yang
-    // tampilannya tidak dark transparent), melainkan overlay
-    // kartu di dalam panel utama — jadi gaya persis panel:
-    // blur hudWindow + hitam 0.25, rounded 20, stroke putih.
     @State private var showQuitConfirmation = false
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             WindowDragView()
@@ -102,9 +83,6 @@ struct ContentView: View {
                 Color.black.opacity(0.25)
             }
         )
-        // Overlay ini dipasang SEBELUM clipShape, supaya backdrop
-        // dan kartu konfirmasi ikut terpotong rounded 20 seperti
-        // panel, bukan menonjol kotak di sudut panel.
         .overlay {
             if showQuitConfirmation {
                 quitConfirmationView
@@ -135,7 +113,6 @@ struct ContentView: View {
             }
         }
     }
-
     private func configureFramelessWindow(_ window: NSWindow) {
         if !window.styleMask.contains(.fullSizeContentView)
             || window.styleMask.contains(.resizable) {
@@ -152,7 +129,6 @@ struct ContentView: View {
         window.hasShadow = false
         window.isMovableByWindowBackground = true
     }
-
     private var header: some View {
         HStack(spacing: 8) {
             ZStack(alignment: .bottomTrailing) {
@@ -172,10 +148,6 @@ struct ContentView: View {
             }
             .allowsHitTesting(false)
             Spacer()
-            // Pola yang sama seperti gridButton: background kotak
-            // ada DI DALAM label, jadi frame Button = kotak itu
-            // sendiri — klik di mana saja di dalam pill (bukan
-            // hanya di ikon mata / teks) menjalankan action.
             Button {
                 model.toggleOutputWindow()
             } label: {
@@ -228,7 +200,6 @@ struct ContentView: View {
         }
         .background(WindowDragView())
     }
-
     @ViewBuilder
     private var presetStrip: some View {
         if model.isSharing, !model.presets.isEmpty {
@@ -259,7 +230,6 @@ struct ContentView: View {
             }
         }
     }
-
     private var popupGrid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 8) {
             gridButton(title: "Preview", subtitle: model.isPreviewVisible ? "Visible" : "Hidden", icon: "eye", tint: model.isPreviewVisible ? Color.accentColor : nil) {
@@ -276,24 +246,10 @@ struct ContentView: View {
             gridButton(title: "Presets", subtitle: model.activePreset?.name ?? "Choose", icon: "bookmark") { popup = .presets }
             gridButton(title: "Camera", subtitle: model.cameraEnabled ? "On" : "Off", icon: "video") { popup = .camera }
             gridButton(title: "Quit", subtitle: "Exit app", icon: "power", tint: .red) {
-                // Dulu langsung terminate — satu klik tidak sengaja
-                // di kotak Quit langsung menutup aplikasi (dan
-                // menghentikan stream). Sekarang hanya membuka
-                // konfirmasi; keluar hanya terjadi lewat tombol
-                // Quit di dalam dialog itu.
                 showQuitConfirmation = true
             }
         }
     }
-
-    // Dialog konfirmasi Quit, gaya persis panel utama / File
-    // Control: blur hudWindow + hitam 0.25, rounded 20, stroke
-    // putih 0.12, shadow — bukan NSAlert / sheet sistem.
-    // Backdrop-nya adalah tombol yang membatalkan, jadi klik di
-    // luar kartu = batal, dan klik di belakang kartu tidak
-    // sampai ke tombol grid di bawahnya. Esc juga membatalkan;
-    // sengaja tidak ada shortcut Enter untuk Quit, supaya
-    // keluar tidak terjadi karena satu ketukan tidak sengaja.
     private var quitConfirmationView: some View {
         ZStack {
             Button {
@@ -367,20 +323,7 @@ struct ContentView: View {
             .shadow(color: Color.black.opacity(0.35), radius: 24, x: 0, y: 8)
         }
     }
-
     private func gridButton(title: String, subtitle: String, icon: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
-        // PENTING — kenapa cara lama gagal: sebelumnya background
-        // kotak dipasang DI LUAR Button, lalu ditambah
-        // .contentShape(Rectangle()). Di macOS, area klik NSButton
-        // mengikuti LABEL-nya, bukan wrapper di luar Button, jadi
-        // contentShape di luar itu tidak cukup: klik di area kosong
-        // box (di luar ikon/teks) tetap tidak sampai ke action.
-        // Perbaikannya: background kotak dipindah KE DALAM label,
-        // dan label dibuat mengisi penuh box (lebar penuh sel grid,
-        // tinggi 68). Dengan begitu frame Button = frame box itu
-        // sendiri, jadi klik di mana saja di dalam box — ikon,
-        // teks, sudut, maupun area kosong di antara keduanya —
-        // mengenai Button dan menjalankan action.
         Button(action: action) {
             VStack(spacing: 3) {
                 Image(systemName: icon)
@@ -407,7 +350,6 @@ struct ContentView: View {
         .buttonStyle(.plain)
         .pointingHandOnHover()
     }
-
     private func popupHeader(_ title: String) -> some View {
         HStack {
             Text(title).font(.headline)
@@ -426,9 +368,6 @@ struct ContentView: View {
             .help("Close")
         }
     }
-
-    // MARK: - Popup Sources
-
     private var sourcesPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
             popupHeader("Sources")
@@ -497,9 +436,6 @@ struct ContentView: View {
         .frame(width: 430, height: 640)
         .onAppear { model.refreshSources() }
     }
-
-    // MARK: - Popup Display
-
     private var displayPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
             popupHeader("Display")
@@ -514,16 +450,13 @@ struct ContentView: View {
             }
             Text("Canvas — a quick explanation")
                 .font(.subheadline).bold()
-            Text("Full Display: the canvas fills the selected display, so the output always fills the Output window.") 
-            Text("Isolated: only the selected windows are shown on top of the canvas background, with empty space around them.") 
+            Text("Full Display: the canvas fills the selected display, so the output always fills the Output window.")
+            Text("Isolated: only the selected windows are shown on top of the canvas background, with empty space around them.")
             Spacer()
         }
         .padding(16)
         .frame(width: 430, height: 300)
     }
-
-    // MARK: - Popup Canvas / Framing
-
     private var framingPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
             popupHeader("Frame")
@@ -535,14 +468,13 @@ struct ContentView: View {
             .onChange(of: model.framing) { _, _ in
                 if model.isSharing { model.restartCapture() }
             }
-            Text("Full: the entire display is captured. Dynamic: the capture area follows the combined frames of the selected windows.") 
+            Text("Full: the entire display is captured. Dynamic: the capture area follows the combined frames of the selected windows.")
                 .font(.caption).foregroundStyle(.secondary)
             Spacer()
         }
         .padding(16)
         .frame(width: 430, height: 200)
     }
-
     private var modePopup: some View {
         VStack(alignment: .leading, spacing: 10) {
             popupHeader("Mode")
@@ -554,14 +486,13 @@ struct ContentView: View {
             .onChange(of: model.mode) { _, _ in
                 if model.isSharing { model.restartCapture() }
             }
-            Text("Allow List: only the selected windows are shared. Block List: everything is shared except the selected windows.") 
+            Text("Allow List: only the selected windows are shared. Block List: everything is shared except the selected windows.")
                 .font(.caption).foregroundStyle(.secondary)
             Spacer()
         }
         .padding(16)
         .frame(width: 430, height: 200)
     }
-
     private var canvasPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
             popupHeader("Canvas")
@@ -590,7 +521,6 @@ struct ContentView: View {
         .padding(16)
         .frame(width: 430, height: 340)
     }
-
     private func pickCanvasImage() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
@@ -602,16 +532,13 @@ struct ContentView: View {
             model.canvasBackground = .custom
         }
     }
-
-    // MARK: - Popup Presets
-
     private var presetsPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
             popupHeader("Presets")
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     if model.presets.isEmpty {
-                        Text("No presets yet. Create one from the current setup with Save Current below.") 
+                        Text("No presets yet. Create one from the current setup with Save Current below.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .padding(.vertical, 12)
@@ -648,7 +575,7 @@ struct ContentView: View {
             }
             .frame(maxHeight: 240)
             Divider()
-            Text("Tip: type the name of an existing preset and press Save Current to replace it, or use the Replace button on a preset row.") 
+            Text("Tip: type the name of an existing preset and press Save Current to replace it, or use the Replace button on a preset row.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             HStack {
@@ -665,9 +592,6 @@ struct ContentView: View {
         .padding(16)
         .frame(width: 430)
     }
-
-    // MARK: - Popup Camera
-
     private var cameraPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
             popupHeader("Camera")
@@ -702,21 +626,18 @@ struct ContentView: View {
         .padding(16)
         .frame(width: 430, height: 340)
     }
-
 }
-
 struct FileTwoPartControl: View {
     @EnvironmentObject var model: VeilModel
     var showPageControls: Bool = true
-
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("File PDF / PPT").font(.subheadline).bold()
-                Text("PDF: full pages. PPT/PPTX: first slide (QuickLook).") 
+                Text("PDF: full pages. PPT/PPTX: first slide (QuickLook).")
                     .font(.caption).foregroundStyle(.secondary)
                 if model.fileSources.isEmpty {
-                    Text("No files yet.") 
+                    Text("No files yet.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 ForEach(model.fileSources) { file in
@@ -838,31 +759,9 @@ struct FileTwoPartControl: View {
         }
     }
 }
-
-/// Jendela kecil yang muncul otomatis saat sebuah file ditampilkan,
-/// supaya pengguna bisa membalik halaman / menutup file tanpa harus
-/// kembali ke panel kontrol utama. Jendela ini dibuat di
-/// OutputWindow.swift (openFileControlWindow), selalu level .floating,
-/// dan ditempelkan di sebelah kanan jendela Output (lihat
-/// dockFileControlToOutput) — bukan lagi panel lebar 460 pt yang
-/// menutupi Output seperti di screenshot.
-/// Daftar file tidak lagi memenuhi flyer: di bawah tombol tutup (x)
-/// ada ikon folder yang membuka popup daftar file untuk memilih file.
 struct FileControlView: View {
     @EnvironmentObject var model: VeilModel
-
     var body: some View {
-        // Controller kini tanpa bar sama sekali (lihat
-        // openFileControlWindow: titled + fullSizeContentView,
-        // title bar transparan + hidden, traffic light hidden,
-        // background jendela clear) dan tampilannya dark
-        // transparent persis seperti panel utama: blur hudWindow
-        // + lapisan hitam 0.25, sudut rounded 20, stroke putih
-        // tipis. Tanpa title bar, flyer tetap bisa digeser lewat
-        // WindowDragView di belakang tombol-tombolnya (klik di
-        // area kosong flyer = drag, klik di tombol = action tombol).
-        // Tutup flyer tetap lewat tombol tutup (x) di kolomnya,
-        // bukan lagi lewat traffic light yang sudah dihapus.
         ZStack {
             VisualEffectView(material: .hudWindow)
             Color.black.opacity(0.25)
@@ -881,18 +780,10 @@ struct FileControlView: View {
         .shadow(color: Color.black.opacity(0.35), radius: 24, x: 0, y: 8)
     }
 }
-
-/// Kolom kontrol halaman yang ringkas untuk flyer: indikator X/Y,
-/// halaman sebelumnya, berikutnya, tutup file, lalu — di bawah
-/// tombol tutup — ikon folder yang membuka popup daftar file.
 struct FilePageControl: View {
     @EnvironmentObject var model: VeilModel
     @State private var showFilePopup = false
-
     private func pageButton(systemName: String, help: String, disabled: Bool = false, action: @escaping () -> Void) -> some View {
-        // Pola yang sama seperti gridButton: background kotak di
-        // dalam label, jadi seluruh kotak 48 tinggi itu bisa diklik,
-        // bukan hanya ikon di tengahnya.
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.title2)
@@ -909,7 +800,6 @@ struct FilePageControl: View {
         .help(help)
         .pointingHandOnHover()
     }
-
     var body: some View {
         VStack(spacing: 12) {
             if let active = model.activeFile {
@@ -928,9 +818,6 @@ struct FilePageControl: View {
                 Text("—")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            // Ikon baru di bawah tombol tutup: membuka popup
-            // daftar file, supaya pengguna bisa memilih file lain
-            // tanpa daftar file memenuhi flyer.
             pageButton(systemName: "folder", help: "Choose file") {
                 showFilePopup = true
             }
@@ -942,15 +829,9 @@ struct FilePageControl: View {
         .frame(width: 110)
     }
 }
-
-/// Isi popup daftar file: klik nama file untuk menampilkannya
-/// (dan menutup popup), x kecil untuk menghapus, tombol Add File
-/// untuk menambah file baru. Dipakai dari ikon folder di flyer;
-/// popup Sources tetap memakai daftar file langsung seperti semula.
 struct FileListPopupView: View {
     @EnvironmentObject var model: VeilModel
     @Binding var showFilePopup: Bool
-
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Files").font(.subheadline).bold()
@@ -1014,10 +895,8 @@ struct FileListPopupView: View {
         .frame(width: 320)
     }
 }
-
 struct PreviewContentView: View {
     @EnvironmentObject var model: VeilModel
-
     var body: some View {
         ZStack(alignment: .topLeading) {
             OutputContentView()
@@ -1045,43 +924,22 @@ struct PreviewContentView: View {
                 }
             }
         }
-        // Kalau rasio sumber berubah (jendela dipilih lain, atau
-        // sumber di-resize saat streaming), sesuaikan ukuran
-        // jendela Preview (dan Output) ke rasio baru itu.
         .onChange(of: model.sourceAspectRatio) { _, _ in
             model.applySourceRatioToWindows()
         }
     }
 }
-
-// MARK: - Jendela Output
-
-/// Pembungkus Output khusus untuk jendela Output (bukan Preview):
-/// seluruh isi Output dilapisi WindowDragView transparan, jadi
-/// Output tetap bisa digeser dengan drag sistem macOS dari mana
-/// saja di atas gambar — tidak lagi bergantung pada title bar
-/// yang kini sudah dihapus total (fullSizeContentView). Output
-/// tidak punya tombol yang bisa diklik, jadi lapisan drag ini
-/// tidak menghalangi interaksi apa pun.
 struct OutputWindowRootView: View {
     @EnvironmentObject var model: VeilModel
-
     var body: some View {
         OutputContentView()
             .environmentObject(model)
             .overlay(WindowDragView())
-            // Clean tanpa frame: sudut jendela dibulatkan, tidak
-            // ada border / frame macOS di sekeliling gambar.
             .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
-
-/// Pembungkus Preview yang sama seperti Output: tanpa bar,
-/// tanpa frame, sudut rounded, dan bisa digeser dari mana saja
-/// di atas gambar (lapisan WindowDragView transparan).
 struct PreviewWindowRootView: View {
     @EnvironmentObject var model: VeilModel
-
     var body: some View {
         PreviewContentView()
             .environmentObject(model)
@@ -1089,20 +947,9 @@ struct PreviewWindowRootView: View {
             .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
-
 struct OutputContentView: View {
     @EnvironmentObject var model: VeilModel
-
     var body: some View {
-        // GeometryReader: ukuran jendela Output saat ini, supaya
-        // isi di dalamnya bisa diskalakan PROPORSIONAL terhadap
-        // jendela — bukan ukuran poin absolut yang diam di tempat
-        // saat jendela di-resize. Tanpa ini, gambar file yang
-        // diraster di ukuran tetap bisa terpotong saat jendela
-        // diperkecil, dan kamera yang ukurannya absolut (misal
-        // 110 pt) akan tampak mengecil relatif terhadap Output
-        // saat jendela diperbesar — tampilan di share screen pun
-        // ikut berubah hanya karena jendela lokal di-resize.
         GeometryReader { geometry in
             ZStack {
                 if model.isPanic {
@@ -1113,34 +960,16 @@ struct OutputContentView: View {
                 } else {
                     backgroundView
                     mainImageView
-                    // Kapsul nama file di bawah tampilan PDF/PPT
-                    // sengaja dihapus atas permintaan pengguna:
-                    // halaman file tampil bersih tanpa teks nama
-                    // file di atasnya. Nama file tetap terlihat di
-                    // daftar file di popup Sources dan di flyer
-                    // kontrol file, jadi file yang aktif tetap
-                    // bisa dikenali dari sana, bukan dari Output.
                     cameraOverlay(outputWidth: geometry.size.width)
                 }
             }
         }
-        // Sama seperti Preview: rasio sumber berubah => ukuran
-        // jendela Output mengikuti rasio baru itu.
         .onChange(of: model.sourceAspectRatio) { _, _ in
             model.applySourceRatioToWindows()
         }
     }
-
     private var backgroundView: some View {
         Group {
-            // Pengaman kedua untuk bar abu-abu: saat file tampil,
-            // latar di balik halaman dibuat putih, bukan canvas
-            // abu-abu default — jadi kalaupun masih ada selisih
-            // rasio sekecil apa pun (misalnya di bawah ambang
-            // 0,01 updateSourceAspectRatio), sisa letterbox-nya
-            // menyatu dengan halaman PDF yang juga putih dan
-            // tidak terlihat sebagai bar abu-abu. Stream tetap
-            // memakai warna canvas seperti biasa.
             if model.filePreviewImage != nil {
                 Color.white
             } else if model.canvasBackground == .custom, let image = model.canvasImage {
@@ -1156,20 +985,8 @@ struct OutputContentView: View {
         }
         .ignoresSafeArea()
     }
-
     @ViewBuilder
     private var mainImageView: some View {
-        // File: pakai scaledToFit + frame penuh jendela, bukan
-        // scaledToFill. Halaman file harus selalu tampil UTUH,
-        // tidak tercrop, apa pun ukuran jendela Output saat ini:
-        // gambar menyesuaikan diri ke dalam jendela (sisi canvas
-        // yang kosong diisi warna canvas), jadi memperkecil
-        // jendela tidak memotong halaman, memperbesar jendela
-        // tidak membuat halaman meluber keluar jendela.
-        // Stream: tetap scaledToFill (mengisi canvas penuh),
-        // tapi dengan frame penuh jendela supaya ikut membesar /
-        // mengecil bersama jendela, bukan diam di ukuran raster
-        // aslinya lalu terpotong saat jendela diperkecil.
         if let fileImage = model.filePreviewImage {
             if model.canvasMode == .isolated {
                 Image(nsImage: fileImage)
@@ -1207,25 +1024,15 @@ struct OutputContentView: View {
                 Image(systemName: "rectangle.on.rectangle")
                     .font(.largeTitle)
                     .foregroundStyle(.secondary)
-                Text("No preview yet. Start the stream or show a file.") 
+                Text("No preview yet. Start the stream or show a file.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
     }
-
     @ViewBuilder
     private func cameraOverlay(outputWidth: CGFloat) -> some View {
         if model.cameraEnabled {
-            // Kamera proporsional terhadap lebar Output, bukan
-            // poin absolut: nilai slider kamera (default 110,
-            // rentang 100...320) diartikan sebagai ukuran saat
-            // lebar Output 960 (lebar awal Output). Kalau Output
-            // di-resize ke 1920, kamera menjadi 2x lipat; kalau
-            // diperkecil ke 480, kamera menjadi setengah — jadi
-            // proporsi kamera terhadap isi share SELALU sama,
-            // apa pun ukuran jendela lokalnya. Margin dari tepi
-            // ikut proporsional dengan cara yang sama.
             let referenceWidth: CGFloat = 960
             let scale = outputWidth > 0 ? outputWidth / referenceWidth : 1
             let relativeSize = model.cameraSize * scale

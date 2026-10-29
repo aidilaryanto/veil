@@ -1,18 +1,12 @@
 import AppKit
 import AVFoundation
 import SwiftUI
-
-/// Lapisan pratinjau kamera berbasis AVCaptureVideoPreviewLayer.
 final class CameraLayerView: NSView {
     private let session = AVCaptureSession()
-    // Nama ini sengaja bukan `layer`, karena NSView sudah punya
-    // properti `layer` (CALayer?) dan menamainya ulang ditolak compiler.
     private let previewLayer = AVCaptureVideoPreviewLayer()
-
     var mirrored = false {
         didSet { applyMirroring() }
     }
-
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
@@ -20,14 +14,11 @@ final class CameraLayerView: NSView {
         layer?.addSublayer(previewLayer)
         startSession()
     }
-
     required init?(coder: NSCoder) { return nil }
-
     override func layout() {
         super.layout()
         previewLayer.frame = bounds
     }
-
     private func startSession() {
         let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front)
             ?? AVCaptureDevice.default(for: .video)
@@ -42,7 +33,6 @@ final class CameraLayerView: NSView {
             self?.session.startRunning()
         }
     }
-
     private func applyMirroring() {
         guard let connection = previewLayer.connection,
               connection.isVideoMirroringSupported else { return }
@@ -50,16 +40,13 @@ final class CameraLayerView: NSView {
         connection.isVideoMirrored = mirrored
     }
 }
-
 struct CameraOverlayView: NSViewRepresentable {
     var mirrored: Bool
-
     func makeNSView(context: Context) -> CameraLayerView {
         let view = CameraLayerView()
         view.mirrored = mirrored
         return view
     }
-
     func updateNSView(_ nsView: CameraLayerView, context: Context) {
         nsView.mirrored = mirrored
     }

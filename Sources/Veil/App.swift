@@ -1,9 +1,7 @@
 import SwiftUI
-
 @main
 struct VeilApp: App {
     @StateObject private var model = VeilModel()
-
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -14,16 +12,7 @@ struct VeilApp: App {
                     model.applyAlwaysOnTop()
                 }
         }
-        // The control window is NOT resizable: it follows its
-        // content (fixed width 680), but can still be dragged
-        // from its empty areas (see configureFramelessWindow:
-        // isMovableByWindowBackground).
         .windowResizability(.contentSize)
-        // The title bar is hidden from the start; ContentView then
-        // makes the content cover the whole window, with a
-        // transparent title bar and hidden traffic-light buttons
-        // (see configureFramelessWindow), so there is no black
-        // macOS bar.
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandMenu("Veil") {

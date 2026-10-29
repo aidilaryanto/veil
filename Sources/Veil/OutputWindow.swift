@@ -1,42 +1,24 @@
 import AppKit
 import SwiftUI
-
-/// Penyimpan jendela Output yang dibuat sekali dan dipakai ulang.
-/// Jendela inilah yang dibagikan di Zoom/Meet/Teams lewat
-/// Share Screen > Window, bukan seluruh layar.
 final class OutputWindowStore {
     static let shared = OutputWindowStore()
     var window: NSWindow?
     var closeObserver: NSObjectProtocol?
     private init() {}
 }
-
 final class PreviewWindowStore {
     static let shared = PreviewWindowStore()
     var window: NSWindow?
     var closeObserver: NSObjectProtocol?
     private init() {}
 }
-
 final class FileControlWindowStore {
     static let shared = FileControlWindowStore()
     var window: NSWindow?
     var outputObservers: [NSObjectProtocol] = []
     private init() {}
 }
-
 extension VeilModel {
-    /// Pola frameless yang sama untuk semua jendela sekunder
-    /// (Output, Preview, File Control), persis seperti panel
-    /// utama: jendela tetap titled supaya judulnya tersimpan
-    /// (dipakai Zoom/Meet/Teams di daftar Share Screen > Window),
-    /// tapi secara visual tidak ada bar, tidak ada frame, dan
-    /// tidak ada traffic light — konten mengisi seluruh jendela
-    /// (fullSizeContentView), title bar transparan + hidden,
-    /// background jendela clear + tidak opaque + tanpa shadow
-    /// jendela, dan jendela tetap bisa digeser lewat kontennya
-    /// (isMovableByWindowBackground + lapisan WindowDragView
-    /// di masing-masing root view).
     private func configureFramelessSecondaryWindow(_ window: NSWindow) {
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
@@ -48,13 +30,6 @@ extension VeilModel {
         window.hasShadow = false
         window.isMovableByWindowBackground = true
     }
-
-    /// Menyesuaikan jendela Output dan Preview yang sudah ada ke
-    /// rasio sumber saat ini (sourceAspectRatio): kunci contentAspectRatio
-    /// ke rasio itu, lalu resize konten dengan lebar yang sama (tinggi
-    /// = lebar / rasio), dijepit ke layar supaya tidak keluar layar.
-    /// Kalau rasio tidak berubah, fungsi ini tidak mengubah apa-apa
-    /// yang terlihat — jadi aman dipanggil dari onChange ratio.
     func applySourceRatioToWindows() {
         let ratio = sourceAspectRatio
         guard ratio > 0 else { return }
@@ -76,13 +51,8 @@ extension VeilModel {
                 window.setContentSize(NSSize(width: width, height: height))
             }
         }
-        // Output berubah ukuran karena rasio berubah => flyer yang
-        // menempel di kanannya ikut bergeser.
         dockFileControlToOutput()
     }
-
-    /// Ukuran awal sebuah jendela baru dari rasio sumber: lebar dasar
-    /// yang diminta, tinggi = lebar / rasio, dijepit ke layar.
     private func initialContentSize(baseWidth: CGFloat) -> NSSize {
         let ratio = sourceAspectRatio > 0 ? sourceAspectRatio : (16.0 / 9.0)
         var width = baseWidth
@@ -96,14 +66,6 @@ extension VeilModel {
         }
         return NSSize(width: max(320, width), height: max(180, height))
     }
-
-    /// Menempelkan flyer File Control di sebelah kanan jendela
-    /// Output: sisi kiri flyer = sisi kanan Output + jarak 8 pt,
-    /// sisi atas flyer = sisi atas Output, dijepit ke layar. Kalau
-    /// tidak cukup ruang di kanan (Output sudah di tepi kanan
-    /// layar), flyer menempel di sebelah kiri Output. Kalau Output
-    /// tidak terlihat (belum dibuka / disembunyikan), flyer dibiarkan
-    /// di posisinya — tidak mengikuti jendela yang tersembunyi.
     func dockFileControlToOutput() {
         guard let flyer = FileControlWindowStore.shared.window,
               let output = OutputWindowStore.shared.window,
@@ -124,9 +86,6 @@ extension VeilModel {
         }
         flyer.setFrameOrigin(NSPoint(x: x, y: y))
     }
-
-    /// Mulai mengikuti Output: setiap Output dipindah atau
-    /// di-resize, flyer ditempelkan lagi ke sisi kanannya.
     func startFollowingOutput() {
         stopFollowingOutput()
         guard let output = OutputWindowStore.shared.window else { return }
@@ -140,7 +99,6 @@ extension VeilModel {
             FileControlWindowStore.shared.outputObservers.append(observer)
         }
     }
-
     func stopFollowingOutput() {
         let center = NotificationCenter.default
         for observer in FileControlWindowStore.shared.outputObservers {
@@ -148,7 +106,6 @@ extension VeilModel {
         }
         FileControlWindowStore.shared.outputObservers.removeAll()
     }
-
     func openFileControlWindow() {
         if let window = FileControlWindowStore.shared.window {
             window.makeKeyAndOrderFront(nil)
@@ -172,7 +129,6 @@ extension VeilModel {
         dockFileControlToOutput()
         startFollowingOutput()
     }
-
     func closeFileControlWindow() {
         stopFollowingOutput()
         if let window = FileControlWindowStore.shared.window {
@@ -180,18 +136,10 @@ extension VeilModel {
             FileControlWindowStore.shared.window = nil
         }
     }
-
     func togglePreviewWindow() {
         if isPreviewVisible { closePreviewWindow() } else { openPreviewWindow() }
     }
-
     func openPreviewWindow() {
-        // Ukuran Preview mengikuti rasio sumber yang dipilih, bukan
-        // 16:9 tetap dan bukan lagi lebar jendela kontrol: lebar dasar
-        // 680 (lebar kontrol), tinggi = 680 / rasio sumber, dijepit
-        // ke layar. Preview kini bisa di-resize manual, tapi
-        // contentAspectRatio mengunci rasionya ke rasio sumber, jadi
-        // resize hanya mengubah ukuran, bukan bentuk gambar.
         updateSourceAspectRatio()
         let previewSize = initialContentSize(baseWidth: 680)
         let previewWidth = previewSize.width
@@ -235,16 +183,10 @@ extension VeilModel {
             Task { @MainActor in self?.isPreviewVisible = false }
         }
     }
-
     func closePreviewWindow() {
         if let window = PreviewWindowStore.shared.window { window.orderOut(nil) }
         isPreviewVisible = false
     }
-
-    /// Tombol mata di header: menampilkan / menyembunyikan Output.
-    /// Tombol ini tetap bisa dipakai manual kapan saja — stream
-    /// start/stop hanya ikut membuka/menutup Output, bukan
-    /// menggantikan tombol ini.
     func toggleOutputWindow() {
         if isOutputVisible {
             closeOutputWindow()
@@ -252,20 +194,6 @@ extension VeilModel {
             openOutputWindow()
         }
     }
-
-    /// Menutup Output SEPENUHNYA, bukan sekadar orderOut.
-    /// Penyebab laporan sebelumnya: orderOut hanya menyembunyikan
-    /// jendela, tapi objek NSWindow-nya tetap hidup dengan ID
-    /// dan judul yang sama, sehingga sesi share Zoom/Meet yang
-    /// sudah menangkap jendela itu tetap bisa membaca frame
-    /// terakhirnya dan peserta meeting masih melihat isi Output.
-    /// Sekarang: controller (flyer) ikut ditutup, observer
-    /// following dihentikan, contentView dikosongkan supaya
-    /// backing store tidak menyimpan frame terakhir, lalu
-    /// window.close() dan store dikosongkan — jendela benar-benar
-    /// hilang dari daftar jendela yang bisa di-share, jadi
-    /// Zoom/Meet tidak lagi punya sumber untuk dibaca. Membuka
-    /// lagi akan membuat jendela baru (lihat openOutputWindow).
     func closeOutputWindow() {
         closeFileControlWindow()
         stopFollowingOutput()
@@ -280,18 +208,11 @@ extension VeilModel {
         }
         isOutputVisible = false
     }
-
-    /// Kalau sebuah file masih aktif tapi flyer-nya sudah
-    /// tertutup (misalnya ikut tertutup saat Output ditutup),
-    /// buka lagi flyer-nya saat Output dibuka — file-nya sendiri
-    /// tidak ditutup oleh closeOutputWindow, hanya flyer-nya,
-    /// jadi pengguna tidak kehilangan kontrol halaman file-nya.
     private func reopenFileControlIfNeeded() {
         if activeFile != nil, FileControlWindowStore.shared.window == nil {
             openFileControlWindow()
         }
     }
-
     func openOutputWindow() {
         if let window = OutputWindowStore.shared.window {
             applySourceRatioToWindows()
@@ -302,8 +223,6 @@ extension VeilModel {
             reopenFileControlIfNeeded()
             return
         }
-        // Ukuran awal Output mengikuti rasio sumber yang dipilih,
-        // bukan 16:9 tetap: lebar dasar 960, tinggi = 960 / rasio.
         updateSourceAspectRatio()
         let outputSize = initialContentSize(baseWidth: 960)
         let window = NSWindow(
@@ -313,9 +232,6 @@ extension VeilModel {
             defer: false
         )
         window.title = "Veil Output — share this window"
-        // Rasio dikunci ke rasio sumber: saat jendela Output
-        // di-resize, macOS menjaga rasio kontennya, jadi gambar
-        // tidak melar / berubah bentuk dan tidak terpotong.
         window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
         configureFramelessSecondaryWindow(window)
         window.isReleasedWhenClosed = false
