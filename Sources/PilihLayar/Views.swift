@@ -41,6 +41,7 @@ struct WindowAccessor: NSViewRepresentable {
 }
 
 final class WindowDragNSView: NSView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func mouseDown(with event: NSEvent) {
         window?.performDrag(with: event)
     }
@@ -58,9 +59,9 @@ extension View {
     func pointingHandOnHover() -> some View {
         onHover { hovering in
             if hovering {
-                NSCursor.pointingHand.push()
+                NSCursor.pointingHand.set()
             } else {
-                NSCursor.pop()
+                NSCursor.arrow.set()
             }
         }
     }
@@ -76,11 +77,12 @@ struct ContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             WindowDragView()
-                .frame(height: 14)
+                .frame(height: 28)
                 .overlay(
                     Capsule()
                         .fill(Color.white.opacity(0.3))
                         .frame(width: 40, height: 4)
+                        .allowsHitTesting(false)
                 )
             header
             presetStrip
@@ -147,6 +149,7 @@ struct ContentView: View {
                     .fill(model.isSharing ? Color.green : Color.gray)
                     .frame(width: 10, height: 10)
             }
+            .allowsHitTesting(false)
             VStack(alignment: .leading, spacing: 2) {
                 Text(model.isSharing ? "Stream Running" : "Stream Berhenti")
                     .font(.headline)
@@ -154,6 +157,7 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .allowsHitTesting(false)
             Spacer()
             Button {
                 model.toggleOutputWindow()
@@ -169,6 +173,7 @@ struct ContentView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.black.opacity(0.45))
             )
+            .contentShape(RoundedRectangle(cornerRadius: 8))
             .pointingHandOnHover()
             Button {
                 model.toggleSharing()
@@ -182,6 +187,7 @@ struct ContentView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.black.opacity(0.45))
             )
+            .contentShape(RoundedRectangle(cornerRadius: 8))
             .help(model.isSharing ? "Berhenti Stream" : "Mulai Stream")
             .pointingHandOnHover()
             Button {
@@ -196,6 +202,7 @@ struct ContentView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.black.opacity(0.45))
             )
+            .contentShape(RoundedRectangle(cornerRadius: 8))
             .help(model.isPaused ? "Lanjutkan" : "Pause")
             .pointingHandOnHover()
             .disabled(!model.isSharing)
@@ -203,6 +210,7 @@ struct ContentView: View {
                 .toggleStyle(.checkbox)
                 .font(.caption)
             Image(systemName: "info.circle")
+                .allowsHitTesting(false)
         }
         .background(WindowDragView())
     }
@@ -228,6 +236,7 @@ struct ContentView: View {
                                 RoundedRectangle(cornerRadius: 8)
                                     .fill(Color.black.opacity(0.45))
                             )
+                            .contentShape(RoundedRectangle(cornerRadius: 8))
                             .pointingHandOnHover()
                         }
                     }
@@ -282,6 +291,7 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
+        .contentShape(RoundedRectangle(cornerRadius: 12))
         .pointingHandOnHover()
     }
 
@@ -295,8 +305,11 @@ struct ContentView: View {
                 Image(systemName: "xmark.circle.fill")
                     .font(.title3)
                     .foregroundStyle(.secondary)
+                    .padding(4)
             }
             .buttonStyle(.plain)
+            .contentShape(Circle())
+            .pointingHandOnHover()
             .help("Tutup")
         }
     }
@@ -338,8 +351,11 @@ struct ContentView: View {
                                             Text(item.title).lineLimit(1)
                                             Spacer()
                                         }
+                                        .padding(.vertical, 2)
                                     }
                                     .buttonStyle(.plain)
+                                    .contentShape(Rectangle())
+                                    .pointingHandOnHover()
                                 }
                             }
                         }
@@ -348,11 +364,13 @@ struct ContentView: View {
                 .frame(maxHeight: 320)
             }
             Divider()
-            FileTwoPartControl()
+            FileTwoPartControl(showPageControls: false)
             HStack {
                 Button("Clear") { model.clearSelection() }
+                    .pointingHandOnHover()
                 Spacer()
                 Button("Refresh") { model.refreshSources() }
+                    .pointingHandOnHover()
             }
         }
         .padding(16)
@@ -444,6 +462,7 @@ struct ContentView: View {
                 Button(model.canvasImage == nil ? "Pilih Gambar…" : "Ganti Gambar…") {
                     pickCanvasImage()
                 }
+                .pointingHandOnHover()
             }
             Spacer()
         }
@@ -492,13 +511,16 @@ struct ContentView: View {
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
                                 .tint(model.activePresetID == preset.id ? Color.accentColor : Color.secondary)
+                                .pointingHandOnHover()
                             Button("Replace") { model.replacePreset(preset) }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
                                 .help("Timpa preset ini dengan setup saat ini")
+                                .pointingHandOnHover()
                             Button("Hapus") { model.deletePreset(preset) }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
+                                .pointingHandOnHover()
                         }
                     }
                 }
@@ -516,6 +538,7 @@ struct ContentView: View {
                     newPresetName = ""
                 }
                 .buttonStyle(.borderedProminent)
+                .pointingHandOnHover()
             }
         }
         .padding(16)
@@ -543,6 +566,7 @@ struct ContentView: View {
                     .buttonStyle(.bordered)
                     .tint(model.cameraPosition == position ? Color.accentColor : Color.secondary)
                     .controlSize(.small)
+                    .pointingHandOnHover()
                 }
             }
             Text("Bentuk").font(.subheadline).bold()
@@ -562,6 +586,7 @@ struct ContentView: View {
 
 struct FileTwoPartControl: View {
     @EnvironmentObject var model: PilihLayarModel
+    var showPageControls: Bool = true
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -585,20 +610,24 @@ struct FileTwoPartControl: View {
                                     Image(systemName: "checkmark")
                                 }
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(model.activeFileID == file.id ? Color.accentColor : Color.primary)
                         .help("Tampilkan file ini")
+                        .contentShape(Rectangle())
                         .pointingHandOnHover()
-                        Spacer()
                         Button {
                             model.removeFile(file)
                         } label: {
                             Image(systemName: "xmark")
+                                .padding(6)
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(.secondary)
                         .help("Hapus file")
+                        .contentShape(Circle())
+                        .pointingHandOnHover()
                     }
                 }
                 Button {
@@ -615,11 +644,13 @@ struct FileTwoPartControl: View {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color.black.opacity(0.45))
                 )
+                .contentShape(RoundedRectangle(cornerRadius: 10))
                 .pointingHandOnHover()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Divider()
-            VStack(spacing: 12) {
+            if showPageControls {
+                Divider()
+                VStack(spacing: 12) {
                 if let active = model.activeFile {
                     Text("\(model.filePageIndex + 1)/\(active.pageCount)")
                         .font(.subheadline).bold()
@@ -639,6 +670,7 @@ struct FileTwoPartControl: View {
                     )
                     .disabled(model.filePageIndex == 0)
                     .help("Halaman sebelumnya")
+                    .contentShape(RoundedRectangle(cornerRadius: 12))
                     .pointingHandOnHover()
                     Button {
                         model.nextFilePage()
@@ -656,6 +688,7 @@ struct FileTwoPartControl: View {
                     )
                     .disabled(model.filePageIndex + 1 >= active.pageCount)
                     .help("Halaman berikutnya")
+                    .contentShape(RoundedRectangle(cornerRadius: 12))
                     .pointingHandOnHover()
                     Button {
                         model.closeFile()
@@ -672,13 +705,15 @@ struct FileTwoPartControl: View {
                             .fill(Color.black.opacity(0.45))
                     )
                     .help("Tutup file")
+                    .contentShape(RoundedRectangle(cornerRadius: 12))
                     .pointingHandOnHover()
                 } else {
                     Text("—")
                         .font(.caption).foregroundStyle(.secondary)
                 }
+                }
+                .frame(width: 110)
             }
-            .frame(width: 110)
         }
     }
 }
@@ -687,7 +722,7 @@ struct FileControlView: View {
     @EnvironmentObject var model: PilihLayarModel
 
     var body: some View {
-        FileTwoPartControl()
+        FileTwoPartControl(showPageControls: true)
             .padding(14)
             .frame(width: 460)
     }
