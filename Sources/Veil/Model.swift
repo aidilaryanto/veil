@@ -163,6 +163,30 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var filePageIndex = 0
     @Published var filePreviewImage: NSImage?
 
+    /// Apakah ada frame stream yang LAYAK ditampilkan (bukan
+    /// sekadar previewImage != nil). Kasus yang dilaporkan:
+    /// pertama kali Start dengan mode Allow tapi belum ada
+    /// jendela yang dipilih — SCStream tetap berjalan dan
+    /// mengirim frame layar hitam (semua jendela di-exclude)
+    /// + kursor, sehingga Output/Preview menampilkan layar
+    /// hitam berkursor, bukan placeholder "No preview yet".
+    /// Jadi frame stream hanya layak tampil kalau sedang sharing
+    /// DAN ada frame-nya DAN bukan kasus Allow tanpa pilihan
+    /// (yang memang tidak ada sumber untuk ditampilkan).
+    /// Mode Block tanpa pilihan justru valid: itu berarti
+    /// share seluruh layar (tidak ada yang di-block).
+    var shouldShowStreamPreview: Bool {
+        isSharing && previewImage != nil
+            && !(mode == .allow && selectedWindowIDs.isEmpty)
+    }
+
+    /// Apakah Output/Preview sedang dalam keadaan placeholder
+    /// (bukan Panic, bukan file, bukan stream yang layak tampil).
+    /// Dipakai untuk menyembunyikan kursor di atas placeholder.
+    var isShowingPlaceholder: Bool {
+        !isPanic && filePreviewImage == nil && !shouldShowStreamPreview
+    }
+
     private var capturedWindows: [SCWindow] = []
     private var stream: SCStream?
     private var pdfDocument: PDFDocument?

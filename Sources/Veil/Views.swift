@@ -55,6 +55,60 @@ struct WindowDragView: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
+// Menyembunyikan kursor saat mouse di atas placeholder
+// "No preview yet": di keadaan itu tidak ada konten yang
+// perlu ditunjuk, dan kursor yang tampil di atas layar hitam
+// / placeholder justru terlihat seperti bagian dari share.
+// View ini tidak menangkap klik (tidak ada mouseDown), jadi
+// drag Output/Preview lewat WindowDragView di atasnya tetap
+// jalan. Hide/unhide selalu berpasangan (masuk = hide sekali,
+// keluar = unhide sekali, deinit = unhide kalau masih hidden),
+// supaya kursor tidak nyangkut tersembunyi kalau jendela
+// ditutup saat mouse masih di atasnya.
+final class HideCursorNSView: NSView {
+    private var isCursorHidden = false
+    private var trackingArea: NSTrackingArea?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea { removeTrackingArea(trackingArea) }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeInKeyWindow],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        self.trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        if !isCursorHidden {
+            NSCursor.hide()
+            isCursorHidden = true
+        }
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        if isCursorHidden {
+            NSCursor.unhide()
+            isCursorHidden = false
+        }
+    }
+
+    deinit {
+        if isCursorHidden { NSCursor.unhide() }
+    }
+}
+
+struct HideCursorView: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        HideCursorNSView()
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
 extension View {
     func pointingHandOnHover() -> some View {
         onHover { hovering in
@@ -1130,6 +1184,17 @@ struct OutputContentView: View {
                 }
             }
         }
+        // Saat placeholder: sembunyikan kursor di atas jendela
+        // ini (Preview dan Output sama-sama memakai view ini).
+        // Overlay ini di atas kamera juga, jadi kursor tidak
+        // muncul di atas placeholder apa pun posisinya; saat
+        // ada file / stream yang layak tampil, overlay ini
+        // hilang dan kursor kembali normal untuk menunjuk konten.
+        .overlay {
+            if model.isShowingPlaceholder {
+                HideCursorView()
+            }
+        }
         // Sama seperti Preview: rasio sumber berubah => ukuran
         // jendela Output mengikuti rasio baru itu.
         .onChange(of: model.sourceAspectRatio) { _, _ in
@@ -1191,7 +1256,7 @@ struct OutputContentView: View {
                     .scaledToFit()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-        } else if let image = model.previewImage {
+        } else if model.shouldShowStreamPreview, let image = model.previewImage {
             if model.canvasMode == .isolated {
                 Image(nsImage: image)
                     .resizable()
