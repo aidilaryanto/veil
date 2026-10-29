@@ -4,7 +4,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum PopupKind: String, Identifiable {
-    case sources, display, canvas, presets, camera, files
+    case sources, display, frame, mode, canvas, presets, camera, files
     var id: String { rawValue }
 }
 
@@ -18,15 +18,17 @@ struct ContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
-            mainActions
+            streamRow
             presetStrip
             popupGrid
+            footerRow
             Text(model.status)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(3)
         }
         .padding(16)
+        .frame(minWidth: 600)
         .onChange(of: model.alwaysOnTop) { _, _ in
             model.applyAlwaysOnTop()
         }
@@ -34,6 +36,8 @@ struct ContentView: View {
             switch kind {
             case .sources: sourcesPopup
             case .display: displayPopup
+            case .frame: framingPopup
+            case .mode: modePopup
             case .canvas: canvasPopup
             case .presets: presetsPopup
             case .camera: cameraPopup
@@ -44,57 +48,61 @@ struct ContentView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Circle()
-                .fill(model.isSharing ? Color.green : Color.gray)
-                .frame(width: 10, height: 10)
+            ZStack(alignment: .bottomTrailing) {
+                Image(systemName: "rectangle.on.rectangle")
+                    .font(.title3)
+                Circle()
+                    .fill(model.isSharing ? Color.green : Color.gray)
+                    .frame(width: 10, height: 10)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(model.isSharing ? "Stream Running" : "Stream Berhenti")
                     .font(.headline)
-                Text("\(model.selectedWindowIDs.count) jendela • \(model.displays.count) layar")
+                Text("\(model.appCount) apps • \(model.sources.count) windows")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            Button {
+                model.toggleOutputWindow()
+            } label: {
+                Label(model.isOutputVisible ? "Visible" : "Hidden",
+                      systemImage: model.isOutputVisible ? "eye.fill" : "eye.slash")
+                    .font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
             Toggle("Always on Top", isOn: $model.alwaysOnTop)
                 .toggleStyle(.checkbox)
                 .font(.caption)
-            Button("Refresh") { model.refreshSources() }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+            Image(systemName: "info.circle")
         }
     }
 
-    private var mainActions: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                Button(model.isSharing ? "Berhenti" : "Mulai Stream") {
-                    model.toggleSharing()
-                }
-                .buttonStyle(.borderedProminent)
-                .frame(maxWidth: .infinity)
-                Button {
-                    model.togglePanic()
-                } label: {
-                    VStack(spacing: 2) {
-                        Text("Panik")
-                        Text(model.isPanic ? "Aktif" : "Blank now")
-                            .font(.caption2)
-                    }
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
-                .foregroundStyle(.red)
+    private var streamRow: some View {
+        HStack(spacing: 8) {
+            Button(model.isSharing ? "Berhenti" : "Mulai Stream") {
+                model.toggleSharing()
             }
-            HStack(spacing: 8) {
-                Button("Preview") { model.openOutputWindow() }
-                    .buttonStyle(.bordered)
-                    .frame(maxWidth: .infinity)
-                Button(model.isPaused ? "Lanjutkan" : "Pause") {
-                    model.togglePause()
-                }
-                .buttonStyle(.bordered)
-                .frame(maxWidth: .infinity)
+            .buttonStyle(.borderedProminent)
+            .frame(maxWidth: .infinity)
+            Button(model.isPaused ? "Lanjutkan" : "Pause") {
+                model.togglePause()
             }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var footerRow: some View {
+        HStack(spacing: 8) {
+            Button("Files PDF / PPT") { popup = .files }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            Spacer()
+            Button("Refresh") { model.refreshSources() }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
         }
     }
 
@@ -122,38 +130,43 @@ struct ContentView: View {
     }
 
     private var popupGrid: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 8) {
-            popupButton(title: "Sources", icon: "list.bullet") { popup = .sources }
-            popupButton(title: "Display", icon: "display") { popup = .display }
-            popupButton(title: "Canvas", icon: "rectangle.dashed") { popup = .canvas }
-            popupButton(title: "Presets", icon: "bookmark") { popup = .presets }
-            popupButton(title: "Camera", icon: "video") { popup = .camera }
-            popupButton(title: "Files", icon: "doc") { popup = .files }
-            Button {
-                NSApplication.shared.terminate(nil)
-            } label: {
-                VStack(spacing: 4) {
-                    Image(systemName: "power")
-                    Text("Quit").font(.caption)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 8) {
+            gridButton(title: "Preview", subtitle: model.isPreviewVisible ? "Visible" : "Hidden", icon: "eye", tint: model.isPreviewVisible ? Color.accentColor : nil) {
+                model.togglePreviewWindow()
             }
-            .buttonStyle(.bordered)
-            .tint(.red)
+            gridButton(title: "Sources", subtitle: "\(model.selectedWindowIDs.count) rules", icon: "list.bullet") { popup = .sources }
+            gridButton(title: "Display", subtitle: model.displaySubtitle, icon: "display") { popup = .display }
+            gridButton(title: "Frame", subtitle: model.framing.rawValue, icon: "rectangle") { popup = .frame }
+            gridButton(title: "Panic", subtitle: model.isPanic ? "Aktif" : "Blank now", icon: "hand.raised", tint: .red) {
+                model.togglePanic()
+            }
+            gridButton(title: "Mode", subtitle: model.mode == .allow ? "Allow List" : "Block List", icon: "switch.2") { popup = .mode }
+            gridButton(title: "Canvas", subtitle: model.canvasBackground == .custom ? "Image" : model.canvasBackground.rawValue.capitalized, icon: "photo") { popup = .canvas }
+            gridButton(title: "Presets", subtitle: model.activePreset?.name ?? "Pilih", icon: "bookmark") { popup = .presets }
+            gridButton(title: "Camera", subtitle: model.cameraEnabled ? "On" : "Off", icon: "video") { popup = .camera }
+            gridButton(title: "Quit", subtitle: "Exit app", icon: "power", tint: .red) {
+                NSApplication.shared.terminate(nil)
+            }
         }
     }
 
-    private func popupButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
+    private func gridButton(title: String, subtitle: String, icon: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 4) {
+            VStack(spacing: 3) {
                 Image(systemName: icon)
+                    .font(.title3)
                 Text(title).font(.caption)
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .frame(height: 68)
         }
         .buttonStyle(.bordered)
+        .tint(tint)
     }
 
     // MARK: - Popup Sources
@@ -238,10 +251,9 @@ struct ContentView: View {
 
     // MARK: - Popup Canvas / Framing
 
-    private var canvasPopup: some View {
+    private var framingPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Framing & Canvas").font(.headline)
-            Text("Framing").font(.subheadline).bold()
+            Text("Frame").font(.headline)
             Picker("Framing", selection: $model.framing) {
                 Text("Full").tag(Framing.full)
                 Text("Dynamic").tag(Framing.dynamic)
@@ -252,6 +264,34 @@ struct ContentView: View {
             }
             Text("Full: seluruh layar ditangkap. Dynamic: area tangkapan mengikuti gabungan bingkai jendela yang dipilih.")
                 .font(.caption).foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(16)
+        .frame(width: 430, height: 200)
+    }
+
+    private var modePopup: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Mode").font(.headline)
+            Picker("Mode", selection: $model.mode) {
+                Text("Allow List").tag(ShareMode.allow)
+                Text("Block List").tag(ShareMode.block)
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: model.mode) { _, _ in
+                if model.isSharing { model.restartCapture() }
+            }
+            Text("Allow List: hanya jendela yang dipilih yang dibagikan. Block List: semua dibagikan kecuali jendela yang dipilih.")
+                .font(.caption).foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(16)
+        .frame(width: 430, height: 200)
+    }
+
+    private var canvasPopup: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Canvas").font(.headline)
             Text("Canvas").font(.subheadline).bold()
             Picker("Canvas", selection: $model.canvasMode) {
                 Text("Full Display").tag(CanvasMode.fullDisplay)
@@ -473,6 +513,39 @@ struct FileControlView: View {
         }
         .padding(14)
         .frame(width: 340)
+    }
+}
+
+struct PreviewContentView: View {
+    @EnvironmentObject var model: PilihLayarModel
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            OutputContentView()
+                .environmentObject(model)
+            Text("PREVIEW")
+                .font(.caption2).bold()
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.blue)
+                .foregroundStyle(.white)
+                .clipShape(Capsule())
+                .padding(10)
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Text(model.isSharing && !model.isPanic ? "Visible" : "Hidden")
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.black.opacity(0.6))
+                        .foregroundStyle(.white)
+                        .clipShape(Capsule())
+                        .padding(10)
+                }
+            }
+        }
     }
 }
 

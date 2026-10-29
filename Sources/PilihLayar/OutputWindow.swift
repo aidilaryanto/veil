@@ -7,6 +7,14 @@ import SwiftUI
 final class OutputWindowStore {
     static let shared = OutputWindowStore()
     var window: NSWindow?
+    var closeObserver: NSObjectProtocol?
+    private init() {}
+}
+
+final class PreviewWindowStore {
+    static let shared = PreviewWindowStore()
+    var window: NSWindow?
+    var closeObserver: NSObjectProtocol?
     private init() {}
 }
 
@@ -43,20 +51,86 @@ extension PilihLayarModel {
         }
     }
 
+    func togglePreviewWindow() {
+        if isPreviewVisible { closePreviewWindow() } else { openPreviewWindow() }
+    }
+
+    func openPreviewWindow() {
+        if let window = PreviewWindowStore.shared.window {
+            window.makeKeyAndOrderFront(nil)
+            isPreviewVisible = true
+            return
+        }
+        var frame = NSRect(x: 200, y: 400, width: 640, height: 360)
+        if let control = NSApp.keyWindow {
+            let controlFrame = control.frame
+            frame.origin.x = controlFrame.midX - frame.width / 2
+            frame.origin.y = controlFrame.maxY + 12
+            if let screen = control.screen ?? NSScreen.main {
+                let visible = screen.visibleFrame
+                if frame.maxY > visible.maxY { frame.origin.y = visible.maxY - frame.height }
+                if frame.minX < visible.minX { frame.origin.x = visible.minX }
+                if frame.maxX > visible.maxX { frame.origin.x = visible.maxX - frame.width }
+            }
+        }
+        let window = NSWindow(
+            contentRect: frame,
+            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "PilihLayar Preview — pratinjau, bukan untuk di-share"
+        window.level = .floating
+        window.isReleasedWhenClosed = false
+        window.contentAspectRatio = NSSize(width: 16, height: 9)
+        window.contentView = NSHostingView(rootView: PreviewContentView().environmentObject(self))
+        window.makeKeyAndOrderFront(nil)
+        PreviewWindowStore.shared.window = window
+        isPreviewVisible = true
+        PreviewWindowStore.shared.closeObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification, object: window, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.isPreviewVisible = false }
+        }
+    }
+
+    func closePreviewWindow() {
+        if let window = PreviewWindowStore.shared.window { window.orderOut(nil) }
+        isPreviewVisible = false
+    }
+
+    func toggleOutputWindow() {
+        if isOutputVisible {
+            if let window = OutputWindowStore.shared.window { window.orderOut(nil) }
+            isOutputVisible = false
+        } else {
+            openOutputWindow()
+        }
+    }
+
     func openOutputWindow() {
         if let window = OutputWindowStore.shared.window {
             window.makeKeyAndOrderFront(nil)
+            isOutputVisible = true
             return
         }
         let window = NSWindow(
-            contentRect: NSRect(x: 100, y: 100, width: 960, height: 600),
+            contentRect: NSRect(x: 100, y: 100, width: 960, height: 540),
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         window.title = "PilihLayar Output — bagikan jendela ini"
+        window.contentAspectRatio = NSSize(width: 16, height: 9)
+        window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: OutputContentView().environmentObject(self))
         window.makeKeyAndOrderFront(nil)
         OutputWindowStore.shared.window = window
+        isOutputVisible = true
+        OutputWindowStore.shared.closeObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification, object: window, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.isOutputVisible = false }
+        }
     }
 }

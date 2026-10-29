@@ -8,13 +8,13 @@ struct PilihLayarApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(model)
-                .frame(width: 430)
+                .frame(minWidth: 600, idealWidth: 680, maxWidth: .infinity)
                 .onAppear {
                     model.refreshSources()
                     model.applyAlwaysOnTop()
                 }
         }
-        .windowResizability(.contentSize)
+        .windowResizability(.automatic)
         .commands {
             CommandMenu("PilihLayar") {
                 Button("Panik (Sembunyikan Output)") {

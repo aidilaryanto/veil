@@ -147,6 +147,8 @@ final class PilihLayarModel: NSObject, ObservableObject {
     @Published var status = "Siap. Tekan Refresh, pilih jendela, lalu Mulai Stream."
     @Published var presets: [Preset] = []
     @Published var activePresetID: UUID?
+    @Published var isPreviewVisible = false
+    @Published var isOutputVisible = false
     @Published var fileSources: [FileSource] = []
     @Published var activeFileID: UUID?
     @Published var filePageIndex = 0
@@ -177,6 +179,22 @@ final class PilihLayarModel: NSObject, ObservableObject {
         }
     }
 
+    var appCount: Int {
+        Set(sources.map { $0.appName }).count
+    }
+
+    var activePreset: Preset? {
+        guard let id = activePresetID else { return nil }
+        return presets.first { $0.id == id }
+    }
+
+    var displaySubtitle: String {
+        if let display = displays.first(where: { $0.displayID == selectedDisplayID }) {
+            return "\(display.width)x\(display.height)"
+        }
+        return displays.isEmpty ? "Pilih layar" : "Layar \(selectedDisplayID ?? 0)"
+    }
+
     var groupedSources: [(app: String, items: [SourceItem])] {
         let grouped = Dictionary(grouping: visibleSources, by: { $0.appName })
         return grouped.keys.sorted().map { (app: $0, items: grouped[$0] ?? []) }
@@ -186,7 +204,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
         for window in NSApp.windows {
             if window.title.contains("Output") {
                 window.level = .normal
-            } else if window.title.contains("Kontrol File") {
+            } else if window.title.contains("Kontrol File") || window.title.contains("Preview") {
                 window.level = .floating
             } else {
                 window.level = alwaysOnTop ? .floating : .normal
