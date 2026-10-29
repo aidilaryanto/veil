@@ -135,10 +135,10 @@ final class PilihLayarModel: NSObject, ObservableObject {
     @Published var canvasBackground: CanvasBackground = .gray
     @Published var canvasImage: NSImage?
     @Published var alwaysOnTop = true
-    @Published var cameraEnabled = false
+    @Published var cameraEnabled = true
     @Published var cameraPosition: CameraPosition = .bottomRight
     @Published var cameraShape: CameraShape = .rounded
-    @Published var cameraSize: Double = 180
+    @Published var cameraSize: Double = 110
     @Published var cameraMirrored = false
     @Published var isSharing = false
     @Published var isPanic = false

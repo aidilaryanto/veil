@@ -122,6 +122,12 @@ extension PilihLayarModel {
         )
         window.title = "PilihLayar Output — bagikan jendela ini"
         window.contentAspectRatio = NSSize(width: 16, height: 9)
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.standardWindowButton(.closeButton)?.isHidden = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
+        window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: OutputContentView().environmentObject(self))
         window.makeKeyAndOrderFront(nil)

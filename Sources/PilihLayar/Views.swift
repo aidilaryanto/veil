@@ -4,7 +4,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum PopupKind: String, Identifiable {
-    case sources, display, frame, mode, canvas, presets, camera, files
+    case sources, display, frame, mode, canvas, presets, camera
     var id: String { rawValue }
 }
 
@@ -41,7 +41,6 @@ struct ContentView: View {
             case .canvas: canvasPopup
             case .presets: presetsPopup
             case .camera: cameraPopup
-            case .files: filesPopup
             }
         }
     }
@@ -96,9 +95,9 @@ struct ContentView: View {
 
     private var footerRow: some View {
         HStack(spacing: 8) {
-            Button("Files PDF / PPT") { popup = .files }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+            Text("File PDF / PPT ada di menu Sources.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Spacer()
             Button("Refresh") { model.refreshSources() }
                 .buttonStyle(.bordered)
@@ -169,11 +168,27 @@ struct ContentView: View {
         .tint(tint)
     }
 
+    private func popupHeader(_ title: String) -> some View {
+        HStack {
+            Text(title).font(.headline)
+            Spacer()
+            Button {
+                popup = nil
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Tutup")
+        }
+    }
+
     // MARK: - Popup Sources
 
     private var sourcesPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Sources").font(.headline)
+            popupHeader("Sources")
             TextField("Cari aplikasi / jendela…", text: $model.searchText)
                 .textFieldStyle(.roundedBorder)
             Picker("Mode", selection: $model.mode) {
@@ -215,6 +230,41 @@ struct ContentView: View {
                 }
                 .frame(maxHeight: 320)
             }
+            Divider()
+            VStack(alignment: .leading, spacing: 8) {
+                Text("File PDF / PPT").font(.subheadline).bold()
+                Text("PDF: navigasi halaman penuh. PPT/PPTX: pratinjau slide pertama saja (QuickLook).")
+                    .font(.caption).foregroundStyle(.secondary)
+                Button("Tambah File PDF / PPT") { pickFile() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                ForEach(model.fileSources) { file in
+                    HStack {
+                        Text(file.name).lineLimit(1)
+                        Spacer()
+                        Button("Tampilkan") { model.activateFile(file) }
+                            .buttonStyle(.bordered).controlSize(.small)
+                        Button("Hapus") { model.removeFile(file) }
+                            .buttonStyle(.bordered).controlSize(.small)
+                    }
+                }
+                if let active = model.activeFile {
+                    HStack {
+                        Button("Sebelumnya") { model.previousFilePage() }
+                            .disabled(model.filePageIndex == 0)
+                            .controlSize(.small)
+                        Spacer()
+                        Text("Hal. \(model.filePageIndex + 1) / \(active.pageCount)")
+                            .font(.caption)
+                        Spacer()
+                        Button("Berikutnya") { model.nextFilePage() }
+                            .disabled(model.filePageIndex + 1 >= active.pageCount)
+                            .controlSize(.small)
+                    }
+                    Button("Tutup File") { model.closeFile() }
+                        .controlSize(.small)
+                }
+            }
             HStack {
                 Button("Clear") { model.clearSelection() }
                 Spacer()
@@ -229,7 +279,7 @@ struct ContentView: View {
 
     private var displayPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Display").font(.headline)
+            popupHeader("Display")
             Picker("Layar", selection: $model.selectedDisplayID) {
                 ForEach(model.displays, id: \.displayID) { display in
                     Text("Layar \(display.displayID) (\(display.width)x\(display.height))")
@@ -253,7 +303,7 @@ struct ContentView: View {
 
     private var framingPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Frame").font(.headline)
+            popupHeader("Frame")
             Picker("Framing", selection: $model.framing) {
                 Text("Full").tag(Framing.full)
                 Text("Dynamic").tag(Framing.dynamic)
@@ -272,7 +322,7 @@ struct ContentView: View {
 
     private var modePopup: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Mode").font(.headline)
+            popupHeader("Mode")
             Picker("Mode", selection: $model.mode) {
                 Text("Allow List").tag(ShareMode.allow)
                 Text("Block List").tag(ShareMode.block)
@@ -291,7 +341,7 @@ struct ContentView: View {
 
     private var canvasPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Canvas").font(.headline)
+            popupHeader("Canvas")
             Text("Canvas").font(.subheadline).bold()
             Picker("Canvas", selection: $model.canvasMode) {
                 Text("Full Display").tag(CanvasMode.fullDisplay)
@@ -333,7 +383,7 @@ struct ContentView: View {
 
     private var presetsPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Presets").font(.headline)
+            popupHeader("Presets")
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     if model.presets.isEmpty {
@@ -385,7 +435,7 @@ struct ContentView: View {
 
     private var cameraPopup: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Camera").font(.headline)
+            popupHeader("Camera")
             Toggle("Aktifkan kamera", isOn: $model.cameraEnabled)
             Toggle("Mirror", isOn: $model.cameraMirrored)
             HStack {
@@ -415,50 +465,6 @@ struct ContentView: View {
         }
         .padding(16)
         .frame(width: 430, height: 340)
-    }
-
-    // MARK: - Popup Files
-
-    private var filesPopup: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Files PDF / PPT").font(.headline)
-            Text("PDF: navigasi halaman penuh. PPT/PPTX: pratinjau slide pertama saja (QuickLook).")
-                .font(.caption).foregroundStyle(.secondary)
-            Button("Tambah File PDF / PPT") { pickFile() }
-                .buttonStyle(.borderedProminent)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(model.fileSources) { file in
-                        HStack {
-                            Text(file.name).lineLimit(1)
-                            Spacer()
-                            Button("Tampilkan") { model.activateFile(file) }
-                                .buttonStyle(.bordered).controlSize(.small)
-                            Button("Hapus") { model.removeFile(file) }
-                                .buttonStyle(.bordered).controlSize(.small)
-                        }
-                    }
-                }
-            }
-            .frame(maxHeight: 180)
-            if let active = model.activeFile {
-                Divider()
-                Text(active.name).font(.subheadline).bold().lineLimit(1)
-                HStack {
-                    Button("Sebelumnya") { model.previousFilePage() }
-                        .disabled(model.filePageIndex == 0)
-                    Spacer()
-                    Text("Hal. \(model.filePageIndex + 1) / \(active.pageCount)")
-                        .font(.caption)
-                    Spacer()
-                    Button("Berikutnya") { model.nextFilePage() }
-                        .disabled(model.filePageIndex + 1 >= active.pageCount)
-                }
-                Button("Tutup File") { model.closeFile() }
-            }
-        }
-        .padding(16)
-        .frame(width: 430)
     }
 
     private func pickFile() {
