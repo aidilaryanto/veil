@@ -18,7 +18,6 @@ struct ContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
-            streamRow
             presetStrip
             popupGrid
             footerRow
@@ -71,25 +70,29 @@ struct ContentView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
+            Button {
+                model.toggleSharing()
+            } label: {
+                Image(systemName: model.isSharing ? "stop.fill" : "play.fill")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .tint(model.isSharing ? Color.red : Color.green)
+            .help(model.isSharing ? "Berhenti Stream" : "Mulai Stream")
+            Button {
+                model.togglePause()
+            } label: {
+                Image(systemName: model.isPaused ? "play.fill" : "pause.fill")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .tint(model.isPaused ? Color.orange : nil)
+            .help(model.isPaused ? "Lanjutkan" : "Pause")
+            .disabled(!model.isSharing)
             Toggle("Always on Top", isOn: $model.alwaysOnTop)
                 .toggleStyle(.checkbox)
                 .font(.caption)
             Image(systemName: "info.circle")
-        }
-    }
-
-    private var streamRow: some View {
-        HStack(spacing: 8) {
-            Button(model.isSharing ? "Berhenti" : "Mulai Stream") {
-                model.toggleSharing()
-            }
-            .buttonStyle(.borderedProminent)
-            .frame(maxWidth: .infinity)
-            Button(model.isPaused ? "Lanjutkan" : "Pause") {
-                model.togglePause()
-            }
-            .buttonStyle(.bordered)
-            .frame(maxWidth: .infinity)
         }
     }
 
