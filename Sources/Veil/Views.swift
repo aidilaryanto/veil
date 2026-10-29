@@ -159,6 +159,10 @@ struct ContentView: View {
             }
             .allowsHitTesting(false)
             Spacer()
+            // Pola yang sama seperti gridButton: background kotak
+            // ada DI DALAM label, jadi frame Button = kotak itu
+            // sendiri — klik di mana saja di dalam pill (bukan
+            // hanya di ikon mata / teks) menjalankan action.
             Button {
                 model.toggleOutputWindow()
             } label: {
@@ -167,27 +171,25 @@ struct ContentView: View {
                     .font(.caption)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.black.opacity(0.45))
+                    )
             }
             .buttonStyle(.plain)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.black.opacity(0.45))
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 8))
             .pointingHandOnHover()
             Button {
                 model.toggleSharing()
             } label: {
                 Image(systemName: model.isSharing ? "stop.fill" : "play.fill")
                     .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.black.opacity(0.45))
+                    )
             }
             .buttonStyle(.plain)
             .foregroundStyle(model.isSharing ? Color.red : Color.green)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.black.opacity(0.45))
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 8))
             .help(model.isSharing ? "Stop Stream" : "Start Stream")
             .pointingHandOnHover()
             Button {
@@ -195,14 +197,13 @@ struct ContentView: View {
             } label: {
                 Image(systemName: model.isPaused ? "play.fill" : "pause.fill")
                     .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.black.opacity(0.45))
+                    )
             }
             .buttonStyle(.plain)
             .foregroundStyle(model.isPaused ? Color.orange : Color.primary)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.black.opacity(0.45))
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 8))
             .help(model.isPaused ? "Resume" : "Pause")
             .pointingHandOnHover()
             .disabled(!model.isSharing)
@@ -225,18 +226,19 @@ struct ContentView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(model.presets) { preset in
-                            Button(preset.name) {
+                            Button {
                                 model.applyPreset(preset)
+                            } label: {
+                                Text(preset.name)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color.black.opacity(0.45))
+                                    )
                             }
                             .buttonStyle(.plain)
                             .foregroundStyle(model.activePresetID == preset.id ? Color.accentColor : Color.primary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.black.opacity(0.45))
-                            )
-                            .contentShape(RoundedRectangle(cornerRadius: 8))
                             .pointingHandOnHover()
                         }
                     }
@@ -267,6 +269,18 @@ struct ContentView: View {
     }
 
     private func gridButton(title: String, subtitle: String, icon: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
+        // PENTING — kenapa cara lama gagal: sebelumnya background
+        // kotak dipasang DI LUAR Button, lalu ditambah
+        // .contentShape(Rectangle()). Di macOS, area klik NSButton
+        // mengikuti LABEL-nya, bukan wrapper di luar Button, jadi
+        // contentShape di luar itu tidak cukup: klik di area kosong
+        // box (di luar ikon/teks) tetap tidak sampai ke action.
+        // Perbaikannya: background kotak dipindah KE DALAM label,
+        // dan label dibuat mengisi penuh box (lebar penuh sel grid,
+        // tinggi 68). Dengan begitu frame Button = frame box itu
+        // sendiri, jadi klik di mana saja di dalam box — ikon,
+        // teks, sudut, maupun area kosong di antara keduanya —
+        // mengenai Button dan menjalankan action.
         Button(action: action) {
             VStack(spacing: 3) {
                 Image(systemName: icon)
@@ -281,18 +295,16 @@ struct ContentView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 68)
             .foregroundStyle(tint ?? .primary)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.black.opacity(0.45))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.black.opacity(0.45))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
-        .padding(4)
-        .contentShape(Rectangle())
         .pointingHandOnHover()
     }
 
@@ -755,21 +767,23 @@ struct FilePageControl: View {
     @State private var showFilePopup = false
 
     private func pageButton(systemName: String, help: String, disabled: Bool = false, action: @escaping () -> Void) -> some View {
+        // Pola yang sama seperti gridButton: background kotak di
+        // dalam label, jadi seluruh kotak 48 tinggi itu bisa diklik,
+        // bukan hanya ikon di tengahnya.
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.title2)
                 .frame(maxWidth: .infinity)
                 .frame(height: 48)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.black.opacity(0.45))
+                )
         }
         .buttonStyle(.plain)
         .foregroundStyle(.white)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.black.opacity(0.45))
-        )
         .disabled(disabled)
         .help(help)
-        .contentShape(RoundedRectangle(cornerRadius: 12))
         .pointingHandOnHover()
     }
 
