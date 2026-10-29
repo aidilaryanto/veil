@@ -40,17 +40,36 @@ struct WindowAccessor: NSViewRepresentable {
     }
 }
 
+final class WindowDragNSView: NSView {
+    override func mouseDown(with event: NSEvent) {
+        window?.performWindowDrag(with: event)
+    }
+}
+
+struct WindowDragView: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        WindowDragNSView()
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
 // MARK: - Jendela kontrol utama (control bar, grid 5x2)
 
 struct ContentView: View {
     @EnvironmentObject var model: PilihLayarModel
     @State private var popup: PopupKind?
     @State private var newPresetName = ""
-    @State private var controlWindow: NSWindow?
-    @State private var dragStartOrigin: NSPoint?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            WindowDragView()
+                .frame(height: 14)
+                .overlay(
+                    Capsule()
+                        .fill(Color.white.opacity(0.3))
+                        .frame(width: 40, height: 4)
+                )
             header
             presetStrip
             popupGrid
@@ -78,25 +97,7 @@ struct ContentView: View {
         .shadow(color: Color.black.opacity(0.35), radius: 24, x: 0, y: 8)
         .background(WindowAccessor { window in
             configureFramelessWindow(window)
-            controlWindow = window
         })
-        .gesture(
-            DragGesture(minimumDistance: 3)
-                .onChanged { value in
-                    guard let window = controlWindow else { return }
-                    if dragStartOrigin == nil {
-                        dragStartOrigin = window.frame.origin
-                    }
-                    guard let start = dragStartOrigin else { return }
-                    window.setFrameOrigin(NSPoint(
-                        x: start.x + value.translation.width,
-                        y: start.y - value.translation.height
-                    ))
-                }
-                .onEnded { _ in
-                    dragStartOrigin = nil
-                }
-        )
         .onChange(of: model.alwaysOnTop) { _, _ in
             model.applyAlwaysOnTop()
         }
@@ -114,13 +115,11 @@ struct ContentView: View {
     }
 
     private func configureFramelessWindow(_ window: NSWindow) {
-        if window.styleMask.contains(.fullSizeContentView)
-            && !window.styleMask.contains(.resizable)
-            && window.titlebarAppearsTransparent {
-            return
+        if !window.styleMask.contains(.fullSizeContentView)
+            || window.styleMask.contains(.resizable) {
+            window.styleMask.remove(.resizable)
+            window.styleMask.insert(.fullSizeContentView)
         }
-        window.styleMask.remove(.resizable)
-        window.styleMask.insert(.fullSizeContentView)
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.standardWindowButton(.closeButton)?.isHidden = true
@@ -195,6 +194,7 @@ struct ContentView: View {
                 .font(.caption)
             Image(systemName: "info.circle")
         }
+        .background(WindowDragView())
     }
 
     private var footerRow: some View {
