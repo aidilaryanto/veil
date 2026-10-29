@@ -994,29 +994,40 @@ struct OutputContentView: View {
     @EnvironmentObject var model: VeilModel
 
     var body: some View {
-        ZStack {
-            if model.isPanic {
-                Color.black
-                Text("Output Disembunyikan")
-                    .foregroundStyle(.white)
-                    .font(.title2)
-            } else {
-                backgroundView
-                mainImageView
-                if let file = model.activeFile {
-                    VStack {
-                        Spacer()
-                        Text(file.name)
-                            .font(.caption)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Color.black.opacity(0.6))
-                            .foregroundStyle(.white)
-                            .clipShape(Capsule())
-                            .padding(12)
+        // GeometryReader: ukuran jendela Output saat ini, supaya
+        // isi di dalamnya bisa diskalakan PROPORSIONAL terhadap
+        // jendela — bukan ukuran poin absolut yang diam di tempat
+        // saat jendela di-resize. Tanpa ini, gambar file yang
+        // diraster di ukuran tetap bisa terpotong saat jendela
+        // diperkecil, dan kamera yang ukurannya absolut (misal
+        // 110 pt) akan tampak mengecil relatif terhadap Output
+        // saat jendela diperbesar — tampilan di share screen pun
+        // ikut berubah hanya karena jendela lokal di-resize.
+        GeometryReader { geometry in
+            ZStack {
+                if model.isPanic {
+                    Color.black
+                    Text("Output Disembunyikan")
+                        .foregroundStyle(.white)
+                        .font(.title2)
+                } else {
+                    backgroundView
+                    mainImageView
+                    if let file = model.activeFile {
+                        VStack {
+                            Spacer()
+                            Text(file.name)
+                                .font(.caption)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Color.black.opacity(0.6))
+                                .foregroundStyle(.white)
+                                .clipShape(Capsule())
+                                .padding(12)
+                        }
                     }
+                    cameraOverlay(outputWidth: geometry.size.width)
                 }
-                cameraOverlay
             }
         }
         // Sama seperti Preview: rasio sumber berubah => ukuran
@@ -1033,6 +1044,8 @@ struct OutputContentView: View {
                     .resizable()
                     .interpolation(.high)
                     .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
             } else {
                 model.canvasBackground.color
             }
@@ -1042,12 +1055,39 @@ struct OutputContentView: View {
 
     @ViewBuilder
     private var mainImageView: some View {
-        if let image = model.filePreviewImage ?? model.previewImage {
+        // File: pakai scaledToFit + frame penuh jendela, bukan
+        // scaledToFill. Halaman file harus selalu tampil UTUH,
+        // tidak tercrop, apa pun ukuran jendela Output saat ini:
+        // gambar menyesuaikan diri ke dalam jendela (sisi canvas
+        // yang kosong diisi warna canvas), jadi memperkecil
+        // jendela tidak memotong halaman, memperbesar jendela
+        // tidak membuat halaman meluber keluar jendela.
+        // Stream: tetap scaledToFill (mengisi canvas penuh),
+        // tapi dengan frame penuh jendela supaya ikut membesar /
+        // mengecil bersama jendela, bukan diam di ukuran raster
+        // aslinya lalu terpotong saat jendela diperkecil.
+        if let fileImage = model.filePreviewImage {
+            if model.canvasMode == .isolated {
+                Image(nsImage: fileImage)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(20)
+            } else {
+                Image(nsImage: fileImage)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        } else if let image = model.previewImage {
             if model.canvasMode == .isolated {
                 Image(nsImage: image)
                     .resizable()
                     .interpolation(.high)
                     .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
                     .padding(20)
             } else {
@@ -1055,6 +1095,7 @@ struct OutputContentView: View {
                     .resizable()
                     .interpolation(.high)
                     .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
             }
         } else {
@@ -1070,26 +1111,39 @@ struct OutputContentView: View {
     }
 
     @ViewBuilder
-    private var cameraOverlay: some View {
+    private func cameraOverlay(outputWidth: CGFloat) -> some View {
         if model.cameraEnabled {
+            // Kamera proporsional terhadap lebar Output, bukan
+            // poin absolut: nilai slider kamera (default 110,
+            // rentang 100...320) diartikan sebagai ukuran saat
+            // lebar Output 960 (lebar awal Output). Kalau Output
+            // di-resize ke 1920, kamera menjadi 2x lipat; kalau
+            // diperkecil ke 480, kamera menjadi setengah — jadi
+            // proporsi kamera terhadap isi share SELALU sama,
+            // apa pun ukuran jendela lokalnya. Margin dari tepi
+            // ikut proporsional dengan cara yang sama.
+            let referenceWidth: CGFloat = 960
+            let scale = outputWidth > 0 ? outputWidth / referenceWidth : 1
+            let relativeSize = model.cameraSize * scale
+            let relativeMargin = 16 * scale
             ZStack(alignment: model.cameraPosition.alignment) {
                 Color.clear
                 Group {
                     if model.cameraShape == .circle {
                         CameraOverlayView(mirrored: model.cameraMirrored)
-                            .frame(width: model.cameraSize, height: model.cameraSize)
+                            .frame(width: relativeSize, height: relativeSize)
                             .clipShape(Circle())
                     } else if model.cameraShape == .square {
                         CameraOverlayView(mirrored: model.cameraMirrored)
-                            .frame(width: model.cameraSize, height: model.cameraSize)
+                            .frame(width: relativeSize, height: relativeSize)
                             .clipShape(Rectangle())
                     } else {
                         CameraOverlayView(mirrored: model.cameraMirrored)
-                            .frame(width: model.cameraSize, height: model.cameraSize)
+                            .frame(width: relativeSize, height: relativeSize)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                     }
                 }
-                .padding(16)
+                .padding(relativeMargin)
             }
         }
     }
