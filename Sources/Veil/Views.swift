@@ -73,6 +73,11 @@ struct ContentView: View {
     @EnvironmentObject var model: VeilModel
     @State private var popup: PopupKind?
     @State private var newPresetName = ""
+    // Konfirmasi Quit: bukan NSAlert / sheet sistem (yang
+    // tampilannya tidak dark transparent), melainkan overlay
+    // kartu di dalam panel utama — jadi gaya persis panel:
+    // blur hudWindow + hitam 0.25, rounded 20, stroke putih.
+    @State private var showQuitConfirmation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -97,6 +102,14 @@ struct ContentView: View {
                 Color.black.opacity(0.25)
             }
         )
+        // Overlay ini dipasang SEBELUM clipShape, supaya backdrop
+        // dan kartu konfirmasi ikut terpotong rounded 20 seperti
+        // panel, bukan menonjol kotak di sudut panel.
+        .overlay {
+            if showQuitConfirmation {
+                quitConfirmationView
+            }
+        }
         .preferredColorScheme(.dark)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(
@@ -263,8 +276,95 @@ struct ContentView: View {
             gridButton(title: "Presets", subtitle: model.activePreset?.name ?? "Choose", icon: "bookmark") { popup = .presets }
             gridButton(title: "Camera", subtitle: model.cameraEnabled ? "On" : "Off", icon: "video") { popup = .camera }
             gridButton(title: "Quit", subtitle: "Exit app", icon: "power", tint: .red) {
-                NSApplication.shared.terminate(nil)
+                // Dulu langsung terminate — satu klik tidak sengaja
+                // di kotak Quit langsung menutup aplikasi (dan
+                // menghentikan stream). Sekarang hanya membuka
+                // konfirmasi; keluar hanya terjadi lewat tombol
+                // Quit di dalam dialog itu.
+                showQuitConfirmation = true
             }
+        }
+    }
+
+    // Dialog konfirmasi Quit, gaya persis panel utama / File
+    // Control: blur hudWindow + hitam 0.25, rounded 20, stroke
+    // putih 0.12, shadow — bukan NSAlert / sheet sistem.
+    // Backdrop-nya adalah tombol yang membatalkan, jadi klik di
+    // luar kartu = batal, dan klik di belakang kartu tidak
+    // sampai ke tombol grid di bawahnya. Esc juga membatalkan;
+    // sengaja tidak ada shortcut Enter untuk Quit, supaya
+    // keluar tidak terjadi karena satu ketukan tidak sengaja.
+    private var quitConfirmationView: some View {
+        ZStack {
+            Button {
+                showQuitConfirmation = false
+            } label: {
+                Color.black.opacity(0.45)
+            }
+            .buttonStyle(.plain)
+            VStack(spacing: 12) {
+                Image(systemName: "power")
+                    .font(.title)
+                    .foregroundStyle(.red)
+                Text("Quit Veil?")
+                    .font(.headline)
+                Text(model.isSharing
+                     ? "The stream is running. Quitting will stop the stream and close Output."
+                     : "Are you sure you want to quit Veil?")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                HStack(spacing: 8) {
+                    Button {
+                        showQuitConfirmation = false
+                    } label: {
+                        Text("Cancel")
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.black.opacity(0.45))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .pointingHandOnHover()
+                    .keyboardShortcut(.escape, modifiers: [])
+                    Button {
+                        NSApplication.shared.terminate(nil)
+                    } label: {
+                        Text("Quit")
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.red.opacity(0.85))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .pointingHandOnHover()
+                }
+            }
+            .padding(20)
+            .frame(width: 340)
+            .background(
+                ZStack {
+                    VisualEffectView(material: .hudWindow)
+                    Color.black.opacity(0.25)
+                }
+            )
+            .preferredColorScheme(.dark)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.35), radius: 24, x: 0, y: 8)
         }
     }
 
