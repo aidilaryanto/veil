@@ -21,6 +21,7 @@ final class PreviewWindowStore {
 final class FileControlWindowStore {
     static let shared = FileControlWindowStore()
     var window: NSWindow?
+    var outputObservers: [NSObjectProtocol] = []
     private init() {}
 }
 
@@ -52,6 +53,9 @@ extension VeilModel {
                 window.setContentSize(NSSize(width: width, height: height))
             }
         }
+        // Output berubah ukuran karena rasio berubah => flyer yang
+        // menempel di kanannya ikut bergeser.
+        dockFileControlToOutput()
     }
 
     /// Ukuran awal sebuah jendela baru dari rasio sumber: lebar dasar
@@ -70,13 +74,67 @@ extension VeilModel {
         return NSSize(width: max(320, width), height: max(180, height))
     }
 
+    /// Menempelkan flyer File Control di sebelah kanan jendela
+    /// Output: sisi kiri flyer = sisi kanan Output + jarak 8 pt,
+    /// sisi atas flyer = sisi atas Output, dijepit ke layar. Kalau
+    /// tidak cukup ruang di kanan (Output sudah di tepi kanan
+    /// layar), flyer menempel di sebelah kiri Output. Kalau Output
+    /// tidak terlihat (belum dibuka / disembunyikan), flyer dibiarkan
+    /// di posisinya — tidak mengikuti jendela yang tersembunyi.
+    func dockFileControlToOutput() {
+        guard let flyer = FileControlWindowStore.shared.window,
+              let output = OutputWindowStore.shared.window,
+              output.isVisible, flyer.isVisible else { return }
+        let gap: CGFloat = 8
+        let size = flyer.frame.size
+        var x = output.frame.maxX + gap
+        var y = output.frame.maxY - size.height
+        if let screen = output.screen ?? NSScreen.main {
+            let visible = screen.visibleFrame
+            if x + size.width > visible.maxX {
+                x = output.frame.minX - gap - size.width
+            }
+            if x < visible.minX { x = visible.minX }
+            if x + size.width > visible.maxX { x = visible.maxX - size.width }
+            if y < visible.minY { y = visible.minY }
+            if y + size.height > visible.maxY { y = visible.maxY - size.height }
+        }
+        flyer.setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
+    /// Mulai mengikuti Output: setiap Output dipindah atau
+    /// di-resize, flyer ditempelkan lagi ke sisi kanannya.
+    func startFollowingOutput() {
+        stopFollowingOutput()
+        guard let output = OutputWindowStore.shared.window else { return }
+        let center = NotificationCenter.default
+        for name in [NSWindow.didMoveNotification, NSWindow.didResizeNotification] {
+            let observer = center.addObserver(
+                forName: name, object: output, queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in self?.dockFileControlToOutput() }
+            }
+            FileControlWindowStore.shared.outputObservers.append(observer)
+        }
+    }
+
+    func stopFollowingOutput() {
+        let center = NotificationCenter.default
+        for observer in FileControlWindowStore.shared.outputObservers {
+            center.removeObserver(observer)
+        }
+        FileControlWindowStore.shared.outputObservers.removeAll()
+    }
+
     func openFileControlWindow() {
         if let window = FileControlWindowStore.shared.window {
             window.makeKeyAndOrderFront(nil)
+            dockFileControlToOutput()
+            startFollowingOutput()
             return
         }
         let window = NSWindow(
-            contentRect: NSRect(x: 120, y: 120, width: 480, height: 280),
+            contentRect: NSRect(x: 120, y: 120, width: 140, height: 290),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -87,9 +145,12 @@ extension VeilModel {
         window.contentView = NSHostingView(rootView: FileControlView().environmentObject(self))
         window.makeKeyAndOrderFront(nil)
         FileControlWindowStore.shared.window = window
+        dockFileControlToOutput()
+        startFollowingOutput()
     }
 
     func closeFileControlWindow() {
+        stopFollowingOutput()
         if let window = FileControlWindowStore.shared.window {
             window.close()
             FileControlWindowStore.shared.window = nil
@@ -169,6 +230,8 @@ extension VeilModel {
             applySourceRatioToWindows()
             window.makeKeyAndOrderFront(nil)
             isOutputVisible = true
+            dockFileControlToOutput()
+            startFollowingOutput()
             return
         }
         // Ukuran awal Output mengikuti rasio sumber yang dipilih,
@@ -197,6 +260,8 @@ extension VeilModel {
         window.makeKeyAndOrderFront(nil)
         OutputWindowStore.shared.window = window
         isOutputVisible = true
+        dockFileControlToOutput()
+        startFollowingOutput()
         OutputWindowStore.shared.closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
         ) { [weak self] _ in

@@ -727,13 +727,154 @@ struct FileTwoPartControl: View {
     }
 }
 
+/// Jendela kecil yang muncul otomatis saat sebuah file ditampilkan,
+/// supaya pengguna bisa membalik halaman / menutup file tanpa harus
+/// kembali ke panel kontrol utama. Jendela ini dibuat di
+/// OutputWindow.swift (openFileControlWindow), selalu level .floating,
+/// dan ditempelkan di sebelah kanan jendela Output (lihat
+/// dockFileControlToOutput) — bukan lagi panel lebar 460 pt yang
+/// menutupi Output seperti di screenshot.
+/// Daftar file tidak lagi memenuhi flyer: di bawah tombol tutup (x)
+/// ada ikon folder yang membuka popup daftar file untuk memilih file.
 struct FileControlView: View {
     @EnvironmentObject var model: VeilModel
 
     var body: some View {
-        FileTwoPartControl(showPageControls: true)
+        FilePageControl()
+            .environmentObject(model)
             .padding(14)
-            .frame(width: 460)
+            .frame(width: 140)
+    }
+}
+
+/// Kolom kontrol halaman yang ringkas untuk flyer: indikator X/Y,
+/// halaman sebelumnya, berikutnya, tutup file, lalu — di bawah
+/// tombol tutup — ikon folder yang membuka popup daftar file.
+struct FilePageControl: View {
+    @EnvironmentObject var model: VeilModel
+    @State private var showFilePopup = false
+
+    private func pageButton(systemName: String, help: String, disabled: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.title2)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.black.opacity(0.45))
+        )
+        .disabled(disabled)
+        .help(help)
+        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .pointingHandOnHover()
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            if let active = model.activeFile {
+                Text("\(model.filePageIndex + 1)/\(active.pageCount)")
+                    .font(.subheadline).bold()
+                pageButton(systemName: "chevron.left", help: "Previous page", disabled: model.filePageIndex == 0) {
+                    model.previousFilePage()
+                }
+                pageButton(systemName: "chevron.right", help: "Next page", disabled: model.filePageIndex + 1 >= active.pageCount) {
+                    model.nextFilePage()
+                }
+                pageButton(systemName: "xmark", help: "Close file") {
+                    model.closeFile()
+                }
+            } else {
+                Text("—")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            // Ikon baru di bawah tombol tutup: membuka popup
+            // daftar file, supaya pengguna bisa memilih file lain
+            // tanpa daftar file memenuhi flyer.
+            pageButton(systemName: "folder", help: "Choose file") {
+                showFilePopup = true
+            }
+            .popover(isPresented: $showFilePopup) {
+                FileListPopupView(showFilePopup: $showFilePopup)
+                    .environmentObject(model)
+            }
+        }
+        .frame(width: 110)
+    }
+}
+
+/// Isi popup daftar file: klik nama file untuk menampilkannya
+/// (dan menutup popup), x kecil untuk menghapus, tombol Add File
+/// untuk menambah file baru. Dipakai dari ikon folder di flyer;
+/// popup Sources tetap memakai daftar file langsung seperti semula.
+struct FileListPopupView: View {
+    @EnvironmentObject var model: VeilModel
+    @Binding var showFilePopup: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Files").font(.subheadline).bold()
+            Text("PDF: full pages. PPT/PPTX: first slide (QuickLook).")
+                .font(.caption).foregroundStyle(.secondary)
+            if model.fileSources.isEmpty {
+                Text("No files yet.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            ForEach(model.fileSources) { file in
+                HStack(spacing: 6) {
+                    Button {
+                        model.activateFile(file)
+                        showFilePopup = false
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: model.activeFileID == file.id ? "doc.fill" : "doc")
+                            Text(file.name).lineLimit(1)
+                            if model.activeFileID == file.id {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(model.activeFileID == file.id ? Color.accentColor : Color.primary)
+                    .help("Show this file")
+                    .contentShape(Rectangle())
+                    .pointingHandOnHover()
+                    Button {
+                        model.removeFile(file)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .padding(6)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("Delete file")
+                    .contentShape(Circle())
+                    .pointingHandOnHover()
+                }
+            }
+            Button {
+                model.openFilePicker()
+            } label: {
+                Label("Add File", systemImage: "plus")
+                    .font(.subheadline)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.white)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.black.opacity(0.45))
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 10))
+            .pointingHandOnHover()
+        }
+        .padding(14)
+        .frame(width: 320)
     }
 }
 
