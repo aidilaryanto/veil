@@ -26,6 +26,29 @@ final class FileControlWindowStore {
 }
 
 extension VeilModel {
+    /// Pola frameless yang sama untuk semua jendela sekunder
+    /// (Output, Preview, File Control), persis seperti panel
+    /// utama: jendela tetap titled supaya judulnya tersimpan
+    /// (dipakai Zoom/Meet/Teams di daftar Share Screen > Window),
+    /// tapi secara visual tidak ada bar, tidak ada frame, dan
+    /// tidak ada traffic light — konten mengisi seluruh jendela
+    /// (fullSizeContentView), title bar transparan + hidden,
+    /// background jendela clear + tidak opaque + tanpa shadow
+    /// jendela, dan jendela tetap bisa digeser lewat kontennya
+    /// (isMovableByWindowBackground + lapisan WindowDragView
+    /// di masing-masing root view).
+    private func configureFramelessSecondaryWindow(_ window: NSWindow) {
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.standardWindowButton(.closeButton)?.isHidden = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.hasShadow = false
+        window.isMovableByWindowBackground = true
+    }
+
     /// Menyesuaikan jendela Output dan Preview yang sudah ada ke
     /// rasio sumber saat ini (sourceAspectRatio): kunci contentAspectRatio
     /// ke rasio itu, lalu resize konten dengan lebar yang sama (tinggi
@@ -135,13 +158,14 @@ extension VeilModel {
         }
         let window = NSWindow(
             contentRect: NSRect(x: 120, y: 120, width: 140, height: 290),
-            styleMask: [.titled, .closable],
+            styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.title = "Veil File Control"
         window.level = .floating
         window.isReleasedWhenClosed = false
+        configureFramelessSecondaryWindow(window)
         window.contentView = NSHostingView(rootView: FileControlView().environmentObject(self))
         window.makeKeyAndOrderFront(nil)
         FileControlWindowStore.shared.window = window
@@ -192,7 +216,7 @@ extension VeilModel {
         }
         let window = NSWindow(
             contentRect: frame,
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -200,7 +224,8 @@ extension VeilModel {
         window.level = .floating
         window.isReleasedWhenClosed = false
         window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
-        window.contentView = NSHostingView(rootView: PreviewContentView().environmentObject(self))
+        configureFramelessSecondaryWindow(window)
+        window.contentView = NSHostingView(rootView: PreviewWindowRootView().environmentObject(self))
         window.makeKeyAndOrderFront(nil)
         PreviewWindowStore.shared.window = window
         isPreviewVisible = true
@@ -249,12 +274,7 @@ extension VeilModel {
         // di-resize, macOS menjaga rasio kontennya, jadi gambar
         // tidak melar / berubah bentuk dan tidak terpotong.
         window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.standardWindowButton(.closeButton)?.isHidden = true
-        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        window.standardWindowButton(.zoomButton)?.isHidden = true
-        window.isMovableByWindowBackground = true
+        configureFramelessSecondaryWindow(window)
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: OutputWindowRootView().environmentObject(self))
         window.makeKeyAndOrderFront(nil)

@@ -752,10 +752,33 @@ struct FileControlView: View {
     @EnvironmentObject var model: VeilModel
 
     var body: some View {
-        FilePageControl()
-            .environmentObject(model)
-            .padding(14)
-            .frame(width: 140)
+        // Controller kini tanpa bar sama sekali (lihat
+        // openFileControlWindow: titled + fullSizeContentView,
+        // title bar transparan + hidden, traffic light hidden,
+        // background jendela clear) dan tampilannya dark
+        // transparent persis seperti panel utama: blur hudWindow
+        // + lapisan hitam 0.25, sudut rounded 20, stroke putih
+        // tipis. Tanpa title bar, flyer tetap bisa digeser lewat
+        // WindowDragView di belakang tombol-tombolnya (klik di
+        // area kosong flyer = drag, klik di tombol = action tombol).
+        // Tutup flyer tetap lewat tombol tutup (x) di kolomnya,
+        // bukan lagi lewat traffic light yang sudah dihapus.
+        ZStack {
+            VisualEffectView(material: .hudWindow)
+            Color.black.opacity(0.25)
+            WindowDragView()
+            FilePageControl()
+                .environmentObject(model)
+                .padding(14)
+        }
+        .frame(width: 140)
+        .preferredColorScheme(.dark)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.35), radius: 24, x: 0, y: 8)
     }
 }
 
@@ -947,6 +970,23 @@ struct OutputWindowRootView: View {
         OutputContentView()
             .environmentObject(model)
             .overlay(WindowDragView())
+            // Clean tanpa frame: sudut jendela dibulatkan, tidak
+            // ada border / frame macOS di sekeliling gambar.
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+/// Pembungkus Preview yang sama seperti Output: tanpa bar,
+/// tanpa frame, sudut rounded, dan bisa digeser dari mana saja
+/// di atas gambar (lapisan WindowDragView transparan).
+struct PreviewWindowRootView: View {
+    @EnvironmentObject var model: VeilModel
+
+    var body: some View {
+        PreviewContentView()
+            .environmentObject(model)
+            .overlay(WindowDragView())
+            .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 
