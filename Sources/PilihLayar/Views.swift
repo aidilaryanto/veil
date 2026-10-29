@@ -408,6 +408,10 @@ struct ContentView: View {
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
                                 .tint(model.activePresetID == preset.id ? Color.accentColor : Color.secondary)
+                            Button("Replace") { model.replacePreset(preset) }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .help("Timpa preset ini dengan setup saat ini")
                             Button("Hapus") { model.deletePreset(preset) }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
@@ -417,6 +421,9 @@ struct ContentView: View {
             }
             .frame(maxHeight: 240)
             Divider()
+            Text("Tips: ketik nama preset yang sudah ada lalu Save Current untuk me-replace-nya, atau pakai tombol Replace di baris preset.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             HStack {
                 TextField("Nama preset baru", text: $newPresetName)
                     .textFieldStyle(.roundedBorder)

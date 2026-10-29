@@ -496,10 +496,48 @@ final class PilihLayarModel: NSObject, ObservableObject {
 
     // MARK: - Preset
 
+    func replacePreset(_ preset: Preset) {
+        guard let index = presets.firstIndex(where: { $0.id == preset.id }) else { return }
+        var updated = preset
+        updated.mode = mode
+        updated.framing = framing
+        updated.canvasMode = canvasMode
+        updated.canvasBackground = canvasBackground
+        updated.selectedWindowIDs = Array(selectedWindowIDs)
+        updated.displayID = selectedDisplayID
+        updated.cameraEnabled = cameraEnabled
+        updated.cameraPosition = cameraPosition
+        updated.cameraShape = cameraShape
+        updated.cameraSize = cameraSize
+        updated.cameraMirrored = cameraMirrored
+        updated.fileURL = activeFile?.url.path
+        updated.fileName = activeFile?.name
+        updated.fileKind = activeFile?.kind
+        updated.filePageIndex = filePageIndex
+        presets[index] = updated
+        activePresetID = updated.id
+        persistPresets()
+        status = "Preset '\(updated.name)' diganti dengan setup saat ini."
+    }
+
     func saveCurrentAsPreset(named name: String) {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !cleanName.isEmpty,
+           let existing = presets.first(where: { $0.name.lowercased() == cleanName.lowercased() }) {
+            replacePreset(existing)
+            return
+        }
+        var generatedName = cleanName
+        if generatedName.isEmpty {
+            var number = presets.count + 1
+            generatedName = "Preset \(number)"
+            while presets.contains(where: { $0.name == generatedName }) {
+                number += 1
+                generatedName = "Preset \(number)"
+            }
+        }
         let preset = Preset(
-            name: cleanName.isEmpty ? "Preset \(presets.count + 1)" : cleanName,
+            name: generatedName,
             mode: mode,
             framing: framing,
             canvasMode: canvasMode,
