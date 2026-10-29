@@ -8,7 +8,7 @@ enum PopupKind: String, Identifiable {
 }
 
 struct VisualEffectView: NSViewRepresentable {
-    var material: NSVisualEffectView.Material = .ultraDark
+    var material: NSVisualEffectView.Material = .hudWindow
 
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
@@ -42,7 +42,7 @@ struct WindowAccessor: NSViewRepresentable {
 
 final class WindowDragNSView: NSView {
     override func mouseDown(with event: NSEvent) {
-        window?.performWindowDrag(with: event)
+        window?.performDrag(with: event)
     }
 }
 
@@ -91,7 +91,7 @@ struct ContentView: View {
         .fixedSize(horizontal: false, vertical: true)
         .background(
             ZStack {
-                VisualEffectView(material: .ultraDark)
+                VisualEffectView(material: .hudWindow)
                 Color.black.opacity(0.25)
             }
         )
