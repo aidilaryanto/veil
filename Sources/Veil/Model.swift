@@ -216,6 +216,46 @@ final class VeilModel: NSObject, ObservableObject {
 
     // MARK: - Sumber (ScreenCaptureKit)
 
+    /// Mengubah daftar SCWindow mentah menjadi SourceItem tanpa duplikat.
+    /// ScreenCaptureKit dengan onScreenWindowsOnly: false mengembalikan
+    /// semua jendela milik sebuah aplikasi, termasuk jendela tersembunyi /
+    /// helper tanpa judul. Judul kosong diganti nama aplikasi, sehingga
+    /// satu aplikasi bisa tampil berkali-kali dengan baris yang identik
+    /// (mis. "Acrobat" tujuh kali di screenshot). Karena itu baris dengan
+    /// pasangan (appName, title) yang sama digabung jadi satu.
+    /// Urutan sebelum deduplikasi sengaja mendahulukan jendela aktif dan
+    /// on-screen, supaya windowID yang dipertahankan adalah jendela yang
+    /// benar-benar terlihat, bukan jendela helper tersembunyi. Jendela
+    /// minimized / Space lain tetap dipertahankan (hanya duplikatnya
+    /// yang dibuang), jadi perbaikan list kosong sebelumnya tidak mundur.
+    private static func sourceItems(from windows: [SCWindow]) -> [SourceItem] {
+        var seen = Set<String>()
+        return windows
+            .filter { $0.owningApplication != nil }
+            .sorted {
+                if $0.isActive != $1.isActive { return $0.isActive }
+                if $0.isOnScreen != $1.isOnScreen { return $0.isOnScreen }
+                let app0 = $0.owningApplication?.applicationName ?? "App"
+                let app1 = $1.owningApplication?.applicationName ?? "App"
+                if app0 != app1 { return app0 < app1 }
+                let title0 = ($0.title?.isEmpty == false ? $0.title! : app0)
+                let title1 = ($1.title?.isEmpty == false ? $1.title! : app1)
+                if title0 != title1 { return title0 < title1 }
+                return $0.windowID < $1.windowID
+            }
+            .compactMap { window -> SourceItem? in
+                let appName = window.owningApplication?.applicationName ?? "App"
+                let title = (window.title?.isEmpty == false ? window.title! : appName)
+                let key = "\(appName)\u{1F}\(title)"
+                guard seen.insert(key).inserted else { return nil }
+                return SourceItem(id: window.windowID, appName: appName, title: title)
+            }
+            .sorted {
+                if $0.appName != $1.appName { return $0.appName < $1.appName }
+                return $0.title < $1.title
+            }
+    }
+
     func refreshSources() {
         Task {
             do {
@@ -229,16 +269,7 @@ final class VeilModel: NSObject, ObservableObject {
                     selectedDisplayID = content.displays.first?.displayID
                 }
                 capturedWindows = content.windows
-                sources = content.windows
-                    .filter { $0.owningApplication != nil }
-                    .map { window in
-                        SourceItem(
-                            id: window.windowID,
-                            appName: window.owningApplication?.applicationName ?? "App",
-                            title: (window.title?.isEmpty == false ? window.title! : (window.owningApplication?.applicationName ?? "App"))
-                        )
-                    }
-                    .sorted { $0.appName < $1.appName }
+                sources = Self.sourceItems(from: content.windows)
                 status = "\(sources.count) windows on \(content.displays.count) displays."
             } catch {
                 status = "Failed to read windows: \(error.localizedDescription). Check Screen Recording permission."
@@ -393,10 +424,7 @@ final class VeilModel: NSObject, ObservableObject {
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
             capturedWindows = content.windows
             displays = content.displays
-            sources = content.windows
-                .filter { $0.owningApplication != nil }
-                .map { SourceItem(id: $0.windowID, appName: $0.owningApplication?.applicationName ?? "App", title: ($0.title?.isEmpty == false ? $0.title! : ($0.owningApplication?.applicationName ?? "App"))) }
-                .sorted { $0.appName < $1.appName }
+            sources = Self.sourceItems(from: content.windows)
             let signature = captureSignature()
             if signature != lastCaptureSignature {
                 lastCaptureSignature = signature
