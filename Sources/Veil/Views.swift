@@ -1139,7 +1139,17 @@ struct OutputContentView: View {
 
     private var backgroundView: some View {
         Group {
-            if model.canvasBackground == .custom, let image = model.canvasImage {
+            // Pengaman kedua untuk bar abu-abu: saat file tampil,
+            // latar di balik halaman dibuat putih, bukan canvas
+            // abu-abu default — jadi kalaupun masih ada selisih
+            // rasio sekecil apa pun (misalnya di bawah ambang
+            // 0,01 updateSourceAspectRatio), sisa letterbox-nya
+            // menyatu dengan halaman PDF yang juga putih dan
+            // tidak terlihat sebagai bar abu-abu. Stream tetap
+            // memakai warna canvas seperti biasa.
+            if model.filePreviewImage != nil {
+                Color.white
+            } else if model.canvasBackground == .custom, let image = model.canvasImage {
                 Image(nsImage: image)
                     .resizable()
                     .interpolation(.high)

@@ -596,7 +596,14 @@ final class VeilModel: NSObject, ObservableObject {
             )
             QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { [weak self] representation, _ in
                 guard let self, let image = representation?.nsImage else { return }
-                Task { @MainActor in self.filePreviewImage = image }
+                Task { @MainActor in
+                    self.filePreviewImage = image
+                    // Thumbnail PPT baru diterima => rasio jendela
+                    // ikut rasio slide, supaya tidak ada bar canvas
+                    // di kiri/kanan seperti kasus PDF di bawah.
+                    self.updateSourceAspectRatio()
+                    self.applySourceRatioToWindows()
+                }
             }
         }
     }
@@ -607,6 +614,10 @@ final class VeilModel: NSObject, ObservableObject {
         filePreviewImage = nil
         filePageIndex = 0
         closeFileControlWindow()
+        // Kembali ke rasio stream/sumber setelah file ditutup,
+        // supaya jendela tidak tertahan di rasio halaman file.
+        updateSourceAspectRatio()
+        applySourceRatioToWindows()
     }
 
     func removeFile(_ item: FileSource) {
@@ -637,6 +648,18 @@ final class VeilModel: NSObject, ObservableObject {
         // rasio halaman dipertahankan), jadi Output tidak perlu
         // meng-upscale lagi pada ukuran jendela biasa.
         filePreviewImage = page.thumbnail(of: NSSize(width: 3000, height: 3000), for: .mediaBox)
+        // AKAR BAR ABU-ABU di screenshot: fungsi ini sebelumnya
+        // tidak pernah memanggil updateSourceAspectRatio, jadi
+        // saat PDF dibuka / halaman diganti, jendela Output dan
+        // Preview tetap di rasio lama (misalnya 16:9 / rasio
+        // stream), sementara halaman PDF di-scaledToFit ke dalam
+        // jendela itu — selisih rasionya muncul sebagai bar
+        // canvas abu-abu (default canvasBackground .gray) di
+        // kiri dan kanan halaman. Sekarang rasio jendela ikut
+        // rasio halaman file, jadi halaman mengisi jendela penuh
+        // tanpa bar di kiri/kanan, dan tanpa tercrop (masih Fit).
+        updateSourceAspectRatio()
+        applySourceRatioToWindows()
     }
 
     // MARK: - Preset
