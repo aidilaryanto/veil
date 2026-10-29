@@ -253,15 +253,43 @@ extension VeilModel {
         }
     }
 
-    /// Menutup Output (orderOut, bukan menghancurkan jendela,
-    /// supaya bisa dibuka lagi tanpa membuat ulang). Dipakai
-    /// saat stream berhenti: jendela yang sedang di-share di
-    /// Zoom/Meet hilang, jadi share di sana ikut terhenti.
+    /// Menutup Output SEPENUHNYA, bukan sekadar orderOut.
+    /// Penyebab laporan sebelumnya: orderOut hanya menyembunyikan
+    /// jendela, tapi objek NSWindow-nya tetap hidup dengan ID
+    /// dan judul yang sama, sehingga sesi share Zoom/Meet yang
+    /// sudah menangkap jendela itu tetap bisa membaca frame
+    /// terakhirnya dan peserta meeting masih melihat isi Output.
+    /// Sekarang: controller (flyer) ikut ditutup, observer
+    /// following dihentikan, contentView dikosongkan supaya
+    /// backing store tidak menyimpan frame terakhir, lalu
+    /// window.close() dan store dikosongkan — jendela benar-benar
+    /// hilang dari daftar jendela yang bisa di-share, jadi
+    /// Zoom/Meet tidak lagi punya sumber untuk dibaca. Membuka
+    /// lagi akan membuat jendela baru (lihat openOutputWindow).
     func closeOutputWindow() {
+        closeFileControlWindow()
+        stopFollowingOutput()
         if let window = OutputWindowStore.shared.window {
-            window.orderOut(nil)
+            if let observer = OutputWindowStore.shared.closeObserver {
+                NotificationCenter.default.removeObserver(observer)
+                OutputWindowStore.shared.closeObserver = nil
+            }
+            window.contentView = nil
+            window.close()
+            OutputWindowStore.shared.window = nil
         }
         isOutputVisible = false
+    }
+
+    /// Kalau sebuah file masih aktif tapi flyer-nya sudah
+    /// tertutup (misalnya ikut tertutup saat Output ditutup),
+    /// buka lagi flyer-nya saat Output dibuka — file-nya sendiri
+    /// tidak ditutup oleh closeOutputWindow, hanya flyer-nya,
+    /// jadi pengguna tidak kehilangan kontrol halaman file-nya.
+    private func reopenFileControlIfNeeded() {
+        if activeFile != nil, FileControlWindowStore.shared.window == nil {
+            openFileControlWindow()
+        }
     }
 
     func openOutputWindow() {
@@ -271,6 +299,7 @@ extension VeilModel {
             isOutputVisible = true
             dockFileControlToOutput()
             startFollowingOutput()
+            reopenFileControlIfNeeded()
             return
         }
         // Ukuran awal Output mengikuti rasio sumber yang dipilih,
@@ -296,6 +325,7 @@ extension VeilModel {
         isOutputVisible = true
         dockFileControlToOutput()
         startFollowingOutput()
+        reopenFileControlIfNeeded()
         OutputWindowStore.shared.closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
         ) { [weak self] _ in
