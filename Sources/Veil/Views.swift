@@ -608,8 +608,8 @@ struct ContentView: View {
                                     Text(preset.name).bold()
                                     Text("\(preset.mode == .allow ? "Allow" : "Block") • \(preset.framing.rawValue) • \(preset.canvasMode.rawValue)")
                                         .font(.caption).foregroundStyle(.secondary)
-                                    if let fileName = preset.fileName {
-                                        Text("File: \(fileName)")
+                                    if let sourceLabel = model.sourceLabel(for: preset) {
+                                        Text(sourceLabel)
                                             .font(.caption).foregroundStyle(.secondary)
                                     }
                                 }

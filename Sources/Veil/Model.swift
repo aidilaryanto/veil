@@ -111,6 +111,7 @@ struct Preset: Identifiable, Codable {
     var filePageIndex: Int = 0
     var files: [PresetFile] = []
     var activeFileURL: String? = nil
+    var sourceAppNames: [String] = []
 }
 @MainActor
 final class VeilModel: NSObject, ObservableObject {
@@ -646,6 +647,7 @@ final class VeilModel: NSObject, ObservableObject {
             PresetFile(url: $0.url.path, name: $0.name, kind: $0.kind, pageCount: $0.pageCount)
         }
         updated.activeFileURL = activeFile?.url.path
+        updated.sourceAppNames = currentSourceAppNames()
         presets[index] = updated
         activePresetID = updated.id
         persistPresets()
@@ -687,7 +689,8 @@ final class VeilModel: NSObject, ObservableObject {
             files: fileSources.map {
                 PresetFile(url: $0.url.path, name: $0.name, kind: $0.kind, pageCount: $0.pageCount)
             },
-            activeFileURL: activeFile?.url.path
+            activeFileURL: activeFile?.url.path,
+            sourceAppNames: currentSourceAppNames()
         )
         presets.append(preset)
         activePresetID = preset.id
@@ -731,7 +734,7 @@ final class VeilModel: NSObject, ObservableObject {
             filePageIndex = 0
             updateSourceAspectRatio()
             applySourceRatioToWindows()
-            if isSharing, !fileSources.isEmpty { openFileControlWindow() }
+            closeFileControlWindow()
         }
         if isSharing { restartCapture() }
         status = "Preset '\(preset.name)' applied."
@@ -740,6 +743,38 @@ final class VeilModel: NSObject, ObservableObject {
         presets.removeAll { $0.id == preset.id }
         if activePresetID == preset.id { activePresetID = nil }
         persistPresets()
+    }
+    func currentSourceAppNames() -> [String] {
+        Array(Set(sources.filter { selectedWindowIDs.contains($0.id) }.map { $0.appName })).sorted()
+    }
+    func sourceLabel(for preset: Preset) -> String? {
+        if let name = preset.fileName, !name.isEmpty {
+            if let kind = preset.fileKind {
+                return "Source: \(kind.rawValue) — \(name)"
+            }
+            return "Source: \(name)"
+        }
+        if !preset.files.isEmpty {
+            let kinds = Array(Set(preset.files.map { $0.kind.rawValue })).sorted().joined(separator: " / ")
+            if preset.files.count == 1 {
+                return "Source: \(kinds) — \(preset.files[0].name)"
+            }
+            return "Source: \(kinds) — \(preset.files.count) files"
+        }
+        if !preset.sourceAppNames.isEmpty {
+            return "Source: \(preset.sourceAppNames.joined(separator: ", "))"
+        }
+        let live = Array(Set(sources.filter { preset.selectedWindowIDs.contains($0.id) }.map { $0.appName })).sorted()
+        if !live.isEmpty {
+            return "Source: \(live.joined(separator: ", "))"
+        }
+        if !preset.selectedWindowIDs.isEmpty {
+            return "Source: App window"
+        }
+        if preset.mode == .block {
+            return "Source: Display"
+        }
+        return nil
     }
     func renamePreset(_ preset: Preset, to name: String) -> Bool {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)

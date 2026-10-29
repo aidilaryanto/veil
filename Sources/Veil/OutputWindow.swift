@@ -107,6 +107,10 @@ extension VeilModel {
         FileControlWindowStore.shared.outputObservers.removeAll()
     }
     func openFileControlWindow() {
+        guard activeFile != nil else {
+            closeFileControlWindow()
+            return
+        }
         if let window = FileControlWindowStore.shared.window {
             window.makeKeyAndOrderFront(nil)
             dockFileControlToOutput()
