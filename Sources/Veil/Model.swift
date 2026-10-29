@@ -343,7 +343,19 @@ final class VeilModel: NSObject, ObservableObject {
     // MARK: - Capture
 
     func toggleSharing() {
-        if isSharing { stopCapture() } else { startCapture() }
+        if isSharing {
+            stopCapture()
+        } else {
+            // Start dari tombol Start/Stop (bukan restart):
+            // kosongkan frame lama dulu, supaya saat pertama
+            // kali distart — dan setiap start ulang setelah stop
+            // — yang tampil di Preview maupun Output adalah
+            // placeholder "No preview yet", bukan frame beku
+            // dari stream sebelumnya, sampai frame baru pertama
+            // dari SCStream benar-benar datang.
+            previewImage = nil
+            startCapture()
+        }
     }
 
     func restartCapture() {
@@ -463,6 +475,17 @@ final class VeilModel: NSObject, ObservableObject {
         stream = nil
         if !keepSharing {
             isSharing = false
+            // Stream stop (tombol Stop maupun Panic) => kembali
+            // ke "No preview yet": frame terakhir stream dihapus,
+            // jadi Preview yang masih terbuka — dan Output kalau
+            // dibuka lagi manual lewat tombol mata — tidak lagi
+            // menampilkan frame beku terakhir, melainkan placeholder
+            // yang sama seperti saat aplikasi pertama kali dibuka
+            // (previewImage dan filePreviewImage sama-sama nil).
+            // File yang sedang aktif sengaja TIDAK dihapus di sini:
+            // itu bukan preview stream, jadi kalau ada file aktif,
+            // yang tampil tetap file itu, bukan placeholder.
+            previewImage = nil
             // Stream stop (tombol Stop maupun Panic) => Output
             // langsung ditutup. Di Zoom/Meet, yang di-share adalah
             // jendela Output ini, jadi begitu jendelanya hilang,
