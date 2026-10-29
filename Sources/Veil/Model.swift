@@ -180,13 +180,6 @@ final class VeilModel: NSObject, ObservableObject {
             && !(mode == .allow && selectedWindowIDs.isEmpty)
     }
 
-    /// Apakah Output/Preview sedang dalam keadaan placeholder
-    /// (bukan Panic, bukan file, bukan stream yang layak tampil).
-    /// Dipakai untuk menyembunyikan kursor di atas placeholder.
-    var isShowingPlaceholder: Bool {
-        !isPanic && filePreviewImage == nil && !shouldShowStreamPreview
-    }
-
     private var capturedWindows: [SCWindow] = []
     private var stream: SCStream?
     private var pdfDocument: PDFDocument?
@@ -506,10 +499,17 @@ final class VeilModel: NSObject, ObservableObject {
             // menampilkan frame beku terakhir, melainkan placeholder
             // yang sama seperti saat aplikasi pertama kali dibuka
             // (previewImage dan filePreviewImage sama-sama nil).
-            // File yang sedang aktif sengaja TIDAK dihapus di sini:
-            // itu bukan preview stream, jadi kalau ada file aktif,
-            // yang tampil tetap file itu, bukan placeholder.
+            // Termasuk file PDF/PPT: Stop juga menutup tampilan
+            // file (closeFile — daftar file di Sources tetap ada,
+            // hanya yang sedang tampil yang ditutup, beserta
+            // flyer-nya), jadi Preview/Output tidak tertahan di
+            // halaman PDF/PPT terakhir, melainkan kembali ke
+            // placeholder. Restart (keepSharing: true) sengaja
+            // TIDAK menutup file, supaya ganti preset/sumber di
+            // tengah streaming tidak menghilangkan file yang
+            // sedang ditampilkan.
             previewImage = nil
+            closeFile()
             // Stream stop (tombol Stop maupun Panic) => Output
             // langsung ditutup. Di Zoom/Meet, yang di-share adalah
             // jendela Output ini, jadi begitu jendelanya hilang,
