@@ -609,50 +609,76 @@ struct FileTwoPartControl: View {
                     model.openFilePicker()
                 } label: {
                     Label("Add File", systemImage: "plus")
+                        .font(.subheadline)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .buttonStyle(.plain)
+                .foregroundStyle(.white)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.black.opacity(0.45))
+                )
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Divider()
-            VStack(spacing: 10) {
+            VStack(spacing: 12) {
                 if let active = model.activeFile {
                     Text("\(model.filePageIndex + 1)/\(active.pageCount)")
-                        .font(.caption).bold()
-                    HStack(spacing: 8) {
-                        Button {
-                            model.previousFilePage()
-                        } label: {
-                            Image(systemName: "chevron.left")
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .disabled(model.filePageIndex == 0)
-                        .help("Halaman sebelumnya")
-                        Button {
-                            model.nextFilePage()
-                        } label: {
-                            Image(systemName: "chevron.right")
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .disabled(model.filePageIndex + 1 >= active.pageCount)
-                        .help("Halaman berikutnya")
+                        .font(.subheadline).bold()
+                    Button {
+                        model.previousFilePage()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.title2)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
                     }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.white)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.black.opacity(0.45))
+                    )
+                    .disabled(model.filePageIndex == 0)
+                    .help("Halaman sebelumnya")
+                    Button {
+                        model.nextFilePage()
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.title2)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.white)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.black.opacity(0.45))
+                    )
+                    .disabled(model.filePageIndex + 1 >= active.pageCount)
+                    .help("Halaman berikutnya")
                     Button {
                         model.closeFile()
                     } label: {
                         Image(systemName: "xmark")
+                            .font(.title2)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.white)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.black.opacity(0.45))
+                    )
                     .help("Tutup file")
                 } else {
                     Text("—")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
-            .frame(width: 84)
+            .frame(width: 110)
         }
     }
 }

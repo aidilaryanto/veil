@@ -31,7 +31,7 @@ extension PilihLayarModel {
             return
         }
         let window = NSWindow(
-            contentRect: NSRect(x: 120, y: 120, width: 480, height: 220),
+            contentRect: NSRect(x: 120, y: 120, width: 480, height: 280),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
