@@ -366,14 +366,29 @@ final class VeilModel: NSObject, ObservableObject {
         config.minimumFrameInterval = CMTime(value: 1, timescale: 30)
         config.queueDepth = 5
         config.showsCursor = true
+        // Ketajaman: frame SCWindow dinyatakan dalam poin,
+        // sementara config.width/height adalah PIKSEL output. Di layar
+        // Retina (scale 2x), memakai ukuran poin apa adanya berarti
+        // capture hanya setengah resolusi piksel layar, lalu gambar
+        // itu di-upscale ke backing store 2x jendela Output — inilah
+        // yang terasa "terkompres" / buram. Jadi ukuran output
+        // dikalikan scale layar tempat sumber berada, supaya capture
+        // berjalan di resolusi piksel native dan tidak perlu
+        // di-upscale lagi. Untuk capture layar penuh, display.width
+        // sudah dalam piksel, jadi tidak dikalikan lagi.
+        let scaleFactor: (CGRect) -> CGFloat = { rect in
+            NSScreen.screens.first(where: { $0.frame.intersects(rect) })?.backingScaleFactor
+                ?? NSScreen.main?.backingScaleFactor ?? 1
+        }
         let filter: SCContentFilter
         if mode == .allow, selectedWindowIDs.count == 1,
            let onlyID = selectedWindowIDs.first,
            let onlyWindow = capturedWindows.first(where: { $0.windowID == onlyID }) {
             filter = SCContentFilter(desktopIndependentWindow: onlyWindow)
             let frame = onlyWindow.frame
-            config.width = max(2, Int(frame.width))
-            config.height = max(2, Int(frame.height))
+            let scale = scaleFactor(frame)
+            config.width = max(2, Int(frame.width * scale))
+            config.height = max(2, Int(frame.height * scale))
             lastCaptureSignature = captureSignature()
         } else {
             let excluded: [SCWindow]
@@ -394,8 +409,9 @@ final class VeilModel: NSObject, ObservableObject {
                 current == nil ? rect : current!.union(rect)
             }) {
                 config.sourceRect = union
-                config.width = max(2, Int(union.width))
-                config.height = max(2, Int(union.height))
+                let scale = scaleFactor(union)
+                config.width = max(2, Int(union.width * scale))
+                config.height = max(2, Int(union.height * scale))
             } else {
                 config.width = display.width
                 config.height = display.height
@@ -551,10 +567,13 @@ final class VeilModel: NSObject, ObservableObject {
         } else {
             pdfDocument = nil
             // SDK terbaru: QLThumbnailGenerator.Request dengan label fileAt:.
+            // scale = scale layar Retina (2x), bukan 1: thumbnail
+            // 1280x720 poin diraster jadi 2560x1440 piksel, supaya
+            // tidak di-upscale lagi di jendela Output.
             let request = QLThumbnailGenerator.Request(
                 fileAt: item.url,
                 size: CGSize(width: 1280, height: 720),
-                scale: 1,
+                scale: NSScreen.main?.backingScaleFactor ?? 2,
                 representationTypes: QLThumbnailGenerator.Request.RepresentationTypes.thumbnail
             )
             QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { [weak self] representation, _ in
@@ -592,7 +611,14 @@ final class VeilModel: NSObject, ObservableObject {
     private func renderFilePage() {
         guard let document = pdfDocument,
               let page = document.page(at: filePageIndex) else { return }
-        filePreviewImage = page.thumbnail(of: NSSize(width: 1280, height: 720), for: .mediaBox)
+        // Sebelumnya thumbnail dibatasi 1280x720: halaman PDF
+        // (misalnya A4 portrait) diraster kecil lalu di-upscale
+        // ke jendela Output yang backing store-nya 2x — hasilnya
+        // buram / seperti terkompres. Sekarang thumbnail diminta
+        // dalam kotak 3000x3000 (sisi panjang sampai 3000 piksel,
+        // rasio halaman dipertahankan), jadi Output tidak perlu
+        // meng-upscale lagi pada ukuran jendela biasa.
+        filePreviewImage = page.thumbnail(of: NSSize(width: 3000, height: 3000), for: .mediaBox)
     }
 
     // MARK: - Preset

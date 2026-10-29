@@ -919,6 +919,23 @@ struct PreviewContentView: View {
 
 // MARK: - Jendela Output
 
+/// Pembungkus Output khusus untuk jendela Output (bukan Preview):
+/// seluruh isi Output dilapisi WindowDragView transparan, jadi
+/// Output tetap bisa digeser dengan drag sistem macOS dari mana
+/// saja di atas gambar — tidak lagi bergantung pada title bar
+/// yang kini sudah dihapus total (fullSizeContentView). Output
+/// tidak punya tombol yang bisa diklik, jadi lapisan drag ini
+/// tidak menghalangi interaksi apa pun.
+struct OutputWindowRootView: View {
+    @EnvironmentObject var model: VeilModel
+
+    var body: some View {
+        OutputContentView()
+            .environmentObject(model)
+            .overlay(WindowDragView())
+    }
+}
+
 struct OutputContentView: View {
     @EnvironmentObject var model: VeilModel
 
@@ -960,6 +977,7 @@ struct OutputContentView: View {
             if model.canvasBackground == .custom, let image = model.canvasImage {
                 Image(nsImage: image)
                     .resizable()
+                    .interpolation(.high)
                     .scaledToFill()
             } else {
                 model.canvasBackground.color
@@ -974,12 +992,14 @@ struct OutputContentView: View {
             if model.canvasMode == .isolated {
                 Image(nsImage: image)
                     .resizable()
+                    .interpolation(.high)
                     .scaledToFill()
                     .clipped()
                     .padding(20)
             } else {
                 Image(nsImage: image)
                     .resizable()
+                    .interpolation(.high)
                     .scaledToFill()
                     .clipped()
             }

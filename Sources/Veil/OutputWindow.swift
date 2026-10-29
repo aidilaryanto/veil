@@ -240,7 +240,7 @@ extension VeilModel {
         let outputSize = initialContentSize(baseWidth: 960)
         let window = NSWindow(
             contentRect: NSRect(x: 100, y: 100, width: outputSize.width, height: outputSize.height),
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -256,7 +256,7 @@ extension VeilModel {
         window.standardWindowButton(.zoomButton)?.isHidden = true
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: OutputContentView().environmentObject(self))
+        window.contentView = NSHostingView(rootView: OutputWindowRootView().environmentObject(self))
         window.makeKeyAndOrderFront(nil)
         OutputWindowStore.shared.window = window
         isOutputVisible = true
