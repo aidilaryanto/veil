@@ -10,7 +10,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "Veil",
-            path: "Sources/PilihLayar"
+            path: "Sources/Veil"
         )
     ]
 )
