@@ -4,6 +4,7 @@ import PDFKit
 import QuickLookThumbnailing
 import ScreenCaptureKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - Tipe data
 
@@ -420,6 +421,21 @@ final class PilihLayarModel: NSObject, ObservableObject {
     }
 
     // MARK: - File PDF / PPT
+
+    func openFilePicker() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [
+            .pdf,
+            UTType(filenameExtension: "ppt") ?? .data,
+            UTType(filenameExtension: "pptx") ?? .data
+        ]
+        if panel.runModal() == .OK, let url = panel.url {
+            addFile(url: url)
+        }
+    }
 
     func addFile(url: URL) {
         let ext = url.pathExtension.lowercased()

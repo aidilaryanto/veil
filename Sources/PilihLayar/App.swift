@@ -15,6 +15,7 @@ struct PilihLayarApp: App {
                 }
         }
         .windowResizability(.automatic)
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandMenu("PilihLayar") {
                 Button("Panik (Sembunyikan Output)") {

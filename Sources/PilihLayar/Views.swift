@@ -1,14 +1,45 @@
 import AppKit
 import ScreenCaptureKit
 import SwiftUI
-import UniformTypeIdentifiers
 
 enum PopupKind: String, Identifiable {
     case sources, display, frame, mode, canvas, presets, camera
     var id: String { rawValue }
 }
 
-// MARK: - Jendela kontrol utama (box kecil lebar 430)
+struct VisualEffectView: NSViewRepresentable {
+    var material: NSVisualEffectView.Material = .hudWindow
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = .behindWindow
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}
+
+struct WindowAccessor: NSViewRepresentable {
+    var onWindow: (NSWindow) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            if let window = view.window { onWindow(window) }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            if let window = nsView.window { onWindow(window) }
+        }
+    }
+}
+
+// MARK: - Jendela kontrol utama (control bar, grid 5x2)
 
 struct ContentView: View {
     @EnvironmentObject var model: PilihLayarModel
@@ -16,18 +47,31 @@ struct ContentView: View {
     @State private var newPresetName = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            header
-            presetStrip
-            popupGrid
-            footerRow
-            Text(model.status)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(3)
+        ZStack {
+            VisualEffectView(material: .hudWindow)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(alignment: .leading, spacing: 12) {
+                header
+                presetStrip
+                popupGrid
+                footerRow
+                Text(model.status)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+            }
+            .padding(16)
         }
-        .padding(16)
         .frame(minWidth: 600)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.35), radius: 24, x: 0, y: 8)
+        .background(WindowAccessor { window in
+            configureFramelessWindow(window)
+        })
         .onChange(of: model.alwaysOnTop) { _, _ in
             model.applyAlwaysOnTop()
         }
@@ -42,6 +86,16 @@ struct ContentView: View {
             case .camera: cameraPopup
             }
         }
+    }
+
+    private func configureFramelessWindow(_ window: NSWindow) {
+        guard !window.styleMask.contains(.borderless) else { return }
+        window.styleMask = [.borderless, .resizable]
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.hasShadow = false
+        window.isMovableByWindowBackground = true
+        window.titlebarAppearsTransparent = true
     }
 
     private var header: some View {
@@ -234,40 +288,7 @@ struct ContentView: View {
                 .frame(maxHeight: 320)
             }
             Divider()
-            VStack(alignment: .leading, spacing: 8) {
-                Text("File PDF / PPT").font(.subheadline).bold()
-                Text("PDF: navigasi halaman penuh. PPT/PPTX: pratinjau slide pertama saja (QuickLook).")
-                    .font(.caption).foregroundStyle(.secondary)
-                Button("Tambah File PDF / PPT") { pickFile() }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                ForEach(model.fileSources) { file in
-                    HStack {
-                        Text(file.name).lineLimit(1)
-                        Spacer()
-                        Button("Tampilkan") { model.activateFile(file) }
-                            .buttonStyle(.bordered).controlSize(.small)
-                        Button("Hapus") { model.removeFile(file) }
-                            .buttonStyle(.bordered).controlSize(.small)
-                    }
-                }
-                if let active = model.activeFile {
-                    HStack {
-                        Button("Sebelumnya") { model.previousFilePage() }
-                            .disabled(model.filePageIndex == 0)
-                            .controlSize(.small)
-                        Spacer()
-                        Text("Hal. \(model.filePageIndex + 1) / \(active.pageCount)")
-                            .font(.caption)
-                        Spacer()
-                        Button("Berikutnya") { model.nextFilePage() }
-                            .disabled(model.filePageIndex + 1 >= active.pageCount)
-                            .controlSize(.small)
-                    }
-                    Button("Tutup File") { model.closeFile() }
-                        .controlSize(.small)
-                }
-            }
+            FileTwoPartControl()
             HStack {
                 Button("Clear") { model.clearSelection() }
                 Spacer()
@@ -477,18 +498,96 @@ struct ContentView: View {
         .frame(width: 430, height: 340)
     }
 
-    private func pickFile() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [
-            .pdf,
-            UTType(filenameExtension: "ppt") ?? .data,
-            UTType(filenameExtension: "pptx") ?? .data
-        ]
-        if panel.runModal() == .OK, let url = panel.url {
-            model.addFile(url: url)
+}
+
+struct FileTwoPartControl: View {
+    @EnvironmentObject var model: PilihLayarModel
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("File PDF / PPT").font(.subheadline).bold()
+                Text("PDF: halaman penuh. PPT/PPTX: slide pertama (QuickLook).")
+                    .font(.caption).foregroundStyle(.secondary)
+                if model.fileSources.isEmpty {
+                    Text("Belum ada file.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                ForEach(model.fileSources) { file in
+                    HStack(spacing: 6) {
+                        Button {
+                            model.activateFile(file)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: model.activeFileID == file.id ? "doc.fill" : "doc")
+                                Text(file.name).lineLimit(1)
+                                if model.activeFileID == file.id {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(model.activeFileID == file.id ? Color.accentColor : Color.primary)
+                        .help("Tampilkan file ini")
+                        Spacer()
+                        Button {
+                            model.removeFile(file)
+                        } label: {
+                            Image(systemName: "xmark")
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .help("Hapus file")
+                    }
+                }
+                Button {
+                    model.openFilePicker()
+                } label: {
+                    Label("Add File", systemImage: "plus")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Divider()
+            VStack(spacing: 10) {
+                if let active = model.activeFile {
+                    Text("\(model.filePageIndex + 1)/\(active.pageCount)")
+                        .font(.caption).bold()
+                    HStack(spacing: 8) {
+                        Button {
+                            model.previousFilePage()
+                        } label: {
+                            Image(systemName: "chevron.left")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(model.filePageIndex == 0)
+                        .help("Halaman sebelumnya")
+                        Button {
+                            model.nextFilePage()
+                        } label: {
+                            Image(systemName: "chevron.right")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(model.filePageIndex + 1 >= active.pageCount)
+                        .help("Halaman berikutnya")
+                    }
+                    Button {
+                        model.closeFile()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Tutup file")
+                } else {
+                    Text("—")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 84)
         }
     }
 }
@@ -497,38 +596,9 @@ struct FileControlView: View {
     @EnvironmentObject var model: PilihLayarModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if let file = model.activeFile {
-                Text(file.name)
-                    .font(.subheadline)
-                    .bold()
-                    .lineLimit(1)
-                Text("\(file.kind.rawValue) • Hal. \(model.filePageIndex + 1) / \(file.pageCount)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 8) {
-                    Button("Sebelumnya") { model.previousFilePage() }
-                        .disabled(model.filePageIndex == 0)
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    Spacer()
-                    Button("Berikutnya") { model.nextFilePage() }
-                        .disabled(model.filePageIndex + 1 >= file.pageCount)
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                }
-                Button("Tutup File") { model.closeFile() }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .frame(maxWidth: .infinity)
-            } else {
-                Text("Tidak ada file yang ditampilkan.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(14)
-        .frame(width: 340)
+        FileTwoPartControl()
+            .padding(14)
+            .frame(width: 460)
     }
 }
 
