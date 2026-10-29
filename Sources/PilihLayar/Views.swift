@@ -8,13 +8,14 @@ enum PopupKind: String, Identifiable {
 }
 
 struct VisualEffectView: NSViewRepresentable {
-    var material: NSVisualEffectView.Material = .hudWindow
+    var material: NSVisualEffectView.Material = .ultraDark
 
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
         view.material = material
         view.blendingMode = .behindWindow
         view.state = .active
+        view.appearance = NSAppearance(named: .darkAqua)
         return view
     }
 
@@ -48,7 +49,9 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            VisualEffectView(material: .hudWindow)
+            VisualEffectView(material: .ultraDark)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Color.black.opacity(0.25)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             VStack(alignment: .leading, spacing: 12) {
                 header
@@ -63,10 +66,11 @@ struct ContentView: View {
             .padding(16)
         }
         .frame(width: 680)
+        .preferredColorScheme(.dark)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(
             RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.35), radius: 24, x: 0, y: 8)
         .background(WindowAccessor { window in
@@ -130,26 +134,39 @@ struct ContentView: View {
                 Label(model.isOutputVisible ? "Visible" : "Hidden",
                       systemImage: model.isOutputVisible ? "eye.fill" : "eye.slash")
                     .font(.caption)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
+            .buttonStyle(.plain)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.black.opacity(0.45))
+            )
             Button {
                 model.toggleSharing()
             } label: {
                 Image(systemName: model.isSharing ? "stop.fill" : "play.fill")
+                    .padding(8)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .tint(model.isSharing ? Color.red : Color.green)
+            .buttonStyle(.plain)
+            .foregroundStyle(model.isSharing ? Color.red : Color.green)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.black.opacity(0.45))
+            )
             .help(model.isSharing ? "Berhenti Stream" : "Mulai Stream")
             Button {
                 model.togglePause()
             } label: {
                 Image(systemName: model.isPaused ? "play.fill" : "pause.fill")
+                    .padding(8)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .tint(model.isPaused ? Color.orange : nil)
+            .buttonStyle(.plain)
+            .foregroundStyle(model.isPaused ? Color.orange : Color.primary)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.black.opacity(0.45))
+            )
             .help(model.isPaused ? "Lanjutkan" : "Pause")
             .disabled(!model.isSharing)
             Toggle("Always on Top", isOn: $model.alwaysOnTop)
@@ -166,8 +183,13 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
             Spacer()
             Button("Refresh") { model.refreshSources() }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .buttonStyle(.plain)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.black.opacity(0.45))
+                )
         }
     }
 
@@ -184,9 +206,14 @@ struct ContentView: View {
                             Button(preset.name) {
                                 model.applyPreset(preset)
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            .tint(model.activePresetID == preset.id ? Color.accentColor : Color.secondary)
+                            .buttonStyle(.plain)
+                            .foregroundStyle(model.activePresetID == preset.id ? Color.accentColor : Color.primary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.black.opacity(0.45))
+                            )
                         }
                     }
                 }
@@ -223,15 +250,23 @@ struct ContentView: View {
                 Text(title).font(.caption)
                 Text(subtitle)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(tint ?? .secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 68)
+            .foregroundStyle(tint ?? .primary)
         }
-        .buttonStyle(.bordered)
-        .tint(tint)
+        .buttonStyle(.plain)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.black.opacity(0.45))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
 
     private func popupHeader(_ title: String) -> some View {
