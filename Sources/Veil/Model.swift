@@ -289,6 +289,9 @@ final class VeilModel: NSObject, ObservableObject {
     func toggleSharing() {
         if isSharing {
             stopCapture()
+            activePresetID = nil
+            fileSources = []
+            status = "Stopped. Preset and file list reset."
         } else {
             previewImage = nil
             startCapture()
