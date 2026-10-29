@@ -10,7 +10,39 @@ final class OutputWindowStore {
     private init() {}
 }
 
+final class FileControlWindowStore {
+    static let shared = FileControlWindowStore()
+    var window: NSWindow?
+    private init() {}
+}
+
 extension PilihLayarModel {
+    func openFileControlWindow() {
+        if let window = FileControlWindowStore.shared.window {
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+        let window = NSWindow(
+            contentRect: NSRect(x: 120, y: 120, width: 340, height: 150),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "PilihLayar Kontrol File"
+        window.level = .floating
+        window.isReleasedWhenClosed = false
+        window.contentView = NSHostingView(rootView: FileControlView().environmentObject(self))
+        window.makeKeyAndOrderFront(nil)
+        FileControlWindowStore.shared.window = window
+    }
+
+    func closeFileControlWindow() {
+        if let window = FileControlWindowStore.shared.window {
+            window.close()
+            FileControlWindowStore.shared.window = nil
+        }
+    }
+
     func openOutputWindow() {
         if let window = OutputWindowStore.shared.window {
             window.makeKeyAndOrderFront(nil)

@@ -83,7 +83,7 @@ enum CameraShape: String, CaseIterable, Codable {
     case rounded = "Membulat"
 }
 
-enum FileKind: String {
+enum FileKind: String, Codable {
     case pdf = "PDF"
     case ppt = "PPT"
 }
@@ -114,6 +114,10 @@ struct Preset: Identifiable, Codable {
     var cameraSize: Double
     var cameraMirrored: Bool
     var isBuiltIn: Bool = false
+    var fileURL: String? = nil
+    var fileName: String? = nil
+    var fileKind: FileKind? = nil
+    var filePageIndex: Int = 0
 }
 
 // MARK: - Model utama
@@ -142,6 +146,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
     @Published var previewImage: NSImage?
     @Published var status = "Siap. Tekan Refresh, pilih jendela, lalu Mulai Stream."
     @Published var presets: [Preset] = []
+    @Published var activePresetID: UUID?
     @Published var fileSources: [FileSource] = []
     @Published var activeFileID: UUID?
     @Published var filePageIndex = 0
@@ -150,6 +155,8 @@ final class PilihLayarModel: NSObject, ObservableObject {
     private var capturedWindows: [SCWindow] = []
     private var stream: SCStream?
     private var pdfDocument: PDFDocument?
+    private var captureWatchdog: Timer?
+    private var lastCaptureSignature = ""
     private let presetsKey = "PilihLayar.v2.presets"
 
     override init() {
@@ -179,6 +186,8 @@ final class PilihLayarModel: NSObject, ObservableObject {
         for window in NSApp.windows {
             if window.title.contains("Output") {
                 window.level = .normal
+            } else if window.title.contains("Kontrol File") {
+                window.level = .floating
             } else {
                 window.level = alwaysOnTop ? .floating : .normal
             }
@@ -251,20 +260,31 @@ final class PilihLayarModel: NSObject, ObservableObject {
             status = "Tidak ada layar. Tekan Refresh dulu."
             return
         }
-        // Allow: sembunyikan semua jendela kecuali yang dipilih.
-        // Block: sembunyikan hanya jendela yang dipilih.
-        let excluded: [SCWindow]
-        if mode == .allow {
-            excluded = capturedWindows.filter { !selectedWindowIDs.contains($0.windowID) }
-        } else {
-            excluded = capturedWindows.filter { selectedWindowIDs.contains($0.windowID) }
-        }
-        let filter = SCContentFilter(display: display, excludingWindows: excluded)
         let config = SCStreamConfiguration()
         config.minimumFrameInterval = CMTime(value: 1, timescale: 30)
         config.queueDepth = 5
         config.showsCursor = true
-        if framing == .dynamic, !selectedWindowIDs.isEmpty {
+        let filter: SCContentFilter
+        if mode == .allow, selectedWindowIDs.count == 1,
+           let onlyID = selectedWindowIDs.first,
+           let onlyWindow = capturedWindows.first(where: { $0.windowID == onlyID }) {
+            filter = SCContentFilter(desktopIndependentWindow: onlyWindow)
+            let frame = onlyWindow.frame
+            config.width = max(2, Int(frame.width))
+            config.height = max(2, Int(frame.height))
+            lastCaptureSignature = captureSignature()
+        } else {
+            let excluded: [SCWindow]
+            if mode == .allow {
+                excluded = capturedWindows.filter { !selectedWindowIDs.contains($0.windowID) }
+            } else {
+                excluded = capturedWindows.filter { selectedWindowIDs.contains($0.windowID) }
+            }
+            filter = SCContentFilter(display: display, excludingWindows: excluded)
+            lastCaptureSignature = captureSignature()
+        }
+        if mode == .allow, selectedWindowIDs.count == 1 {
+        } else if framing == .dynamic, !selectedWindowIDs.isEmpty {
             let frames = capturedWindows
                 .filter { selectedWindowIDs.contains($0.windowID) }
                 .map { $0.frame }
@@ -295,6 +315,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
                     await MainActor.run {
                         isSharing = true
                         status = "Berbagi aktif (\(selectedWindowIDs.count) jendela). Bagikan jendela Output di Zoom/Meet/Teams."
+                        startCaptureWatchdog()
                     }
                 } catch {
                     await MainActor.run {
@@ -308,10 +329,55 @@ final class PilihLayarModel: NSObject, ObservableObject {
     }
 
     func stopCapture() {
+        stopCaptureWatchdog()
         let oldStream = stream
         stream = nil
         isSharing = false
         Task { try? await oldStream?.stopCapture() }
+    }
+
+    private func captureSignature() -> String {
+        let ids = capturedWindows.map { String($0.windowID) }.sorted().joined(separator: ",")
+        let frames = capturedWindows
+            .filter { selectedWindowIDs.contains($0.windowID) }
+            .sorted { $0.windowID < $1.windowID }
+            .map { "\(Int($0.frame.origin.x)),\(Int($0.frame.origin.y)),\(Int($0.frame.width)),\(Int($0.frame.height))" }
+            .joined(separator: "|")
+        return "\(mode.rawValue)|\(ids)|\(frames)"
+    }
+
+    private func startCaptureWatchdog() {
+        stopCaptureWatchdog()
+        guard !(mode == .allow && selectedWindowIDs.count == 1) else { return }
+        captureWatchdog = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                await self?.checkCaptureStability()
+            }
+        }
+    }
+
+    private func stopCaptureWatchdog() {
+        captureWatchdog?.invalidate()
+        captureWatchdog = nil
+    }
+
+    private func checkCaptureStability() async {
+        guard isSharing, stream != nil else { return }
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            capturedWindows = content.windows
+            displays = content.displays
+            sources = content.windows
+                .filter { $0.owningApplication != nil && !($0.title ?? "").isEmpty }
+                .map { SourceItem(id: $0.windowID, appName: $0.owningApplication?.applicationName ?? "Aplikasi", title: $0.title ?? "") }
+                .sorted { $0.appName < $1.appName }
+            let signature = captureSignature()
+            if signature != lastCaptureSignature {
+                lastCaptureSignature = signature
+                restartCapture()
+            }
+        } catch {
+        }
     }
 
     func togglePause() {
@@ -359,6 +425,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
     func activateFile(_ item: FileSource) {
         activeFileID = item.id
         filePageIndex = 0
+        openFileControlWindow()
         if item.kind == .pdf {
             pdfDocument = PDFDocument(url: item.url)
             renderFilePage()
@@ -383,6 +450,7 @@ final class PilihLayarModel: NSObject, ObservableObject {
         pdfDocument = nil
         filePreviewImage = nil
         filePageIndex = 0
+        closeFileControlWindow()
     }
 
     func removeFile(_ item: FileSource) {
@@ -424,14 +492,20 @@ final class PilihLayarModel: NSObject, ObservableObject {
             cameraPosition: cameraPosition,
             cameraShape: cameraShape,
             cameraSize: cameraSize,
-            cameraMirrored: cameraMirrored
+            cameraMirrored: cameraMirrored,
+            fileURL: activeFile?.url.path,
+            fileName: activeFile?.name,
+            fileKind: activeFile?.kind,
+            filePageIndex: filePageIndex
         )
         presets.append(preset)
+        activePresetID = preset.id
         persistPresets()
         status = "Preset '\(preset.name)' tersimpan."
     }
 
     func applyPreset(_ preset: Preset) {
+        activePresetID = preset.id
         mode = preset.mode
         framing = preset.framing
         canvasMode = preset.canvasMode
@@ -444,13 +518,39 @@ final class PilihLayarModel: NSObject, ObservableObject {
         cameraShape = preset.cameraShape
         cameraSize = preset.cameraSize
         cameraMirrored = preset.cameraMirrored
+        if let path = preset.fileURL, !path.isEmpty {
+            let url = URL(fileURLWithPath: path)
+            if let existing = fileSources.first(where: { $0.url.path == path }) {
+                closeFile()
+                activateFile(existing)
+                if existing.kind == .pdf, preset.filePageIndex < existing.pageCount {
+                    filePageIndex = preset.filePageIndex
+                    renderFilePage()
+                }
+            } else if FileManager.default.fileExists(atPath: path) {
+                closeFile()
+                addFile(url: url)
+                if preset.filePageIndex > 0, let current = activeFile,
+                   current.kind == .pdf, preset.filePageIndex < current.pageCount {
+                    filePageIndex = preset.filePageIndex
+                    renderFilePage()
+                }
+            } else {
+                closeFile()
+                status = "Preset '\(preset.name)' diterapkan, tapi file tidak ditemukan."
+                if isSharing { restartCapture() }
+                return
+            }
+        } else {
+            closeFile()
+        }
         if isSharing { restartCapture() }
         status = "Preset '\(preset.name)' diterapkan."
     }
 
     func deletePreset(_ preset: Preset) {
-        guard !preset.isBuiltIn else { return }
         presets.removeAll { $0.id == preset.id }
+        if activePresetID == preset.id { activePresetID = nil }
         persistPresets()
     }
 
@@ -463,29 +563,12 @@ final class PilihLayarModel: NSObject, ObservableObject {
     private func loadPresets() {
         if let data = UserDefaults.standard.data(forKey: presetsKey),
            let decoded = try? JSONDecoder().decode([Preset].self, from: data) {
-            presets = decoded
+            let userPresets = decoded.filter { !$0.isBuiltIn }
+            presets = userPresets
+            if userPresets.count != decoded.count { persistPresets() }
             return
         }
-        presets = [
-            Preset(name: "Presentasi", mode: .allow, framing: .dynamic,
-                   canvasMode: .isolated, canvasBackground: .gray,
-                   selectedWindowIDs: [], displayID: nil,
-                   cameraEnabled: true, cameraPosition: .bottomRight,
-                   cameraShape: .rounded, cameraSize: 180, cameraMirrored: false,
-                   isBuiltIn: true),
-            Preset(name: "Demo Aplikasi", mode: .allow, framing: .full,
-                   canvasMode: .fullDisplay, canvasBackground: .black,
-                   selectedWindowIDs: [], displayID: nil,
-                   cameraEnabled: false, cameraPosition: .bottomRight,
-                   cameraShape: .circle, cameraSize: 160, cameraMirrored: false,
-                   isBuiltIn: true),
-            Preset(name: "Layar Penuh", mode: .block, framing: .full,
-                   canvasMode: .fullDisplay, canvasBackground: .white,
-                   selectedWindowIDs: [], displayID: nil,
-                   cameraEnabled: false, cameraPosition: .bottomRight,
-                   cameraShape: .square, cameraSize: 180, cameraMirrored: false,
-                   isBuiltIn: true),
-        ]
+        presets = []
         persistPresets()
     }
 }

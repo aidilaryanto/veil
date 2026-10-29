@@ -19,6 +19,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 12) {
             header
             mainActions
+            presetStrip
             popupGrid
             Text(model.status)
                 .font(.caption)
@@ -93,6 +94,29 @@ struct ContentView: View {
                 }
                 .buttonStyle(.bordered)
                 .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var presetStrip: some View {
+        if model.isSharing, !model.presets.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Scene / Preset")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(model.presets) { preset in
+                            Button(preset.name) {
+                                model.applyPreset(preset)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .tint(model.activePresetID == preset.id ? Color.accentColor : Color.secondary)
+                        }
+                    }
+                }
             }
         }
     }
@@ -272,22 +296,31 @@ struct ContentView: View {
             Text("Presets").font(.headline)
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
+                    if model.presets.isEmpty {
+                        Text("Belum ada preset. Buat preset dari setup saat ini lewat Save Current di bawah.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 12)
+                    }
                     ForEach(model.presets) { preset in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(preset.name).bold()
                                 Text("\(preset.mode == .allow ? "Allow" : "Block") • \(preset.framing.rawValue) • \(preset.canvasMode.rawValue)")
                                     .font(.caption).foregroundStyle(.secondary)
+                                if let fileName = preset.fileName {
+                                    Text("File: \(fileName)")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
                             }
                             Spacer()
                             Button("Terapkan") { model.applyPreset(preset) }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
-                            if !preset.isBuiltIn {
-                                Button("Hapus") { model.deletePreset(preset) }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.small)
-                            }
+                                .tint(model.activePresetID == preset.id ? Color.accentColor : Color.secondary)
+                            Button("Hapus") { model.deletePreset(preset) }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                         }
                     }
                 }
@@ -401,6 +434,45 @@ struct ContentView: View {
         if panel.runModal() == .OK, let url = panel.url {
             model.addFile(url: url)
         }
+    }
+}
+
+struct FileControlView: View {
+    @EnvironmentObject var model: PilihLayarModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let file = model.activeFile {
+                Text(file.name)
+                    .font(.subheadline)
+                    .bold()
+                    .lineLimit(1)
+                Text("\(file.kind.rawValue) • Hal. \(model.filePageIndex + 1) / \(file.pageCount)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Button("Sebelumnya") { model.previousFilePage() }
+                        .disabled(model.filePageIndex == 0)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    Spacer()
+                    Button("Berikutnya") { model.nextFilePage() }
+                        .disabled(model.filePageIndex + 1 >= file.pageCount)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                }
+                Button("Tutup File") { model.closeFile() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .frame(maxWidth: .infinity)
+            } else {
+                Text("Tidak ada file yang ditampilkan.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .frame(width: 340)
     }
 }
 
