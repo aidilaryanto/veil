@@ -54,6 +54,18 @@ struct WindowDragView: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
+extension View {
+    func pointingHandOnHover() -> some View {
+        onHover { hovering in
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+    }
+}
+
 // MARK: - Jendela kontrol utama (control bar, grid 5x2)
 
 struct ContentView: View {
@@ -73,11 +85,6 @@ struct ContentView: View {
             header
             presetStrip
             popupGrid
-            footerRow
-            Text(model.status)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(3)
         }
         .padding(16)
         .frame(width: 680)
@@ -162,6 +169,7 @@ struct ContentView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.black.opacity(0.45))
             )
+            .pointingHandOnHover()
             Button {
                 model.toggleSharing()
             } label: {
@@ -175,6 +183,7 @@ struct ContentView: View {
                     .fill(Color.black.opacity(0.45))
             )
             .help(model.isSharing ? "Berhenti Stream" : "Mulai Stream")
+            .pointingHandOnHover()
             Button {
                 model.togglePause()
             } label: {
@@ -188,6 +197,7 @@ struct ContentView: View {
                     .fill(Color.black.opacity(0.45))
             )
             .help(model.isPaused ? "Lanjutkan" : "Pause")
+            .pointingHandOnHover()
             .disabled(!model.isSharing)
             Toggle("Always on Top", isOn: $model.alwaysOnTop)
                 .toggleStyle(.checkbox)
@@ -195,23 +205,6 @@ struct ContentView: View {
             Image(systemName: "info.circle")
         }
         .background(WindowDragView())
-    }
-
-    private var footerRow: some View {
-        HStack(spacing: 8) {
-            Text("File PDF / PPT ada di menu Sources.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Button("Refresh") { model.refreshSources() }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.black.opacity(0.45))
-                )
-        }
     }
 
     @ViewBuilder
@@ -235,6 +228,7 @@ struct ContentView: View {
                                 RoundedRectangle(cornerRadius: 8)
                                     .fill(Color.black.opacity(0.45))
                             )
+                            .pointingHandOnHover()
                         }
                     }
                 }
@@ -288,6 +282,7 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
+        .pointingHandOnHover()
     }
 
     private func popupHeader(_ title: String) -> some View {
@@ -594,6 +589,7 @@ struct FileTwoPartControl: View {
                         .buttonStyle(.plain)
                         .foregroundStyle(model.activeFileID == file.id ? Color.accentColor : Color.primary)
                         .help("Tampilkan file ini")
+                        .pointingHandOnHover()
                         Spacer()
                         Button {
                             model.removeFile(file)
@@ -619,6 +615,7 @@ struct FileTwoPartControl: View {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color.black.opacity(0.45))
                 )
+                .pointingHandOnHover()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Divider()
@@ -642,6 +639,7 @@ struct FileTwoPartControl: View {
                     )
                     .disabled(model.filePageIndex == 0)
                     .help("Halaman sebelumnya")
+                    .pointingHandOnHover()
                     Button {
                         model.nextFilePage()
                     } label: {
@@ -658,6 +656,7 @@ struct FileTwoPartControl: View {
                     )
                     .disabled(model.filePageIndex + 1 >= active.pageCount)
                     .help("Halaman berikutnya")
+                    .pointingHandOnHover()
                     Button {
                         model.closeFile()
                     } label: {
@@ -673,6 +672,7 @@ struct FileTwoPartControl: View {
                             .fill(Color.black.opacity(0.45))
                     )
                     .help("Tutup file")
+                    .pointingHandOnHover()
                 } else {
                     Text("—")
                         .font(.caption).foregroundStyle(.secondary)
