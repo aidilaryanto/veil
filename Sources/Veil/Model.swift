@@ -84,6 +84,12 @@ struct FileSource: Identifiable, Hashable {
     static func == (lhs: FileSource, rhs: FileSource) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
+struct PresetFile: Codable, Hashable {
+    var url: String
+    var name: String
+    var kind: FileKind
+    var pageCount: Int
+}
 struct Preset: Identifiable, Codable {
     var id = UUID()
     var name: String
@@ -103,6 +109,8 @@ struct Preset: Identifiable, Codable {
     var fileName: String? = nil
     var fileKind: FileKind? = nil
     var filePageIndex: Int = 0
+    var files: [PresetFile] = []
+    var activeFileURL: String? = nil
 }
 @MainActor
 final class VeilModel: NSObject, ObservableObject {
@@ -366,6 +374,7 @@ final class VeilModel: NSObject, ObservableObject {
                         if !isOutputVisible {
                             openOutputWindow()
                         }
+                        reopenFileControlIfNeeded()
                     }
                 } catch {
                     await MainActor.run {
@@ -472,12 +481,58 @@ final class VeilModel: NSObject, ObservableObject {
             }
         }
         let added = urls.sorted { $0.path < $1.path }.compactMap { addFile(url: $0) }.count
+        if added > 0 { syncActivePresetFiles() }
         if added == 0 {
             status = "No new PDF or PPT files added."
         } else if added == 1 {
             status = "1 file added. Click a file name to show it."
         } else {
             status = "\(added) files added. Click a file name to show it."
+        }
+    }
+    func choosePresentationFile() -> Bool {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "Select a PDF or PPT file to present."
+        panel.allowedContentTypes = [
+            .pdf,
+            UTType(filenameExtension: "ppt") ?? .data,
+            UTType(filenameExtension: "pptx") ?? .data
+        ]
+        guard panel.runModal() == .OK, let url = panel.url else { return false }
+        if let existing = fileSources.first(where: { $0.url.path == url.path }) {
+            activateFile(existing)
+            syncActivePresetFiles()
+            return true
+        }
+        guard let added = addFile(url: url) else { return false }
+        activateFile(added)
+        syncActivePresetFiles()
+        return true
+    }
+    func syncActivePresetFiles() {
+        guard let id = activePresetID,
+              let index = presets.firstIndex(where: { $0.id == id }) else { return }
+        presets[index].files = fileSources.map {
+            PresetFile(url: $0.url.path, name: $0.name, kind: $0.kind, pageCount: $0.pageCount)
+        }
+        presets[index].activeFileURL = activeFile?.url.path
+        presets[index].fileURL = activeFile?.url.path
+        presets[index].fileName = activeFile?.name
+        presets[index].fileKind = activeFile?.kind
+        presets[index].filePageIndex = filePageIndex
+        persistPresets()
+    }
+    func fileSource(from presetFile: PresetFile) -> FileSource? {
+        let url = URL(fileURLWithPath: presetFile.url)
+        guard FileManager.default.fileExists(atPath: presetFile.url) else { return nil }
+        if presetFile.kind == .pdf {
+            let pageCount = PDFDocument(url: url)?.pageCount ?? presetFile.pageCount
+            return FileSource(name: presetFile.name, url: url, kind: .pdf, pageCount: max(1, pageCount))
+        } else {
+            return FileSource(name: presetFile.name, url: url, kind: .ppt, pageCount: 1)
         }
     }
     func addFile(url: URL) -> FileSource? {
@@ -500,7 +555,7 @@ final class VeilModel: NSObject, ObservableObject {
     func activateFile(_ item: FileSource) {
         activeFileID = item.id
         filePageIndex = 0
-        openFileControlWindow()
+        if isSharing { openFileControlWindow() }
         if item.kind == .pdf {
             pdfDocument = PDFDocument(url: item.url)
             renderFilePage()
@@ -532,8 +587,19 @@ final class VeilModel: NSObject, ObservableObject {
         applySourceRatioToWindows()
     }
     func removeFile(_ item: FileSource) {
-        fileSources.removeAll { $0.id == item.id }
-        if activeFileID == item.id { closeFile() }
+        guard let index = fileSources.firstIndex(where: { $0.id == item.id }) else { return }
+        let wasActive = activeFileID == item.id
+        fileSources.remove(at: index)
+        if wasActive {
+            if fileSources.isEmpty {
+                closeFile()
+            } else if index > 0 {
+                activateFile(fileSources[index - 1])
+            } else {
+                activateFile(fileSources[0])
+            }
+        }
+        syncActivePresetFiles()
     }
     func nextFilePage() {
         guard let item = activeFile, filePageIndex + 1 < item.pageCount else { return }
@@ -570,6 +636,10 @@ final class VeilModel: NSObject, ObservableObject {
         updated.fileName = activeFile?.name
         updated.fileKind = activeFile?.kind
         updated.filePageIndex = filePageIndex
+        updated.files = fileSources.map {
+            PresetFile(url: $0.url.path, name: $0.name, kind: $0.kind, pageCount: $0.pageCount)
+        }
+        updated.activeFileURL = activeFile?.url.path
         presets[index] = updated
         activePresetID = updated.id
         persistPresets()
@@ -607,7 +677,11 @@ final class VeilModel: NSObject, ObservableObject {
             fileURL: activeFile?.url.path,
             fileName: activeFile?.name,
             fileKind: activeFile?.kind,
-            filePageIndex: filePageIndex
+            filePageIndex: filePageIndex,
+            files: fileSources.map {
+                PresetFile(url: $0.url.path, name: $0.name, kind: $0.kind, pageCount: $0.pageCount)
+            },
+            activeFileURL: activeFile?.url.path
         )
         presets.append(preset)
         activePresetID = preset.id
@@ -629,33 +703,29 @@ final class VeilModel: NSObject, ObservableObject {
         cameraShape = preset.cameraShape
         cameraSize = preset.cameraSize
         cameraMirrored = preset.cameraMirrored
-        if let path = preset.fileURL, !path.isEmpty {
-            let url = URL(fileURLWithPath: path)
-            if let existing = fileSources.first(where: { $0.url.path == path }) {
-                closeFile()
-                activateFile(existing)
-                if existing.kind == .pdf, preset.filePageIndex < existing.pageCount {
-                    filePageIndex = preset.filePageIndex
-                    renderFilePage()
-                }
-            } else if FileManager.default.fileExists(atPath: path) {
-                closeFile()
-                if let added = addFile(url: url) {
-                    activateFile(added)
-                }
-                if preset.filePageIndex > 0, let current = activeFile,
-                   current.kind == .pdf, preset.filePageIndex < current.pageCount {
-                    filePageIndex = preset.filePageIndex
-                    renderFilePage()
-                }
-            } else {
-                closeFile()
-                status = "Preset '\(preset.name)' applied, but the file was not found."
-                if isSharing { restartCapture() }
-                return
+        var presetFiles = preset.files
+        if presetFiles.isEmpty,
+           let path = preset.fileURL, !path.isEmpty,
+           let name = preset.fileName, let kind = preset.fileKind {
+            presetFiles = [PresetFile(url: path, name: name, kind: kind, pageCount: preset.filePageIndex + 1)]
+        }
+        fileSources = presetFiles.compactMap { fileSource(from: $0) }
+        let activePath = preset.activeFileURL ?? preset.fileURL
+        if let path = activePath,
+           let active = fileSources.first(where: { $0.url.path == path }) {
+            activateFile(active)
+            if active.kind == .pdf, preset.filePageIndex < active.pageCount {
+                filePageIndex = preset.filePageIndex
+                renderFilePage()
             }
         } else {
-            closeFile()
+            activeFileID = nil
+            pdfDocument = nil
+            filePreviewImage = nil
+            filePageIndex = 0
+            updateSourceAspectRatio()
+            applySourceRatioToWindows()
+            if isSharing, !fileSources.isEmpty { openFileControlWindow() }
         }
         if isSharing { restartCapture() }
         status = "Preset '\(preset.name)' applied."

@@ -208,8 +208,8 @@ extension VeilModel {
         }
         isOutputVisible = false
     }
-    private func reopenFileControlIfNeeded() {
-        if activeFile != nil, FileControlWindowStore.shared.window == nil {
+    func reopenFileControlIfNeeded() {
+        if isSharing, activeFile != nil, FileControlWindowStore.shared.window == nil {
             openFileControlWindow()
         }
     }

@@ -421,7 +421,37 @@ struct ContentView: View {
                 .frame(maxHeight: .infinity)
             }
             Divider()
-            FileTwoPartControl(showPageControls: false)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("File PDF / PPT").font(.subheadline).bold()
+                Text("PDF: full pages. PPT/PPTX: first slide (QuickLook).")
+                    .font(.caption).foregroundStyle(.secondary)
+                if let active = model.activeFile {
+                    Text("Presenting: \(active.name)")
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                } else if !model.fileSources.isEmpty {
+                    Text("\(model.fileSources.count) files in this preset. Start the stream to open the file controller.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("No files yet.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Button {
+                    if model.choosePresentationFile() { popup = nil }
+                } label: {
+                    Label("Choose PDF / PPT", systemImage: "doc")
+                        .font(.subheadline)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.white)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.black.opacity(0.45))
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 10))
+                .pointingHandOnHover()
+            }
             HStack {
                 Button("Clear") { model.clearSelection() }
                     .contentShape(Rectangle())
@@ -625,138 +655,6 @@ struct ContentView: View {
         }
         .padding(16)
         .frame(width: 430, height: 340)
-    }
-}
-struct FileTwoPartControl: View {
-    @EnvironmentObject var model: VeilModel
-    var showPageControls: Bool = true
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("File PDF / PPT").font(.subheadline).bold()
-                Text("PDF: full pages. PPT/PPTX: first slide (QuickLook).")
-                    .font(.caption).foregroundStyle(.secondary)
-                if model.fileSources.isEmpty {
-                    Text("No files yet.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                ForEach(model.fileSources) { file in
-                    HStack(spacing: 6) {
-                        Button {
-                            model.activateFile(file)
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: model.activeFileID == file.id ? "doc.fill" : "doc")
-                                Text(file.name).lineLimit(1)
-                                if model.activeFileID == file.id {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(model.activeFileID == file.id ? Color.accentColor : Color.primary)
-                        .help("Show this file")
-                        .contentShape(Rectangle())
-                        .pointingHandOnHover()
-                        Button {
-                            model.removeFile(file)
-                        } label: {
-                            Image(systemName: "xmark")
-                                .padding(6)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
-                        .help("Delete file")
-                        .contentShape(Circle())
-                        .pointingHandOnHover()
-                    }
-                }
-                Button {
-                    model.openFilePicker()
-                } label: {
-                    Label("Add File", systemImage: "plus")
-                        .font(.subheadline)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.white)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.black.opacity(0.45))
-                )
-                .contentShape(RoundedRectangle(cornerRadius: 10))
-                .pointingHandOnHover()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if showPageControls {
-                Divider()
-                VStack(spacing: 12) {
-                if let active = model.activeFile {
-                    Text("\(model.filePageIndex + 1)/\(active.pageCount)")
-                        .font(.subheadline).bold()
-                    Button {
-                        model.previousFilePage()
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.title2)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.white)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.black.opacity(0.45))
-                    )
-                    .disabled(model.filePageIndex == 0)
-                    .help("Previous page")
-                    .contentShape(RoundedRectangle(cornerRadius: 12))
-                    .pointingHandOnHover()
-                    Button {
-                        model.nextFilePage()
-                    } label: {
-                        Image(systemName: "chevron.right")
-                            .font(.title2)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.white)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.black.opacity(0.45))
-                    )
-                    .disabled(model.filePageIndex + 1 >= active.pageCount)
-                    .help("Next page")
-                    .contentShape(RoundedRectangle(cornerRadius: 12))
-                    .pointingHandOnHover()
-                    Button {
-                        model.closeFile()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.title2)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.white)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.black.opacity(0.45))
-                    )
-                    .help("Close file")
-                    .contentShape(RoundedRectangle(cornerRadius: 12))
-                    .pointingHandOnHover()
-                } else {
-                    Text("—")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                }
-                .frame(width: 110)
-            }
-        }
     }
 }
 struct FileControlView: View {
