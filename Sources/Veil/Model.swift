@@ -434,6 +434,15 @@ final class VeilModel: NSObject, ObservableObject {
                         isSharing = true
                         status = "Sharing is live (\(selectedWindowIDs.count) windows). Share the Output window in Zoom/Meet/Teams."
                         startCaptureWatchdog()
+                        // Stream start => Output langsung muncul,
+                        // tanpa perlu menekan tombol mata lagi.
+                        // Hanya dibuka kalau belum terlihat, supaya
+                        // restart di tengah streaming (ganti preset /
+                        // sumber) tidak mengangkat Output ke depan
+                        // berulang-ulang dan mengganggu panel kontrol.
+                        if !isOutputVisible {
+                            openOutputWindow()
+                        }
                     }
                 } catch {
                     await MainActor.run {
@@ -454,6 +463,15 @@ final class VeilModel: NSObject, ObservableObject {
         stream = nil
         if !keepSharing {
             isSharing = false
+            // Stream stop (tombol Stop maupun Panic) => Output
+            // langsung ditutup. Di Zoom/Meet, yang di-share adalah
+            // jendela Output ini, jadi begitu jendelanya hilang,
+            // share screen di Zoom/Meet ikut terhenti — Veil tidak
+            // punya API langsung ke Zoom/Meet, menutup sumber
+            // share-nya inilah caranya. Restart sengaja TIDAK
+            // menutup Output (keepSharing: true), supaya Output
+            // tidak berkedip hilang-muncul saat ganti preset/sumber.
+            closeOutputWindow()
         }
         Task { try? await oldStream?.stopCapture() }
     }

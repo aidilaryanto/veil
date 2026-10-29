@@ -241,13 +241,27 @@ extension VeilModel {
         isPreviewVisible = false
     }
 
+    /// Tombol mata di header: menampilkan / menyembunyikan Output.
+    /// Tombol ini tetap bisa dipakai manual kapan saja — stream
+    /// start/stop hanya ikut membuka/menutup Output, bukan
+    /// menggantikan tombol ini.
     func toggleOutputWindow() {
         if isOutputVisible {
-            if let window = OutputWindowStore.shared.window { window.orderOut(nil) }
-            isOutputVisible = false
+            closeOutputWindow()
         } else {
             openOutputWindow()
         }
+    }
+
+    /// Menutup Output (orderOut, bukan menghancurkan jendela,
+    /// supaya bisa dibuka lagi tanpa membuat ulang). Dipakai
+    /// saat stream berhenti: jendela yang sedang di-share di
+    /// Zoom/Meet hilang, jadi share di sana ikut terhenti.
+    func closeOutputWindow() {
+        if let window = OutputWindowStore.shared.window {
+            window.orderOut(nil)
+        }
+        isOutputVisible = false
     }
 
     func openOutputWindow() {
