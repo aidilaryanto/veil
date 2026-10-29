@@ -59,6 +59,8 @@ struct ContentView: View {
     @EnvironmentObject var model: VeilModel
     @State private var popup: PopupKind?
     @State private var newPresetName = ""
+    @State private var renamingPresetID: UUID?
+    @State private var renamingName = ""
     @State private var showQuitConfirmation = false
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -575,30 +577,84 @@ struct ContentView: View {
                     }
                     ForEach(model.presets) { preset in
                         HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(preset.name).bold()
-                                Text("\(preset.mode == .allow ? "Allow" : "Block") • \(preset.framing.rawValue) • \(preset.canvasMode.rawValue)")
-                                    .font(.caption).foregroundStyle(.secondary)
-                                if let fileName = preset.fileName {
-                                    Text("File: \(fileName)")
-                                        .font(.caption).foregroundStyle(.secondary)
+                            if renamingPresetID == preset.id {
+                                TextField("Preset name", text: $renamingName)
+                                    .textFieldStyle(.roundedBorder)
+                                    .onSubmit {
+                                        if model.renamePreset(preset, to: renamingName) { renamingPresetID = nil }
+                                    }
+                                Button {
+                                    if model.renamePreset(preset, to: renamingName) { renamingPresetID = nil }
+                                } label: {
+                                    Label("Confirm rename", systemImage: "checkmark")
                                 }
-                            }
-                            Spacer()
-                            Button("Apply") { model.applyPreset(preset) }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
+                                .labelStyle(.iconOnly)
+                                .help("Confirm rename")
+                                .contentShape(Rectangle())
+                                .pointingHandOnHover()
+                                Button { renamingPresetID = nil } label: {
+                                    Label("Cancel rename", systemImage: "xmark")
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .labelStyle(.iconOnly)
+                                .help("Cancel rename")
+                                .contentShape(Rectangle())
+                                .pointingHandOnHover()
+                            } else {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(preset.name).bold()
+                                    Text("\(preset.mode == .allow ? "Allow" : "Block") • \(preset.framing.rawValue) • \(preset.canvasMode.rawValue)")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                    if let fileName = preset.fileName {
+                                        Text("File: \(fileName)")
+                                            .font(.caption).foregroundStyle(.secondary)
+                                    }
+                                }
+                                Spacer()
+                                Button { model.applyPreset(preset) } label: {
+                                    Label("Apply preset", systemImage: "checkmark.circle")
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .labelStyle(.iconOnly)
                                 .tint(model.activePresetID == preset.id ? Color.accentColor : Color.secondary)
+                                .help("Apply preset")
+                                .contentShape(Rectangle())
                                 .pointingHandOnHover()
-                            Button("Replace") { model.replacePreset(preset) }
+                                Button {
+                                    renamingPresetID = preset.id
+                                    renamingName = preset.name
+                                } label: {
+                                    Label("Rename preset", systemImage: "pencil")
+                                }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
+                                .labelStyle(.iconOnly)
+                                .help("Rename preset")
+                                .contentShape(Rectangle())
+                                .pointingHandOnHover()
+                                Button { model.replacePreset(preset) } label: {
+                                    Label("Replace preset", systemImage: "arrow.triangle.2.circlepath")
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .labelStyle(.iconOnly)
                                 .help("Replace this preset with the current setup")
+                                .contentShape(Rectangle())
                                 .pointingHandOnHover()
-                            Button("Delete") { model.deletePreset(preset) }
+                                Button { model.deletePreset(preset) } label: {
+                                    Label("Delete preset", systemImage: "trash")
+                                }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
+                                .labelStyle(.iconOnly)
+                                .help("Delete preset")
+                                .contentShape(Rectangle())
                                 .pointingHandOnHover()
+                            }
                         }
                     }
                 }

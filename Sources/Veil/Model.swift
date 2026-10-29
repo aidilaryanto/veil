@@ -497,21 +497,24 @@ final class VeilModel: NSObject, ObservableObject {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.message = "Select a PDF or PPT file to present."
+        panel.allowsMultipleSelection = true
+        panel.message = "Select PDF or PPT files to present."
         panel.allowedContentTypes = [
             .pdf,
             UTType(filenameExtension: "ppt") ?? .data,
             UTType(filenameExtension: "pptx") ?? .data
         ]
-        guard panel.runModal() == .OK, let url = panel.url else { return false }
-        if let existing = fileSources.first(where: { $0.url.path == url.path }) {
-            activateFile(existing)
-            syncActivePresetFiles()
-            return true
+        guard panel.runModal() == .OK, !panel.urls.isEmpty else { return false }
+        var first: FileSource?
+        for url in panel.urls.sorted(by: { $0.path < $1.path }) {
+            if let existing = fileSources.first(where: { $0.url.path == url.path }) {
+                if first == nil { first = existing }
+            } else if let added = addFile(url: url), first == nil {
+                first = added
+            }
         }
-        guard let added = addFile(url: url) else { return false }
-        activateFile(added)
+        guard let active = first else { return false }
+        activateFile(active)
         syncActivePresetFiles()
         return true
     }
@@ -737,6 +740,20 @@ final class VeilModel: NSObject, ObservableObject {
         presets.removeAll { $0.id == preset.id }
         if activePresetID == preset.id { activePresetID = nil }
         persistPresets()
+    }
+    func renamePreset(_ preset: Preset, to name: String) -> Bool {
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let index = presets.firstIndex(where: { $0.id == preset.id }) else { return false }
+        if cleanName.isEmpty { return false }
+        if cleanName == presets[index].name { return true }
+        if presets.contains(where: { $0.id != preset.id && $0.name.lowercased() == cleanName.lowercased() }) {
+            status = "A preset named '\(cleanName)' already exists."
+            return false
+        }
+        presets[index].name = cleanName
+        persistPresets()
+        status = "Preset renamed to '\(cleanName)'."
+        return true
     }
     private func persistPresets() {
         if let data = try? JSONEncoder().encode(presets) {
