@@ -265,17 +265,19 @@ final class PilihLayarModel: NSObject, ObservableObject {
     }
 
     func restartCapture() {
-        stopCapture()
+        stopCapture(keepSharing: true)
         startCapture()
     }
 
     func startCapture() {
         guard !isPanic else {
             status = "Mode Panik aktif, output disembunyikan."
+            isSharing = false
             return
         }
         guard let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first else {
             status = "Tidak ada layar. Tekan Refresh dulu."
+            isSharing = false
             return
         }
         let config = SCStreamConfiguration()
@@ -338,19 +340,23 @@ final class PilihLayarModel: NSObject, ObservableObject {
                 } catch {
                     await MainActor.run {
                         status = "Gagal mulai capture: \(error.localizedDescription)"
+                        isSharing = false
                     }
                 }
             }
         } catch {
             status = "Gagal membuat stream: \(error.localizedDescription)"
+            isSharing = false
         }
     }
 
-    func stopCapture() {
+    func stopCapture(keepSharing: Bool = false) {
         stopCaptureWatchdog()
         let oldStream = stream
         stream = nil
-        isSharing = false
+        if !keepSharing {
+            isSharing = false
+        }
         Task { try? await oldStream?.stopCapture() }
     }
 
