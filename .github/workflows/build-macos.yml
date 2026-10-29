@@ -1,0 +1,47 @@
+name: Build macOS App
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build (release)
+        run: swift build -c release
+
+      - name: Bungkus jadi PilihLayar.app
+        run: |
+          mkdir -p PilihLayar.app/Contents/MacOS
+          cp .build/release/PilihLayar PilihLayar.app/Contents/MacOS/PilihLayar
+          chmod +x PilihLayar.app/Contents/MacOS/PilihLayar
+          cat > PilihLayar.app/Contents/Info.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key><string>PilihLayar</string>
+            <key>CFBundleIdentifier</key><string>com.pilihlayar.app</string>
+            <key>CFBundleName</key><string>PilihLayar</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>1.0</string>
+            <key>LSMinimumSystemVersion</key><string>14.0</string>
+            <key>NSCameraUsageDescription</key><string>PilihLayar memakai kamera untuk overlay kamera saat presentasi.</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict>
+          </plist>
+          EOF
+          codesign --force --deep --sign - PilihLayar.app
+          codesign --verify --verbose PilihLayar.app || true
+          ditto -c -k --keepParent PilihLayar.app PilihLayar-macOS.zip
+          ls -lh PilihLayar-macOS.zip
+
+      - name: Upload hasil build
+        uses: actions/upload-artifact@v4
+        with:
+          name: PilihLayar-macOS
+          path: PilihLayar-macOS.zip
