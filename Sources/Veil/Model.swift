@@ -150,6 +150,14 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var activePresetID: UUID?
     @Published var isPreviewVisible = false
     @Published var isOutputVisible = false
+    /// Rasio (lebar / tinggi) dari sumber yang sedang ditampilkan.
+    /// Default 16:9, tapi diperbarui setiap kali sumber berubah:
+    /// jendela yang dipilih, gabungan jendela (framing Dynamic),
+    /// layar (framing Full / Block), atau frame stream yang masuk.
+    /// Jendela Output dan Preview memakai rasio ini (bukan 16:9
+    /// tetap), supaya sumber yang bukan 16:9 tidak terpotong oleh
+    /// scaledToFill di dalam jendela 16:9.
+    @Published var sourceAspectRatio: CGFloat = 16.0 / 9.0
     @Published var fileSources: [FileSource] = []
     @Published var activeFileID: UUID?
     @Published var filePageIndex = 0
@@ -200,6 +208,44 @@ final class VeilModel: NSObject, ObservableObject {
     var groupedSources: [(app: String, items: [SourceItem])] {
         let grouped = Dictionary(grouping: visibleSources, by: { $0.appName })
         return grouped.keys.sorted().map { (app: $0, items: grouped[$0] ?? []) }
+    }
+
+    /// Menghitung ulang sourceAspectRatio dari sumber yang sedang
+    /// ditampilkan, dengan prioritas: file yang sedang tampil >
+    /// frame stream (kalau sedang sharing) > frame jendela yang
+    /// dipilih (supaya ganti pilihan sebelum Start pun langsung
+    /// mengubah rasio Preview/Output, bukan tertahan frame lama) >
+    /// frame stream lama > gabungan frame (Dynamic) > layar yang
+    /// dipilih. Hanya mengubah nilai kalau rasionya benar-benar
+    /// berubah (> 0,01), supaya jendela Output/Preview tidak
+    /// di-resize setiap frame.
+    func updateSourceAspectRatio() {
+        var size: CGSize?
+        if let image = filePreviewImage {
+            size = image.size
+        } else if isSharing, let image = previewImage {
+            size = image.size
+        } else if selectedWindowIDs.count == 1,
+                  let onlyID = selectedWindowIDs.first,
+                  let frame = capturedWindows.first(where: { $0.windowID == onlyID })?.frame {
+            size = frame.size
+        } else if framing == .dynamic, !selectedWindowIDs.isEmpty {
+            let frames = capturedWindows.filter { selectedWindowIDs.contains($0.windowID) }.map { $0.frame }
+            if let union = frames.reduce(nil as CGRect?, { $0 == nil ? $1 : $0!.union($1) }) {
+                size = union.size
+            }
+        } else if let image = previewImage {
+            size = image.size
+        }
+        if size == nil,
+           let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first {
+            size = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
+        }
+        guard let size = size, size.width > 0, size.height > 0 else { return }
+        let ratio = size.width / size.height
+        if abs(ratio - sourceAspectRatio) > 0.01 {
+            sourceAspectRatio = ratio
+        }
     }
 
     func applyAlwaysOnTop() {
@@ -270,6 +316,7 @@ final class VeilModel: NSObject, ObservableObject {
                 }
                 capturedWindows = content.windows
                 sources = Self.sourceItems(from: content.windows)
+                updateSourceAspectRatio()
                 status = "\(sources.count) windows on \(content.displays.count) displays."
             } catch {
                 status = "Failed to read windows: \(error.localizedDescription). Check Screen Recording permission."
@@ -283,11 +330,13 @@ final class VeilModel: NSObject, ObservableObject {
         } else {
             selectedWindowIDs.insert(id)
         }
+        updateSourceAspectRatio()
         if isSharing { restartCapture() }
     }
 
     func clearSelection() {
         selectedWindowIDs.removeAll()
+        updateSourceAspectRatio()
         if isSharing { restartCapture() }
     }
 
@@ -425,6 +474,7 @@ final class VeilModel: NSObject, ObservableObject {
             capturedWindows = content.windows
             displays = content.displays
             sources = Self.sourceItems(from: content.windows)
+            updateSourceAspectRatio()
             let signature = captureSignature()
             if signature != lastCaptureSignature {
                 lastCaptureSignature = signature
@@ -620,6 +670,7 @@ final class VeilModel: NSObject, ObservableObject {
         if preset.canvasBackground != .custom { canvasImage = nil }
         selectedWindowIDs = Set(preset.selectedWindowIDs)
         selectedDisplayID = preset.displayID
+        updateSourceAspectRatio()
         cameraEnabled = preset.cameraEnabled
         cameraPosition = preset.cameraPosition
         cameraShape = preset.cameraShape
@@ -702,6 +753,11 @@ extension VeilModel: SCStreamOutput {
             // Saat dijeda, frame terakhir dibekukan: preview tidak diperbarui.
             if !self.isPaused {
                 self.previewImage = image
+                // Frame stream inilah "ukuran yang ditampilkan":
+                // kalau sumber di-resize, rasio frame ikut berubah
+                // dan jendela Output/Preview menyesuaikan lewat
+                // onChange sourceAspectRatio di Views.
+                self.updateSourceAspectRatio()
             }
         }
     }

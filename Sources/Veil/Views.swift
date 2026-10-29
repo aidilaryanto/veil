@@ -767,6 +767,12 @@ struct PreviewContentView: View {
                 }
             }
         }
+        // Kalau rasio sumber berubah (jendela dipilih lain, atau
+        // sumber di-resize saat streaming), sesuaikan ukuran
+        // jendela Preview (dan Output) ke rasio baru itu.
+        .onChange(of: model.sourceAspectRatio) { _, _ in
+            model.applySourceRatioToWindows()
+        }
     }
 }
 
@@ -800,6 +806,11 @@ struct OutputContentView: View {
                 }
                 cameraOverlay
             }
+        }
+        // Sama seperti Preview: rasio sumber berubah => ukuran
+        // jendela Output mengikuti rasio baru itu.
+        .onChange(of: model.sourceAspectRatio) { _, _ in
+            model.applySourceRatioToWindows()
         }
     }
 

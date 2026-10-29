@@ -25,6 +25,51 @@ final class FileControlWindowStore {
 }
 
 extension VeilModel {
+    /// Menyesuaikan jendela Output dan Preview yang sudah ada ke
+    /// rasio sumber saat ini (sourceAspectRatio): kunci contentAspectRatio
+    /// ke rasio itu, lalu resize konten dengan lebar yang sama (tinggi
+    /// = lebar / rasio), dijepit ke layar supaya tidak keluar layar.
+    /// Kalau rasio tidak berubah, fungsi ini tidak mengubah apa-apa
+    /// yang terlihat — jadi aman dipanggil dari onChange ratio.
+    func applySourceRatioToWindows() {
+        let ratio = sourceAspectRatio
+        guard ratio > 0 else { return }
+        for window in [OutputWindowStore.shared.window, PreviewWindowStore.shared.window].compactMap({ $0 }) {
+            window.contentAspectRatio = NSSize(width: ratio, height: 1)
+            let current = window.contentRect(forFrameRect: window.frame).size
+            var width = current.width
+            var height = width / ratio
+            if let screen = window.screen ?? NSScreen.main {
+                let visible = screen.visibleFrame
+                let maxHeight = max(180, visible.height - 100)
+                let maxWidth = max(320, visible.width - 80)
+                if height > maxHeight { height = maxHeight; width = height * ratio }
+                if width > maxWidth { width = maxWidth; height = width / ratio }
+            }
+            width = max(320, width)
+            height = max(180, height)
+            if abs(height - current.height) > 1 || abs(width - current.width) > 1 {
+                window.setContentSize(NSSize(width: width, height: height))
+            }
+        }
+    }
+
+    /// Ukuran awal sebuah jendela baru dari rasio sumber: lebar dasar
+    /// yang diminta, tinggi = lebar / rasio, dijepit ke layar.
+    private func initialContentSize(baseWidth: CGFloat) -> NSSize {
+        let ratio = sourceAspectRatio > 0 ? sourceAspectRatio : (16.0 / 9.0)
+        var width = baseWidth
+        var height = width / ratio
+        if let screen = NSScreen.main {
+            let visible = screen.visibleFrame
+            let maxHeight = max(180, visible.height - 100)
+            let maxWidth = max(320, visible.width - 80)
+            if height > maxHeight { height = maxHeight; width = height * ratio }
+            if width > maxWidth { width = maxWidth; height = width / ratio }
+        }
+        return NSSize(width: max(320, width), height: max(180, height))
+    }
+
     func openFileControlWindow() {
         if let window = FileControlWindowStore.shared.window {
             window.makeKeyAndOrderFront(nil)
@@ -56,11 +101,18 @@ extension VeilModel {
     }
 
     func openPreviewWindow() {
-        let controlWidth = NSApp.keyWindow?.frame.width ?? 680
-        let previewWidth = max(controlWidth, 320)
-        let previewHeight = previewWidth * 9 / 16
+        // Ukuran Preview mengikuti rasio sumber yang dipilih, bukan
+        // 16:9 tetap dan bukan lagi lebar jendela kontrol: lebar dasar
+        // 680 (lebar kontrol), tinggi = 680 / rasio sumber, dijepit
+        // ke layar. Preview kini bisa di-resize manual, tapi
+        // contentAspectRatio mengunci rasionya ke rasio sumber, jadi
+        // resize hanya mengubah ukuran, bukan bentuk gambar.
+        updateSourceAspectRatio()
+        let previewSize = initialContentSize(baseWidth: 680)
+        let previewWidth = previewSize.width
+        let previewHeight = previewSize.height
         if let window = PreviewWindowStore.shared.window {
-            window.setContentSize(NSSize(width: previewWidth, height: previewHeight))
+            applySourceRatioToWindows()
             window.makeKeyAndOrderFront(nil)
             isPreviewVisible = true
             return
@@ -79,14 +131,14 @@ extension VeilModel {
         }
         let window = NSWindow(
             contentRect: frame,
-            styleMask: [.titled, .closable, .miniaturizable],
+            styleMask: [.titled, .closable, .resizable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Veil Preview — preview only, not for sharing"
         window.level = .floating
         window.isReleasedWhenClosed = false
-        window.contentAspectRatio = NSSize(width: 16, height: 9)
+        window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
         window.contentView = NSHostingView(rootView: PreviewContentView().environmentObject(self))
         window.makeKeyAndOrderFront(nil)
         PreviewWindowStore.shared.window = window
@@ -114,18 +166,26 @@ extension VeilModel {
 
     func openOutputWindow() {
         if let window = OutputWindowStore.shared.window {
+            applySourceRatioToWindows()
             window.makeKeyAndOrderFront(nil)
             isOutputVisible = true
             return
         }
+        // Ukuran awal Output mengikuti rasio sumber yang dipilih,
+        // bukan 16:9 tetap: lebar dasar 960, tinggi = 960 / rasio.
+        updateSourceAspectRatio()
+        let outputSize = initialContentSize(baseWidth: 960)
         let window = NSWindow(
-            contentRect: NSRect(x: 100, y: 100, width: 960, height: 540),
+            contentRect: NSRect(x: 100, y: 100, width: outputSize.width, height: outputSize.height),
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Veil Output — share this window"
-        window.contentAspectRatio = NSSize(width: 16, height: 9)
+        // Rasio dikunci ke rasio sumber: saat jendela Output
+        // di-resize, macOS menjaga rasio kontennya, jadi gambar
+        // tidak melar / berubah bentuk dan tidak terpotong.
+        window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.standardWindowButton(.closeButton)?.isHidden = true
