@@ -135,6 +135,7 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var isPanic = false
     @Published var isPaused = false
     @Published var previewImage: NSImage?
+    @Published var previewSnapshotImage: NSImage?
     @Published var status = "Ready. Press Refresh, choose a window, then Start Stream."
     @Published var presets: [Preset] = []
     @Published var activePresetID: UUID?
@@ -150,6 +151,7 @@ final class VeilModel: NSObject, ObservableObject {
             && !(mode == .allow && selectedWindowIDs.isEmpty)
     }
     private var capturedWindows: [SCWindow] = []
+    private var previewSnapshotTimer: Timer?
     private var stream: SCStream?
     private var pdfDocument: PDFDocument?
     private var captureWatchdog: Timer?
@@ -240,6 +242,27 @@ final class VeilModel: NSObject, ObservableObject {
             applySourceRatioToWindows()
         }
     }
+    func refreshPreviewSnapshot() {
+        guard !isSharing, !isPanic, filePreviewImage == nil,
+              mode == .allow, selectedWindowIDs.count == 1,
+              let onlyID = selectedWindowIDs.first,
+              let cgImage = CGWindowListCreateImage(.null, .optionIncludingWindow, onlyID, .bestResolution) else {
+            previewSnapshotImage = nil
+            return
+        }
+        previewSnapshotImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+        updateSourceAspectRatio()
+    }
+    func startPreviewSnapshotTimer() {
+        guard !isSharing, previewSnapshotTimer == nil else { return }
+        previewSnapshotTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refreshPreviewSnapshot() }
+        }
+    }
+    func stopPreviewSnapshotTimer() {
+        previewSnapshotTimer?.invalidate()
+        previewSnapshotTimer = nil
+    }
     func applyAlwaysOnTop() {
         for window in NSApp.windows {
             if window.title.contains("Output") {
@@ -305,10 +328,19 @@ final class VeilModel: NSObject, ObservableObject {
         }
         updateSourceAspectRatio()
         updateSourceAspectRatioFromSelection()
-        if isSharing { restartCapture() }
+        if isSharing {
+            stopPreviewSnapshotTimer()
+            previewSnapshotImage = nil
+            restartCapture()
+        } else {
+            refreshPreviewSnapshot()
+            startPreviewSnapshotTimer()
+        }
     }
     func clearSelection() {
         selectedWindowIDs.removeAll()
+        previewSnapshotImage = nil
+        stopPreviewSnapshotTimer()
         updateSourceAspectRatio()
         if isSharing { restartCapture() }
     }
@@ -317,9 +349,15 @@ final class VeilModel: NSObject, ObservableObject {
             stopCapture()
             activePresetID = nil
             fileSources = []
-            status = "Stopped. Preset and file list reset."
+            selectedWindowIDs.removeAll()
+            previewSnapshotImage = nil
+            stopPreviewSnapshotTimer()
+            updateSourceAspectRatio()
+            status = "Stopped. Preset, file list and source reset."
         } else {
             previewImage = nil
+            previewSnapshotImage = nil
+            stopPreviewSnapshotTimer()
             startCapture()
         }
     }
@@ -398,6 +436,8 @@ final class VeilModel: NSObject, ObservableObject {
                     try await newStream.startCapture()
                     await MainActor.run {
                         isSharing = true
+                        previewSnapshotImage = nil
+                        stopPreviewSnapshotTimer()
                         status = "Sharing is live (\(selectedWindowIDs.count) windows). Share the Output window in Zoom/Meet/Teams."
                         startCaptureWatchdog()
                         if !isOutputVisible {
@@ -475,9 +515,13 @@ final class VeilModel: NSObject, ObservableObject {
         if isPanic {
             stopCapture()
             previewImage = nil
+            previewSnapshotImage = nil
+            stopPreviewSnapshotTimer()
             status = "Panic: output blacked out immediately."
         } else {
             status = "Panic off. Press Start Stream to share again."
+            refreshPreviewSnapshot()
+            startPreviewSnapshotTimer()
         }
     }
     func openFilePicker() {
@@ -587,6 +631,8 @@ final class VeilModel: NSObject, ObservableObject {
     func activateFile(_ item: FileSource) {
         activeFileID = item.id
         filePageIndex = 0
+        previewSnapshotImage = nil
+        stopPreviewSnapshotTimer()
         if isSharing { openFileControlWindow() }
         if item.kind == .pdf {
             pdfDocument = PDFDocument(url: item.url)
@@ -617,6 +663,10 @@ final class VeilModel: NSObject, ObservableObject {
         closeFileControlWindow()
         updateSourceAspectRatio()
         applySourceRatioToWindows()
+        if !isSharing {
+            refreshPreviewSnapshot()
+            startPreviewSnapshotTimer()
+        }
     }
     func removeFile(_ item: FileSource) {
         guard let index = fileSources.firstIndex(where: { $0.id == item.id }) else { return }
@@ -762,7 +812,14 @@ final class VeilModel: NSObject, ObservableObject {
             applySourceRatioToWindows()
             closeFileControlWindow()
         }
-        if isSharing { restartCapture() }
+        if isSharing {
+            stopPreviewSnapshotTimer()
+            previewSnapshotImage = nil
+            restartCapture()
+        } else {
+            refreshPreviewSnapshot()
+            startPreviewSnapshotTimer()
+        }
         status = "Preset '\(preset.name)' applied."
     }
     func deletePreset(_ preset: Preset) {

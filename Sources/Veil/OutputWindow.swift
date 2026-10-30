@@ -11,6 +11,7 @@ final class PreviewWindowStore {
     static let shared = PreviewWindowStore()
     var window: NSWindow?
     var closeObserver: NSObjectProtocol?
+    var resizeObserver: NSObjectProtocol?
     private init() {}
 }
 final class FileControlWindowStore {
@@ -146,6 +147,10 @@ extension VeilModel {
     }
     func openPreviewWindow() {
         updateSourceAspectRatio()
+        if !isSharing {
+            refreshPreviewSnapshot()
+            startPreviewSnapshotTimer()
+        }
         let previewSize = initialContentSize(baseWidth: 680)
         let previewWidth = previewSize.width
         let previewHeight = previewSize.height
@@ -186,6 +191,13 @@ extension VeilModel {
             forName: NSWindow.willCloseNotification, object: window, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in self?.isPreviewVisible = false }
+        }
+        if PreviewWindowStore.shared.resizeObserver == nil {
+            PreviewWindowStore.shared.resizeObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didResizeNotification, object: window, queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in self?.applySourceRatioToWindows() }
+            }
         }
     }
     func closePreviewWindow() {
