@@ -4,6 +4,7 @@ final class OutputWindowStore {
     static let shared = OutputWindowStore()
     var window: NSWindow?
     var closeObserver: NSObjectProtocol?
+    var resizeObserver: NSObjectProtocol?
     private init() {}
 }
 final class PreviewWindowStore {
@@ -206,6 +207,10 @@ extension VeilModel {
                 NotificationCenter.default.removeObserver(observer)
                 OutputWindowStore.shared.closeObserver = nil
             }
+            if let observer = OutputWindowStore.shared.resizeObserver {
+                NotificationCenter.default.removeObserver(observer)
+                OutputWindowStore.shared.resizeObserver = nil
+            }
             window.contentView = nil
             window.close()
             OutputWindowStore.shared.window = nil
@@ -250,6 +255,13 @@ extension VeilModel {
             forName: NSWindow.willCloseNotification, object: window, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in self?.isOutputVisible = false }
+        }
+        if OutputWindowStore.shared.resizeObserver == nil {
+            OutputWindowStore.shared.resizeObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didResizeNotification, object: window, queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in self?.applySourceRatioToWindows() }
+            }
         }
     }
 }
