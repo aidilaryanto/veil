@@ -158,6 +158,7 @@ final class VeilModel: NSObject, ObservableObject {
     private var pdfDocument: PDFDocument?
     private var captureWatchdog: Timer?
     private var lastCaptureSignature = ""
+    private var pendingCaptureSignature: String?
     private let presetsKey = "Veil.v2.presets"
     private let legacyPresetsKey = "PilihLayar.v2.presets"
     override init() {
@@ -489,17 +490,15 @@ final class VeilModel: NSObject, ObservableObject {
         Task { try? await oldStream?.stopCapture() }
     }
     private func captureSignature() -> String {
-        let ids = capturedWindows.map { String($0.windowID) }.sorted().joined(separator: ",")
         let frames = capturedWindows
             .filter { selectedWindowIDs.contains($0.windowID) }
             .sorted { $0.windowID < $1.windowID }
             .map { "\(Int($0.frame.origin.x)),\(Int($0.frame.origin.y)),\(Int($0.frame.width)),\(Int($0.frame.height))" }
             .joined(separator: "|")
-        return "\(mode.rawValue)|\(ids)|\(frames)"
+        return "\(mode.rawValue)|\(frames)"
     }
     private func startCaptureWatchdog() {
         stopCaptureWatchdog()
-        guard !(mode == .allow && selectedWindowIDs.count == 1) else { return }
         captureWatchdog = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 await self?.checkCaptureStability()
@@ -509,6 +508,7 @@ final class VeilModel: NSObject, ObservableObject {
     private func stopCaptureWatchdog() {
         captureWatchdog?.invalidate()
         captureWatchdog = nil
+        pendingCaptureSignature = nil
     }
     private func checkCaptureStability() async {
         guard isSharing, stream != nil else { return }
@@ -517,11 +517,17 @@ final class VeilModel: NSObject, ObservableObject {
             capturedWindows = content.windows
             displays = content.displays
             sources = Self.sourceItems(from: content.windows)
-            updateSourceAspectRatio()
             let signature = captureSignature()
             if signature != lastCaptureSignature {
+                if pendingCaptureSignature != signature {
+                    pendingCaptureSignature = signature
+                    return
+                }
+                pendingCaptureSignature = nil
                 lastCaptureSignature = signature
                 restartCapture()
+            } else {
+                pendingCaptureSignature = nil
             }
         } catch {
         }
