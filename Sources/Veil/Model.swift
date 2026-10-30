@@ -314,7 +314,6 @@ final class VeilModel: NSObject, ObservableObject {
                 capturedWindows = content.windows
                 sources = Self.sourceItems(from: content.windows)
                 updateSourceAspectRatio()
-                updatePreviewFrameFromSource()
                 status = "\(sources.count) windows on \(content.displays.count) displays."
             } catch {
                 status = "Failed to read windows: \(error.localizedDescription). Check Screen Recording permission."
@@ -501,7 +500,6 @@ final class VeilModel: NSObject, ObservableObject {
             displays = content.displays
             sources = Self.sourceItems(from: content.windows)
             updateSourceAspectRatio()
-            updatePreviewFrameFromSource()
             let signature = captureSignature()
             if signature != lastCaptureSignature {
                 lastCaptureSignature = signature
