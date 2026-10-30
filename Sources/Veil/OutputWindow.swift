@@ -164,6 +164,28 @@ extension VeilModel {
         }
         dockFileControlToOutput()
     }
+    func correctOutputAspectAfterManualResize() {
+        guard let window = OutputWindowStore.shared.window else { return }
+        let ratio = sourceAspectRatio
+        guard ratio > 0 else { return }
+        window.contentAspectRatio = NSSize(width: ratio, height: 1)
+        let current = window.contentRect(forFrameRect: window.frame).size
+        var width = current.width
+        var height = width / ratio
+        if let screen = window.screen ?? NSScreen.main {
+            let visible = screen.visibleFrame
+            let maxHeight = max(180, visible.height - 100)
+            let maxWidth = max(320, visible.width - 80)
+            if height > maxHeight { height = maxHeight; width = height * ratio }
+            if width > maxWidth { width = maxWidth; height = width / ratio }
+        }
+        width = max(320, width)
+        height = max(180, height)
+        if abs(height - current.height) > 1 || abs(width - current.width) > 1 {
+            window.setContentSize(NSSize(width: width, height: height))
+        }
+        dockFileControlToOutput()
+    }
     private func initialContentSize(baseWidth: CGFloat) -> NSSize {
         if let sourceSize = sourceWindowSize(), let screen = NSScreen.main {
             let visible = screen.visibleFrame
@@ -442,7 +464,7 @@ extension VeilModel {
             OutputWindowStore.shared.resizeObserver = NotificationCenter.default.addObserver(
                 forName: NSWindow.didResizeNotification, object: window, queue: .main
             ) { [weak self] _ in
-                Task { @MainActor in self?.applySourceRatioToWindows() }
+                Task { @MainActor in self?.correctOutputAspectAfterManualResize() }
             }
         }
     }
