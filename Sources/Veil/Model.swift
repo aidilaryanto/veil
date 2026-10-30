@@ -192,11 +192,21 @@ final class VeilModel: NSObject, ObservableObject {
         let grouped = Dictionary(grouping: visibleSources, by: { $0.appName })
         return grouped.keys.sorted().map { (app: $0, items: grouped[$0] ?? []) }
     }
+    func updateRatioFromImage(_ image: NSImage) {
+        guard image.size.width > 0, image.size.height > 0 else { return }
+        let ratio = image.size.width / image.size.height
+        if abs(ratio - sourceAspectRatio) > 0.0005 {
+            sourceAspectRatio = ratio
+            applySourceRatioToWindows()
+        }
+    }
     func updateSourceAspectRatio() {
         var size: CGSize?
         if let image = filePreviewImage {
             size = image.size
-        } else if isSharing, let image = previewImage {
+        } else if let image = previewImage {
+            size = image.size
+        } else if !isSharing, let image = previewSnapshotImage {
             size = image.size
         } else if selectedWindowIDs.count == 1,
                   let onlyID = selectedWindowIDs.first,
@@ -207,16 +217,14 @@ final class VeilModel: NSObject, ObservableObject {
             if let union = frames.reduce(nil as CGRect?, { $0 == nil ? $1 : $0!.union($1) }) {
                 size = union.size
             }
-        } else if let image = previewImage {
-            size = image.size
         }
-        if size == nil,
+        if size == nil, selectedWindowIDs.isEmpty,
            let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first {
             size = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
         }
         guard let size = size, size.width > 0, size.height > 0 else { return }
         let ratio = size.width / size.height
-        if abs(ratio - sourceAspectRatio) > 0.002 {
+        if abs(ratio - sourceAspectRatio) > 0.0005 {
             sourceAspectRatio = ratio
             applySourceRatioToWindows()
         }
@@ -224,7 +232,11 @@ final class VeilModel: NSObject, ObservableObject {
     func updateSourceAspectRatioFromSelection() {
         guard filePreviewImage == nil else { return }
         var size: CGSize?
-        if selectedWindowIDs.count == 1,
+        if let image = previewImage {
+            size = image.size
+        } else if !isSharing, let image = previewSnapshotImage {
+            size = image.size
+        } else if selectedWindowIDs.count == 1,
            let onlyID = selectedWindowIDs.first,
            let frame = capturedWindows.first(where: { $0.windowID == onlyID })?.frame {
             size = frame.size
@@ -233,13 +245,10 @@ final class VeilModel: NSObject, ObservableObject {
             if let union = frames.reduce(nil as CGRect?, { $0 == nil ? $1 : $0!.union($1) }) {
                 size = union.size
             }
-        } else if !selectedWindowIDs.isEmpty,
-                  let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first {
-            size = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
         }
         guard let size = size, size.width > 0, size.height > 0 else { return }
         let ratio = size.width / size.height
-        if abs(ratio - sourceAspectRatio) > 0.002 {
+        if abs(ratio - sourceAspectRatio) > 0.0005 {
             sourceAspectRatio = ratio
             applySourceRatioToWindows()
         }
@@ -253,7 +262,7 @@ final class VeilModel: NSObject, ObservableObject {
             return
         }
         previewSnapshotImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
-        updateSourceAspectRatio()
+        updateRatioFromImage(previewSnapshotImage!)
     }
     func startPreviewSnapshotTimer() {
         guard !isSharing, previewSnapshotTimer == nil else { return }
@@ -333,6 +342,8 @@ final class VeilModel: NSObject, ObservableObject {
         } else {
             selectedWindowIDs.insert(id)
         }
+        previewImage = nil
+        previewSnapshotImage = nil
         updateSourceAspectRatio()
         updateSourceAspectRatioFromSelection()
         updatePreviewFrameFromSource()
@@ -789,6 +800,8 @@ final class VeilModel: NSObject, ObservableObject {
         if preset.canvasBackground != .custom { canvasImage = nil }
         selectedWindowIDs = Set(preset.selectedWindowIDs)
         selectedDisplayID = preset.displayID
+        previewImage = nil
+        previewSnapshotImage = nil
         updateSourceAspectRatio()
         updateSourceAspectRatioFromSelection()
         updatePreviewFrameFromSource()
@@ -918,7 +931,7 @@ extension VeilModel: SCStreamOutput {
         Task { @MainActor in
             if !self.isPaused {
                 self.previewImage = image
-                self.updateSourceAspectRatio()
+                self.updateRatioFromImage(image)
             }
         }
     }
