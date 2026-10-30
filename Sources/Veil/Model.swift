@@ -318,6 +318,7 @@ final class VeilModel: NSObject, ObservableObject {
                 if previewNeedsReposition, isPreviewVisible {
                     updatePreviewFrameFromSource()
                     previewNeedsReposition = false
+                    PreviewWindowStore.shared.window?.orderFrontRegardless()
                 }
                 status = "\(sources.count) windows on \(content.displays.count) displays."
             } catch {

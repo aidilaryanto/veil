@@ -191,13 +191,22 @@ extension VeilModel {
         let previewWidth = previewSize.width
         let previewHeight = previewSize.height
         if let window = PreviewWindowStore.shared.window {
-            applySourceRatioToWindows()
             window.makeKeyAndOrderFront(nil)
             isPreviewVisible = true
-            if previewNeedsReposition {
+            window.level = .floating
+            window.collectionBehavior = [.canJoinAllSpaces]
+            if previewSourceFrame() != nil {
+                previewNeedsReposition = true
                 updatePreviewFrameFromSource()
                 refreshSources()
+            } else if !selectedWindowIDs.isEmpty {
+                previewNeedsReposition = true
+                refreshSources()
+                window.setContentSize(previewInitialContentSize())
+            } else {
+                window.setContentSize(previewInitialContentSize())
             }
+            window.orderFrontRegardless()
             return
         }
         var frame = NSRect(x: 200, y: 400, width: previewWidth, height: previewHeight)
@@ -229,6 +238,7 @@ extension VeilModel {
         )
         window.title = "Veil Preview — preview only, not for sharing"
         window.level = .floating
+        window.collectionBehavior = [.canJoinAllSpaces]
         window.isReleasedWhenClosed = false
         window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
         configureFramelessSecondaryWindow(window)
@@ -236,7 +246,13 @@ extension VeilModel {
         window.makeKeyAndOrderFront(nil)
         PreviewWindowStore.shared.window = window
         isPreviewVisible = true
-        previewNeedsReposition = false
+        if !selectedWindowIDs.isEmpty {
+            previewNeedsReposition = true
+            refreshSources()
+        } else {
+            previewNeedsReposition = false
+        }
+        window.orderFrontRegardless()
         PreviewWindowStore.shared.closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
         ) { [weak self] _ in
@@ -274,6 +290,7 @@ extension VeilModel {
         if abs(frame.width - current.width) > 1 || abs(frame.height - current.height) > 1
             || abs(frame.origin.x - current.origin.x) > 1 || abs(frame.origin.y - current.origin.y) > 1 {
             window.setFrame(frame, display: true)
+            window.orderFrontRegardless()
         }
     }
     func closePreviewWindow() {
