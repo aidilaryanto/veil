@@ -47,16 +47,25 @@ extension VeilModel {
         }
         return NSSize(width: max(320, width), height: max(180, height))
     }
+    func sourceWindowSize() -> CGSize? {
+        guard filePreviewImage == nil, let frame = previewSourceFrame(),
+              frame.width > 0, frame.height > 0 else { return nil }
+        return frame.size
+    }
     func previewDockedFrame() -> CGRect? {
         guard let controlFrame = lastControlFrame,
               let screen = NSScreen.main else { return nil }
         let visible = screen.visibleFrame
         let ratio = sourceAspectRatio > 0 ? sourceAspectRatio : (16.0 / 9.0)
-        var width = controlFrame.width
-        var height = width / ratio
         let aboveTop = controlFrame.maxY + 6
         let availableHeight = max(180, visible.maxY - aboveTop)
-        if height > availableHeight {
+        var width = controlFrame.width
+        var height = width / ratio
+        if let sourceSize = sourceWindowSize() {
+            let scale = min(1, controlFrame.width / sourceSize.width, availableHeight / sourceSize.height)
+            width = sourceSize.width * scale
+            height = sourceSize.height * scale
+        } else if height > availableHeight {
             height = availableHeight
             width = height * ratio
         }
@@ -131,7 +140,12 @@ extension VeilModel {
             let current = window.contentRect(forFrameRect: window.frame).size
             var width = current.width
             var height = width / ratio
-            if let screen = window.screen ?? NSScreen.main {
+            if let sourceSize = sourceWindowSize(), let screen = window.screen ?? NSScreen.main {
+                let visible = screen.visibleFrame
+                let scale = min(1, (visible.width - 80) / sourceSize.width, (visible.height - 100) / sourceSize.height)
+                width = sourceSize.width * scale
+                height = sourceSize.height * scale
+            } else if let screen = window.screen ?? NSScreen.main {
                 let visible = screen.visibleFrame
                 let maxHeight = max(180, visible.height - 100)
                 var maxWidth = max(320, visible.width - 80)
@@ -151,7 +165,12 @@ extension VeilModel {
         dockFileControlToOutput()
     }
     private func initialContentSize(baseWidth: CGFloat) -> NSSize {
-        screenFitContentSize(for: NSScreen.main)
+        if let sourceSize = sourceWindowSize(), let screen = NSScreen.main {
+            let visible = screen.visibleFrame
+            let scale = min(1, (visible.width - 80) / sourceSize.width, (visible.height - 100) / sourceSize.height)
+            return NSSize(width: max(320, sourceSize.width * scale), height: max(180, sourceSize.height * scale))
+        }
+        return screenFitContentSize(for: NSScreen.main)
     }
     private func previewInitialContentSize() -> NSSize {
         let ratio = sourceAspectRatio > 0 ? sourceAspectRatio : (16.0 / 9.0)
@@ -160,7 +179,13 @@ extension VeilModel {
             width = controlWidth
         }
         var height = width / ratio
-        if let screen = NSScreen.main {
+        if let sourceSize = sourceWindowSize(), let screen = NSScreen.main {
+            let visible = screen.visibleFrame
+            let availableHeight = max(180, visible.height - 100)
+            let scale = min(1, width / sourceSize.width, availableHeight / sourceSize.height)
+            width = sourceSize.width * scale
+            height = sourceSize.height * scale
+        } else if let screen = NSScreen.main {
             let visible = screen.visibleFrame
             let maxHeight = max(180, visible.height - 100)
             let maxWidth = max(320, visible.width - 80)
