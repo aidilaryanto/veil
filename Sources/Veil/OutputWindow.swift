@@ -32,6 +32,20 @@ extension VeilModel {
         window.hasShadow = false
         window.isMovableByWindowBackground = true
     }
+    func screenFitContentSize(for screen: NSScreen?) -> NSSize {
+        let ratio = sourceAspectRatio > 0 ? sourceAspectRatio : (16.0 / 9.0)
+        var width: CGFloat = 960
+        var height = width / ratio
+        if let screen = screen ?? NSScreen.main {
+            let visible = screen.visibleFrame
+            let maxHeight = max(180, visible.height - 100)
+            let maxWidth = max(320, visible.width - 80)
+            width = maxWidth
+            height = width / ratio
+            if height > maxHeight { height = maxHeight; width = height * ratio }
+        }
+        return NSSize(width: max(320, width), height: max(180, height))
+    }
     func applySourceRatioToWindows() {
         let ratio = sourceAspectRatio
         guard ratio > 0 else { return }
@@ -56,17 +70,7 @@ extension VeilModel {
         dockFileControlToOutput()
     }
     private func initialContentSize(baseWidth: CGFloat) -> NSSize {
-        let ratio = sourceAspectRatio > 0 ? sourceAspectRatio : (16.0 / 9.0)
-        var width = baseWidth
-        var height = width / ratio
-        if let screen = NSScreen.main {
-            let visible = screen.visibleFrame
-            let maxHeight = max(180, visible.height - 100)
-            let maxWidth = max(320, visible.width - 80)
-            if height > maxHeight { height = maxHeight; width = height * ratio }
-            if width > maxWidth { width = maxWidth; height = width / ratio }
-        }
-        return NSSize(width: max(320, width), height: max(180, height))
+        screenFitContentSize(for: NSScreen.main)
     }
     func dockFileControlToOutput() {
         guard let flyer = FileControlWindowStore.shared.window,
