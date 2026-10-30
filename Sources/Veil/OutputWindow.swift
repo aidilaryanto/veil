@@ -53,6 +53,9 @@ extension VeilModel {
         let visible = screen.visibleFrame
         let ratio = sourceAspectRatio > 0 ? sourceAspectRatio : (16.0 / 9.0)
         var width = controlFrame.width
+        if let sourceWidth = previewSourceFrame()?.width, sourceWidth > 0 {
+            width = min(width, sourceWidth)
+        }
         var height = width / ratio
         let aboveTop = controlFrame.maxY + 6
         let availableHeight = max(180, visible.maxY - aboveTop)
@@ -130,6 +133,9 @@ extension VeilModel {
             }
             let current = window.contentRect(forFrameRect: window.frame).size
             var width = current.width
+            if let sourceWidth = previewSourceFrame()?.width, sourceWidth > 0 {
+                width = sourceWidth
+            }
             var height = width / ratio
             if let screen = window.screen ?? NSScreen.main {
                 let visible = screen.visibleFrame
@@ -158,6 +164,9 @@ extension VeilModel {
         var width: CGFloat = 680
         if let controlWidth = lastControlFrame?.width {
             width = controlWidth
+        }
+        if let sourceWidth = previewSourceFrame()?.width, sourceWidth > 0 {
+            width = min(width, sourceWidth)
         }
         var height = width / ratio
         if let screen = NSScreen.main {
