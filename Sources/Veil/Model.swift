@@ -193,7 +193,7 @@ final class VeilModel: NSObject, ObservableObject {
         return grouped.keys.sorted().map { (app: $0, items: grouped[$0] ?? []) }
     }
     func updateRatioFromImage(_ image: NSImage) {
-        guard image.size.width > 0, image.size.height > 0 else { return }
+        guard filePreviewImage == nil, image.size.width > 0, image.size.height > 0 else { return }
         let ratio = image.size.width / image.size.height
         if abs(ratio - sourceAspectRatio) > 0.0005 {
             sourceAspectRatio = ratio
