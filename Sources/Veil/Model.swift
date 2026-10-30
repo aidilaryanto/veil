@@ -198,7 +198,7 @@ final class VeilModel: NSObject, ObservableObject {
                   let onlyID = selectedWindowIDs.first,
                   let frame = capturedWindows.first(where: { $0.windowID == onlyID })?.frame {
             size = frame.size
-        } else if framing == .dynamic, !selectedWindowIDs.isEmpty {
+        } else if mode == .allow, framing == .dynamic, !selectedWindowIDs.isEmpty {
             let frames = capturedWindows.filter { selectedWindowIDs.contains($0.windowID) }.map { $0.frame }
             if let union = frames.reduce(nil as CGRect?, { $0 == nil ? $1 : $0!.union($1) }) {
                 size = union.size
@@ -214,6 +214,30 @@ final class VeilModel: NSObject, ObservableObject {
         let ratio = size.width / size.height
         if abs(ratio - sourceAspectRatio) > 0.01 {
             sourceAspectRatio = ratio
+            applySourceRatioToWindows()
+        }
+    }
+    func updateSourceAspectRatioFromSelection() {
+        guard filePreviewImage == nil else { return }
+        var size: CGSize?
+        if selectedWindowIDs.count == 1,
+           let onlyID = selectedWindowIDs.first,
+           let frame = capturedWindows.first(where: { $0.windowID == onlyID })?.frame {
+            size = frame.size
+        } else if mode == .allow, framing == .dynamic, !selectedWindowIDs.isEmpty {
+            let frames = capturedWindows.filter { selectedWindowIDs.contains($0.windowID) }.map { $0.frame }
+            if let union = frames.reduce(nil as CGRect?, { $0 == nil ? $1 : $0!.union($1) }) {
+                size = union.size
+            }
+        } else if !selectedWindowIDs.isEmpty,
+                  let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first {
+            size = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
+        }
+        guard let size = size, size.width > 0, size.height > 0 else { return }
+        let ratio = size.width / size.height
+        if abs(ratio - sourceAspectRatio) > 0.01 {
+            sourceAspectRatio = ratio
+            applySourceRatioToWindows()
         }
     }
     func applyAlwaysOnTop() {
@@ -280,6 +304,7 @@ final class VeilModel: NSObject, ObservableObject {
             selectedWindowIDs.insert(id)
         }
         updateSourceAspectRatio()
+        updateSourceAspectRatioFromSelection()
         if isSharing { restartCapture() }
     }
     func clearSelection() {
@@ -342,7 +367,7 @@ final class VeilModel: NSObject, ObservableObject {
             lastCaptureSignature = captureSignature()
         }
         if mode == .allow, selectedWindowIDs.count == 1 {
-        } else if framing == .dynamic, !selectedWindowIDs.isEmpty {
+        } else if mode == .allow, framing == .dynamic, !selectedWindowIDs.isEmpty {
             let frames = capturedWindows
                 .filter { selectedWindowIDs.contains($0.windowID) }
                 .map { $0.frame }
@@ -707,6 +732,7 @@ final class VeilModel: NSObject, ObservableObject {
         selectedWindowIDs = Set(preset.selectedWindowIDs)
         selectedDisplayID = preset.displayID
         updateSourceAspectRatio()
+        updateSourceAspectRatioFromSelection()
         cameraEnabled = preset.cameraEnabled
         cameraPosition = preset.cameraPosition
         cameraShape = preset.cameraShape

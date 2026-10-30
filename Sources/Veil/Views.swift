@@ -913,7 +913,7 @@ struct OutputContentView: View {
                         .font(.title2)
                 } else {
                     backgroundView
-                    mainImageView
+                    mainImageView(outputSize: geometry.size)
                     cameraOverlay(outputWidth: geometry.size.width)
                 }
             }
@@ -940,7 +940,7 @@ struct OutputContentView: View {
         .ignoresSafeArea()
     }
     @ViewBuilder
-    private var mainImageView: some View {
+    private func mainImageView(outputSize: CGSize) -> some View {
         if let fileImage = model.filePreviewImage {
             if model.canvasMode == .isolated {
                 Image(nsImage: fileImage)
@@ -962,7 +962,7 @@ struct OutputContentView: View {
                     .resizable()
                     .interpolation(.high)
                     .scaledToFill()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(width: outputSize.width, height: outputSize.height)
                     .clipped()
                     .padding(20)
             } else {
@@ -970,7 +970,7 @@ struct OutputContentView: View {
                     .resizable()
                     .interpolation(.high)
                     .scaledToFill()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(width: outputSize.width, height: outputSize.height)
                     .clipped()
             }
         } else {
