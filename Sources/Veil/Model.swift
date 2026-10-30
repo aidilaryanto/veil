@@ -257,7 +257,7 @@ final class VeilModel: NSObject, ObservableObject {
         guard !isSharing, !isPanic, filePreviewImage == nil,
               mode == .allow, selectedWindowIDs.count == 1,
               let onlyID = selectedWindowIDs.first,
-              let cgImage = CGWindowListCreateImage(.null, .optionIncludingWindow, onlyID, .bestResolution) else {
+              let cgImage = CGWindowListCreateImage(.null, .optionIncludingWindow, onlyID, [.boundsIgnoreFraming, .bestResolution]) else {
             previewSnapshotImage = nil
             return
         }
