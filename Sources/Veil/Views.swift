@@ -961,34 +961,30 @@ struct OutputContentView: View {
                 Image(nsImage: image)
                     .resizable()
                     .interpolation(.high)
-                    .scaledToFill()
-                    .frame(width: outputSize.width, height: outputSize.height)
-                    .clipped()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(20)
             } else {
                 Image(nsImage: image)
                     .resizable()
                     .interpolation(.high)
-                    .scaledToFill()
-                    .frame(width: outputSize.width, height: outputSize.height)
-                    .clipped()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         } else if !model.isSharing, let image = model.previewSnapshotImage {
             if model.canvasMode == .isolated {
                 Image(nsImage: image)
                     .resizable()
                     .interpolation(.high)
-                    .scaledToFill()
-                    .frame(width: outputSize.width, height: outputSize.height)
-                    .clipped()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(20)
             } else {
                 Image(nsImage: image)
                     .resizable()
                     .interpolation(.high)
-                    .scaledToFill()
-                    .frame(width: outputSize.width, height: outputSize.height)
-                    .clipped()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         } else {
             VStack(spacing: 8) {
