@@ -162,6 +162,7 @@ extension VeilModel {
             applySourceRatioToWindows()
             window.makeKeyAndOrderFront(nil)
             isPreviewVisible = true
+            updatePreviewFrameFromSource()
             return
         }
         var frame = NSRect(x: 200, y: 400, width: previewWidth, height: previewHeight)
@@ -176,9 +177,36 @@ extension VeilModel {
                 if frame.maxX > visible.maxX { frame.origin.x = visible.maxX - frame.width }
             }
         }
+        if let sourceFrame = {
+            if mode == .allow, selectedWindowIDs.count == 1,
+               let onlyID = selectedWindowIDs.first,
+               let frame = capturedWindows.first(where: { $0.windowID == onlyID })?.frame {
+                return frame
+            }
+            if mode == .allow, framing == .dynamic, !selectedWindowIDs.isEmpty {
+                let frames = capturedWindows.filter { selectedWindowIDs.contains($0.windowID) }.map { $0.frame }
+                return frames.reduce(nil as CGRect?, { $0 == nil ? $1 : $0!.union($1) })
+            }
+            return nil
+        }() {
+            var source = sourceFrame
+            if let screen = NSApp.keyWindow?.screen ?? NSScreen.main {
+                let visible = screen.visibleFrame
+                let maxWidth = max(320, visible.width - 80)
+                let maxHeight = max(180, visible.height - 100)
+                let scale = min(1, maxWidth / source.width, maxHeight / source.height)
+                if scale < 1 {
+                    source.size.width *= scale
+                    source.size.height *= scale
+                }
+                source.origin.x = max(visible.minX, min(source.origin.x, visible.maxX - source.width))
+                source.origin.y = max(visible.minY, min(source.origin.y, visible.maxY - source.height))
+            }
+            frame = source
+        }
         let window = NSWindow(
             contentRect: frame,
-            styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -187,6 +215,7 @@ extension VeilModel {
         window.isReleasedWhenClosed = false
         window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
         configureFramelessSecondaryWindow(window)
+        window.isMovableByWindowBackground = false
         window.contentView = NSHostingView(rootView: PreviewWindowRootView().environmentObject(self))
         window.makeKeyAndOrderFront(nil)
         PreviewWindowStore.shared.window = window
@@ -202,6 +231,37 @@ extension VeilModel {
             ) { [weak self] _ in
                 Task { @MainActor in self?.applySourceRatioToWindows() }
             }
+        }
+    }
+    func updatePreviewFrameFromSource() {
+        guard let window = PreviewWindowStore.shared.window, isPreviewVisible else { return }
+        var sourceFrame: CGRect?
+        if mode == .allow, selectedWindowIDs.count == 1,
+           let onlyID = selectedWindowIDs.first,
+           let frame = capturedWindows.first(where: { $0.windowID == onlyID })?.frame {
+            sourceFrame = frame
+        } else if mode == .allow, framing == .dynamic, !selectedWindowIDs.isEmpty {
+            let frames = capturedWindows.filter { selectedWindowIDs.contains($0.windowID) }.map { $0.frame }
+            sourceFrame = frames.reduce(nil as CGRect?, { $0 == nil ? $1 : $0!.union($1) })
+        }
+        guard var frame = sourceFrame else { return }
+        window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
+        if let screen = window.screen ?? NSScreen.main {
+            let visible = screen.visibleFrame
+            let maxWidth = max(320, visible.width - 80)
+            let maxHeight = max(180, visible.height - 100)
+            let scale = min(1, maxWidth / frame.width, maxHeight / frame.height)
+            if scale < 1 {
+                frame.size.width *= scale
+                frame.size.height *= scale
+            }
+            frame.origin.x = max(visible.minX, min(frame.origin.x, visible.maxX - frame.width))
+            frame.origin.y = max(visible.minY, min(frame.origin.y, visible.maxY - frame.height))
+        }
+        let current = window.frame
+        if abs(frame.width - current.width) > 1 || abs(frame.height - current.height) > 1
+            || abs(frame.origin.x - current.origin.x) > 1 || abs(frame.origin.y - current.origin.y) > 1 {
+            window.setFrame(frame, display: true)
         }
     }
     func closePreviewWindow() {
