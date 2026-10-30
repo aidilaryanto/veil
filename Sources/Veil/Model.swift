@@ -150,7 +150,7 @@ final class VeilModel: NSObject, ObservableObject {
         isSharing && previewImage != nil
             && !(mode == .allow && selectedWindowIDs.isEmpty)
     }
-    private var capturedWindows: [SCWindow] = []
+    var capturedWindows: [SCWindow] = []
     private var previewSnapshotTimer: Timer?
     private var stream: SCStream?
     private var pdfDocument: PDFDocument?
