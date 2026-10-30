@@ -152,6 +152,7 @@ final class VeilModel: NSObject, ObservableObject {
     }
     var capturedWindows: [SCWindow] = []
     var previewNeedsReposition = false
+    var lastControlFrame: CGRect?
     private var previewSnapshotTimer: Timer?
     private var stream: SCStream?
     private var pdfDocument: PDFDocument?

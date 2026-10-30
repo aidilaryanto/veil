@@ -46,6 +46,26 @@ extension VeilModel {
         }
         return NSSize(width: max(320, width), height: max(180, height))
     }
+    func previewFrameAvoidingControl(_ frame: CGRect) -> CGRect {
+        guard let controlFrame = lastControlFrame,
+              let screen = NSScreen.main else { return frame }
+        let visible = screen.visibleFrame
+        var result = frame
+        guard result.intersects(controlFrame.insetBy(dx: -12, dy: -12)) else { return result }
+        let aboveTop = controlFrame.maxY + 12
+        if aboveTop + result.height <= visible.maxY {
+            result.origin.y = aboveTop
+        } else {
+            let availableHeight = max(180, visible.maxY - aboveTop)
+            let ratio = result.width > 0 && result.height > 0 ? result.width / result.height : sourceAspectRatio
+            result.size.height = availableHeight
+            result.size.width = availableHeight * ratio
+            result.origin.y = aboveTop
+        }
+        result.origin.x = max(visible.minX, min(result.origin.x, visible.maxX - result.width))
+        result.origin.y = max(visible.minY, min(result.origin.y, visible.maxY - result.height))
+        return result
+    }
     func previewSourceFrame() -> CGRect? {
         if mode == .allow, selectedWindowIDs.count == 1,
            let onlyID = selectedWindowIDs.first,
@@ -182,6 +202,9 @@ extension VeilModel {
         if isPreviewVisible { closePreviewWindow() } else { openPreviewWindow() }
     }
     func openPreviewWindow() {
+        if let control = NSApp.keyWindow, control != PreviewWindowStore.shared.window {
+            lastControlFrame = control.frame
+        }
         updateSourceAspectRatio()
         if !isSharing {
             refreshPreviewSnapshot()
@@ -230,6 +253,7 @@ extension VeilModel {
             }
             frame.origin = origin
         }
+        frame = previewFrameAvoidingControl(frame)
         let window = NSWindow(
             contentRect: frame,
             styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
@@ -286,6 +310,7 @@ extension VeilModel {
             frame.origin.x = max(visible.minX, min(frame.origin.x, visible.maxX - frame.width))
             frame.origin.y = max(visible.minY, min(frame.origin.y, visible.maxY - frame.height))
         }
+        frame = previewFrameAvoidingControl(frame)
         let current = window.frame
         if abs(frame.width - current.width) > 1 || abs(frame.height - current.height) > 1
             || abs(frame.origin.x - current.origin.x) > 1 || abs(frame.origin.y - current.origin.y) > 1 {
