@@ -214,7 +214,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
         guard let size = size, size.width > 0, size.height > 0 else { return }
         let ratio = size.width / size.height
-        if abs(ratio - sourceAspectRatio) > 0.01 {
+        if abs(ratio - sourceAspectRatio) > 0.002 {
             sourceAspectRatio = ratio
             applySourceRatioToWindows()
         }
@@ -237,7 +237,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
         guard let size = size, size.width > 0, size.height > 0 else { return }
         let ratio = size.width / size.height
-        if abs(ratio - sourceAspectRatio) > 0.01 {
+        if abs(ratio - sourceAspectRatio) > 0.002 {
             sourceAspectRatio = ratio
             applySourceRatioToWindows()
         }

@@ -91,11 +91,10 @@ extension VeilModel {
     private func previewInitialContentSize() -> NSSize {
         let ratio = sourceAspectRatio > 0 ? sourceAspectRatio : (16.0 / 9.0)
         var width: CGFloat = 680
-        var height = width / ratio
         if let sourceWidth = previewSourceFrame()?.width {
-            width = min(sourceWidth, width)
-            height = width / ratio
+            width = sourceWidth
         }
+        var height = width / ratio
         if let screen = NSScreen.main {
             let visible = screen.visibleFrame
             let maxHeight = max(180, visible.height - 100)
@@ -250,13 +249,15 @@ extension VeilModel {
         guard let window = PreviewWindowStore.shared.window, isPreviewVisible,
               let sourceFrame = previewSourceFrame() else { return }
         window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
-        var frame = window.frame
-        frame.origin = sourceFrame.origin
+        var frame = sourceFrame
         if let screen = window.screen ?? NSScreen.main {
             let visible = screen.visibleFrame
-            if frame.width > sourceFrame.width {
-                frame.size.width = sourceFrame.width
-                frame.size.height = frame.size.width / sourceAspectRatio
+            let maxWidth = max(320, visible.width - 80)
+            let maxHeight = max(180, visible.height - 100)
+            let scale = min(1, maxWidth / frame.width, maxHeight / frame.height)
+            if scale < 1 {
+                frame.size.width *= scale
+                frame.size.height *= scale
             }
             frame.origin.x = max(visible.minX, min(frame.origin.x, visible.maxX - frame.width))
             frame.origin.y = max(visible.minY, min(frame.origin.y, visible.maxY - frame.height))
