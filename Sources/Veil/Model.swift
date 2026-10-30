@@ -151,6 +151,7 @@ final class VeilModel: NSObject, ObservableObject {
             && !(mode == .allow && selectedWindowIDs.isEmpty)
     }
     var capturedWindows: [SCWindow] = []
+    var previewNeedsReposition = false
     private var previewSnapshotTimer: Timer?
     private var stream: SCStream?
     private var pdfDocument: PDFDocument?
@@ -314,6 +315,10 @@ final class VeilModel: NSObject, ObservableObject {
                 capturedWindows = content.windows
                 sources = Self.sourceItems(from: content.windows)
                 updateSourceAspectRatio()
+                if previewNeedsReposition, isPreviewVisible {
+                    updatePreviewFrameFromSource()
+                    previewNeedsReposition = false
+                }
                 status = "\(sources.count) windows on \(content.displays.count) displays."
             } catch {
                 status = "Failed to read windows: \(error.localizedDescription). Check Screen Recording permission."

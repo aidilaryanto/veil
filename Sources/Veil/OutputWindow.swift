@@ -194,6 +194,10 @@ extension VeilModel {
             applySourceRatioToWindows()
             window.makeKeyAndOrderFront(nil)
             isPreviewVisible = true
+            if previewNeedsReposition {
+                updatePreviewFrameFromSource()
+                refreshSources()
+            }
             return
         }
         var frame = NSRect(x: 200, y: 400, width: previewWidth, height: previewHeight)
@@ -232,10 +236,14 @@ extension VeilModel {
         window.makeKeyAndOrderFront(nil)
         PreviewWindowStore.shared.window = window
         isPreviewVisible = true
+        previewNeedsReposition = false
         PreviewWindowStore.shared.closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.isPreviewVisible = false }
+            Task { @MainActor in
+                self?.isPreviewVisible = false
+                self?.previewNeedsReposition = true
+            }
         }
         if PreviewWindowStore.shared.resizeObserver == nil {
             PreviewWindowStore.shared.resizeObserver = NotificationCenter.default.addObserver(
@@ -269,6 +277,7 @@ extension VeilModel {
         }
     }
     func closePreviewWindow() {
+        previewNeedsReposition = true
         if let window = PreviewWindowStore.shared.window { window.orderOut(nil) }
         isPreviewVisible = false
     }
