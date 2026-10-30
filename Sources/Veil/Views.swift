@@ -897,7 +897,6 @@ struct PreviewWindowRootView: View {
     var body: some View {
         PreviewContentView()
             .environmentObject(model)
-            .overlay(WindowDragView())
             .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }

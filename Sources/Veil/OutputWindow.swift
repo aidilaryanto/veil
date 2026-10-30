@@ -12,6 +12,7 @@ final class PreviewWindowStore {
     var window: NSWindow?
     var closeObserver: NSObjectProtocol?
     var resizeObserver: NSObjectProtocol?
+    var controlObservers: [NSObjectProtocol] = []
     private init() {}
 }
 final class FileControlWindowStore {
@@ -45,6 +46,43 @@ extension VeilModel {
             if height > maxHeight { height = maxHeight; width = height * ratio }
         }
         return NSSize(width: max(320, width), height: max(180, height))
+    }
+    func previewDockedFrame() -> CGRect? {
+        guard let controlFrame = lastControlFrame,
+              let screen = NSScreen.main else { return nil }
+        let visible = screen.visibleFrame
+        let ratio = sourceAspectRatio > 0 ? sourceAspectRatio : (16.0 / 9.0)
+        var width = controlFrame.width
+        var height = width / ratio
+        let aboveTop = controlFrame.maxY + 12
+        let availableHeight = max(180, visible.maxY - aboveTop)
+        if height > availableHeight {
+            height = availableHeight
+            width = height * ratio
+        }
+        var frame = NSRect(x: controlFrame.minX, y: aboveTop, width: width, height: height)
+        frame.origin.x = max(visible.minX, min(frame.origin.x, visible.maxX - frame.width))
+        frame.origin.y = max(visible.minY, min(frame.origin.y, visible.maxY - frame.height))
+        return frame
+    }
+    func startFollowingControl(_ control: NSWindow) {
+        for observer in PreviewWindowStore.shared.controlObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        PreviewWindowStore.shared.controlObservers.removeAll()
+        for name in [NSWindow.didMoveNotification, NSWindow.didResizeNotification] {
+            let observer = NotificationCenter.default.addObserver(
+                forName: name, object: control, queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.lastControlFrame = control.frame
+                    if self?.isPreviewVisible == true {
+                        self?.updatePreviewFrameFromSource()
+                    }
+                }
+            }
+            PreviewWindowStore.shared.controlObservers.append(observer)
+        }
     }
     func previewFrameAvoidingControl(_ frame: CGRect) -> CGRect {
         guard let controlFrame = lastControlFrame,
@@ -83,6 +121,13 @@ extension VeilModel {
         guard ratio > 0 else { return }
         for window in [OutputWindowStore.shared.window, PreviewWindowStore.shared.window].compactMap({ $0 }) {
             window.contentAspectRatio = NSSize(width: ratio, height: 1)
+            if window == PreviewWindowStore.shared.window, let docked = previewDockedFrame() {
+                if abs(docked.width - window.frame.width) > 1 || abs(docked.height - window.frame.height) > 1
+                    || abs(docked.origin.x - window.frame.origin.x) > 1 || abs(docked.origin.y - window.frame.origin.y) > 1 {
+                    window.setFrame(docked, display: true)
+                }
+                continue
+            }
             let current = window.contentRect(forFrameRect: window.frame).size
             var width = current.width
             var height = width / ratio
@@ -91,8 +136,8 @@ extension VeilModel {
                 let maxHeight = max(180, visible.height - 100)
                 var maxWidth = max(320, visible.width - 80)
                 if window == PreviewWindowStore.shared.window,
-                   let sourceWidth = previewSourceFrame()?.width {
-                    maxWidth = min(maxWidth, max(320, sourceWidth))
+                   let controlWidth = lastControlFrame?.width {
+                    maxWidth = min(maxWidth, max(320, controlWidth))
                 }
                 if height > maxHeight { height = maxHeight; width = height * ratio }
                 if width > maxWidth { width = maxWidth; height = width / ratio }
@@ -111,8 +156,8 @@ extension VeilModel {
     private func previewInitialContentSize() -> NSSize {
         let ratio = sourceAspectRatio > 0 ? sourceAspectRatio : (16.0 / 9.0)
         var width: CGFloat = 680
-        if let sourceWidth = previewSourceFrame()?.width {
-            width = sourceWidth
+        if let controlWidth = lastControlFrame?.width {
+            width = controlWidth
         }
         var height = width / ratio
         if let screen = NSScreen.main {
@@ -204,6 +249,7 @@ extension VeilModel {
     func openPreviewWindow() {
         if let control = NSApp.keyWindow, control != PreviewWindowStore.shared.window {
             lastControlFrame = control.frame
+            startFollowingControl(control)
         }
         updateSourceAspectRatio()
         if !isSharing {
@@ -218,16 +264,13 @@ extension VeilModel {
             isPreviewVisible = true
             window.level = .floating
             window.collectionBehavior = [.canJoinAllSpaces]
-            if previewSourceFrame() != nil {
-                previewNeedsReposition = true
-                updatePreviewFrameFromSource()
+            window.styleMask.remove(.resizable)
+            window.styleMask.remove(.miniaturizable)
+            window.isMovableByWindowBackground = false
+            previewNeedsReposition = true
+            updatePreviewFrameFromSource()
+            if !selectedWindowIDs.isEmpty {
                 refreshSources()
-            } else if !selectedWindowIDs.isEmpty {
-                previewNeedsReposition = true
-                refreshSources()
-                window.setContentSize(previewInitialContentSize())
-            } else {
-                window.setContentSize(previewInitialContentSize())
             }
             window.orderFrontRegardless()
             return
@@ -244,19 +287,13 @@ extension VeilModel {
                 if frame.maxX > visible.maxX { frame.origin.x = visible.maxX - frame.width }
             }
         }
-        if let sourceFrame = previewSourceFrame() {
-            var origin = sourceFrame.origin
-            if let screen = NSApp.keyWindow?.screen ?? NSScreen.main {
-                let visible = screen.visibleFrame
-                origin.x = max(visible.minX, min(origin.x, visible.maxX - frame.width))
-                origin.y = max(visible.minY, min(origin.y, visible.maxY - frame.height))
-            }
-            frame.origin = origin
+        if let docked = previewDockedFrame() {
+            frame = docked
         }
         frame = previewFrameAvoidingControl(frame)
         let window = NSWindow(
             contentRect: frame,
-            styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -266,6 +303,7 @@ extension VeilModel {
         window.isReleasedWhenClosed = false
         window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
         configureFramelessSecondaryWindow(window)
+        window.isMovableByWindowBackground = false
         window.contentView = NSHostingView(rootView: PreviewWindowRootView().environmentObject(self))
         window.makeKeyAndOrderFront(nil)
         PreviewWindowStore.shared.window = window
@@ -295,21 +333,9 @@ extension VeilModel {
     }
     func updatePreviewFrameFromSource() {
         guard let window = PreviewWindowStore.shared.window, isPreviewVisible,
-              let sourceFrame = previewSourceFrame() else { return }
+              let docked = previewDockedFrame() else { return }
         window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
-        var frame = sourceFrame
-        if let screen = window.screen ?? NSScreen.main {
-            let visible = screen.visibleFrame
-            let maxWidth = max(320, visible.width - 80)
-            let maxHeight = max(180, visible.height - 100)
-            let scale = min(1, maxWidth / frame.width, maxHeight / frame.height)
-            if scale < 1 {
-                frame.size.width *= scale
-                frame.size.height *= scale
-            }
-            frame.origin.x = max(visible.minX, min(frame.origin.x, visible.maxX - frame.width))
-            frame.origin.y = max(visible.minY, min(frame.origin.y, visible.maxY - frame.height))
-        }
+        var frame = docked
         frame = previewFrameAvoidingControl(frame)
         let current = window.frame
         if abs(frame.width - current.width) > 1 || abs(frame.height - current.height) > 1
