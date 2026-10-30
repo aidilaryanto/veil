@@ -54,7 +54,7 @@ extension VeilModel {
         let ratio = sourceAspectRatio > 0 ? sourceAspectRatio : (16.0 / 9.0)
         var width = controlFrame.width
         var height = width / ratio
-        let aboveTop = controlFrame.maxY + 12
+        let aboveTop = controlFrame.maxY + 6
         let availableHeight = max(180, visible.maxY - aboveTop)
         if height > availableHeight {
             height = availableHeight
@@ -89,8 +89,8 @@ extension VeilModel {
               let screen = NSScreen.main else { return frame }
         let visible = screen.visibleFrame
         var result = frame
-        guard result.intersects(controlFrame.insetBy(dx: -12, dy: -12)) else { return result }
-        let aboveTop = controlFrame.maxY + 12
+        guard result.intersects(controlFrame.insetBy(dx: -6, dy: -6)) else { return result }
+        let aboveTop = controlFrame.maxY + 6
         if aboveTop + result.height <= visible.maxY {
             result.origin.y = aboveTop
         } else {
@@ -279,7 +279,7 @@ extension VeilModel {
         if let control = NSApp.keyWindow {
             let controlFrame = control.frame
             frame.origin.x = controlFrame.midX - frame.width / 2
-            frame.origin.y = controlFrame.maxY + 12
+            frame.origin.y = controlFrame.maxY + 6
             if let screen = control.screen ?? NSScreen.main {
                 let visible = screen.visibleFrame
                 if frame.maxY > visible.maxY { frame.origin.y = visible.maxY - frame.height }
