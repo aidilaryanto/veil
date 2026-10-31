@@ -142,8 +142,7 @@ extension VeilModel {
             var height = width / ratio
             if let sourceSize = sourceWindowSize(), let screen = window.screen ?? NSScreen.main {
                 let visible = screen.visibleFrame
-                let fitScale = min((visible.width - 80) / sourceSize.width, (visible.height - 100) / sourceSize.height)
-                let scale = window == OutputWindowStore.shared.window ? fitScale : min(1, fitScale)
+                let scale = min(1, (visible.width - 80) / sourceSize.width, (visible.height - 100) / sourceSize.height)
                 width = sourceSize.width * scale
                 height = sourceSize.height * scale
             } else if let screen = window.screen ?? NSScreen.main {
@@ -190,7 +189,7 @@ extension VeilModel {
     private func initialContentSize(baseWidth: CGFloat) -> NSSize {
         if let sourceSize = sourceWindowSize(), let screen = NSScreen.main {
             let visible = screen.visibleFrame
-            let scale = min((visible.width - 80) / sourceSize.width, (visible.height - 100) / sourceSize.height)
+            let scale = min(1, (visible.width - 80) / sourceSize.width, (visible.height - 100) / sourceSize.height)
             return NSSize(width: max(320, sourceSize.width * scale), height: max(180, sourceSize.height * scale))
         }
         return screenFitContentSize(for: NSScreen.main)
