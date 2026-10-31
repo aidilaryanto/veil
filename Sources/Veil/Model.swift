@@ -326,6 +326,7 @@ final class VeilModel: NSObject, ObservableObject {
                 capturedWindows = content.windows
                 sources = Self.sourceItems(from: content.windows)
                 updateSourceAspectRatio()
+                applySourceRatioToWindows()
                 if previewNeedsReposition, isPreviewVisible {
                     updatePreviewFrameFromSource()
                     previewNeedsReposition = false
@@ -334,6 +335,22 @@ final class VeilModel: NSObject, ObservableObject {
                 status = "\(sources.count) windows on \(content.displays.count) displays."
             } catch {
                 status = "Failed to read windows: \(error.localizedDescription). Check Screen Recording permission."
+            }
+        }
+    }
+    func refreshSourceFramesAndApply() {
+        Task {
+            do {
+                let content = try await SCShareableContent.excludingDesktopWindows(
+                    false, onScreenWindowsOnly: false
+                )
+                capturedWindows = content.windows
+                displays = content.displays
+                sources = Self.sourceItems(from: content.windows)
+                updateSourceAspectRatio()
+                applySourceRatioToWindows()
+                updatePreviewFrameFromSource()
+            } catch {
             }
         }
     }
@@ -850,6 +867,7 @@ final class VeilModel: NSObject, ObservableObject {
             refreshPreviewSnapshot()
             startPreviewSnapshotTimer()
         }
+        refreshSourceFramesAndApply()
         status = "Preset '\(preset.name)' applied."
     }
     func deletePreset(_ preset: Preset) {
