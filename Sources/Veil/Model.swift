@@ -155,6 +155,7 @@ final class VeilModel: NSObject, ObservableObject {
     var lastControlFrame: CGRect?
     private var previewSnapshotTimer: Timer?
     private var stream: SCStream?
+    private var snapshotStream: SCStream?
     private var pdfDocument: PDFDocument?
     private var captureWatchdog: Timer?
     private var lastCaptureSignature = ""
@@ -258,12 +259,56 @@ final class VeilModel: NSObject, ObservableObject {
         guard !isSharing, !isPanic, filePreviewImage == nil,
               mode == .allow, selectedWindowIDs.count == 1,
               let onlyID = selectedWindowIDs.first,
-              let cgImage = CGWindowListCreateImage(.null, .optionIncludingWindow, onlyID, [.boundsIgnoreFraming, .bestResolution]) else {
+              let onlyWindow = capturedWindows.first(where: { $0.windowID == onlyID }) else {
             previewSnapshotImage = nil
             return
         }
-        previewSnapshotImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
-        updateRatioFromImage(previewSnapshotImage!)
+        guard snapshotStream == nil else { return }
+        let config = SCStreamConfiguration()
+        config.minimumFrameInterval = CMTime(value: 1, timescale: 30)
+        config.queueDepth = 1
+        config.showsCursor = false
+        let frame = onlyWindow.frame
+        let scale = NSScreen.screens.first(where: { $0.frame.intersects(frame) })?.backingScaleFactor
+            ?? NSScreen.main?.backingScaleFactor ?? 1
+        config.width = max(2, Int(frame.width * scale))
+        config.height = max(2, Int(frame.height * scale))
+        let filter = SCContentFilter(desktopIndependentWindow: onlyWindow)
+        do {
+            let newStream = SCStream(filter: filter, configuration: config, delegate: nil)
+            try newStream.addStreamOutput(
+                self, type: .screen,
+                sampleHandlerQueue: DispatchQueue(label: "veil.snapshot")
+            )
+            snapshotStream = newStream
+            Task {
+                do {
+                    try await newStream.startCapture()
+                } catch {
+                    await MainActor.run {
+                        if self.snapshotStream === newStream {
+                            self.stopSnapshotStream()
+                            self.previewSnapshotImage = nil
+                        }
+                    }
+                }
+            }
+            Task {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                await MainActor.run {
+                    if self.snapshotStream === newStream {
+                        self.stopSnapshotStream()
+                    }
+                }
+            }
+        } catch {
+            previewSnapshotImage = nil
+        }
+    }
+    func stopSnapshotStream() {
+        let oldStream = snapshotStream
+        snapshotStream = nil
+        Task { try? await oldStream?.stopCapture() }
     }
     func startPreviewSnapshotTimer() {
         guard !isSharing, previewSnapshotTimer == nil else { return }
@@ -274,6 +319,7 @@ final class VeilModel: NSObject, ObservableObject {
     func stopPreviewSnapshotTimer() {
         previewSnapshotTimer?.invalidate()
         previewSnapshotTimer = nil
+        stopSnapshotStream()
     }
     func applyAlwaysOnTop() {
         for window in NSApp.windows {
@@ -403,6 +449,7 @@ final class VeilModel: NSObject, ObservableObject {
         startCapture()
     }
     func startCapture() {
+        stopPreviewSnapshotTimer()
         guard !isPanic else {
             status = "Panic mode is on, output is hidden."
             isSharing = false
@@ -955,7 +1002,11 @@ extension VeilModel: SCStreamOutput {
             size: NSSize(width: cgImage.width, height: cgImage.height)
         )
         Task { @MainActor in
-            if !self.isPaused {
+            if self.snapshotStream != nil {
+                self.previewSnapshotImage = image
+                self.updateRatioFromImage(image)
+                self.stopSnapshotStream()
+            } else if !self.isPaused {
                 self.previewImage = image
                 self.updateRatioFromImage(image)
             }
