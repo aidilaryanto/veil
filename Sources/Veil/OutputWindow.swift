@@ -137,15 +137,27 @@ extension VeilModel {
                 }
                 continue
             }
+            if window == OutputWindowStore.shared.window, let canvasSize = sourceWindowSize() {
+                window.contentAspectRatio = NSSize(width: canvasSize.width, height: canvasSize.height)
+                let current = window.contentRect(forFrameRect: window.frame).size
+                if abs(canvasSize.width - current.width) > 1 || abs(canvasSize.height - current.height) > 1 {
+                    window.setContentSize(canvasSize)
+                }
+                if let screen = window.screen ?? NSScreen.main {
+                    let visible = screen.visibleFrame
+                    var frame = window.frame
+                    frame.origin.x = max(visible.minX, min(frame.origin.x, visible.maxX - frame.width))
+                    frame.origin.y = max(visible.minY, min(frame.origin.y, visible.maxY - frame.height))
+                    if abs(frame.origin.x - window.frame.origin.x) > 1 || abs(frame.origin.y - window.frame.origin.y) > 1 {
+                        window.setFrameOrigin(frame.origin)
+                    }
+                }
+                continue
+            }
             let current = window.contentRect(forFrameRect: window.frame).size
             var width = current.width
             var height = width / ratio
-            if let sourceSize = sourceWindowSize(), let screen = window.screen ?? NSScreen.main {
-                let visible = screen.visibleFrame
-                let scale = min(1, (visible.width - 80) / sourceSize.width, (visible.height - 100) / sourceSize.height)
-                width = sourceSize.width * scale
-                height = sourceSize.height * scale
-            } else if let screen = window.screen ?? NSScreen.main {
+            if let screen = window.screen ?? NSScreen.main {
                 let visible = screen.visibleFrame
                 let maxHeight = max(180, visible.height - 100)
                 var maxWidth = max(320, visible.width - 80)
@@ -187,10 +199,8 @@ extension VeilModel {
         dockFileControlToOutput()
     }
     private func initialContentSize(baseWidth: CGFloat) -> NSSize {
-        if let sourceSize = sourceWindowSize(), let screen = NSScreen.main {
-            let visible = screen.visibleFrame
-            let scale = min(1, (visible.width - 80) / sourceSize.width, (visible.height - 100) / sourceSize.height)
-            return NSSize(width: max(320, sourceSize.width * scale), height: max(180, sourceSize.height * scale))
+        if let sourceSize = sourceWindowSize() {
+            return sourceSize
         }
         return screenFitContentSize(for: NSScreen.main)
     }
