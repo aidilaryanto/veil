@@ -732,7 +732,7 @@ final class VeilModel: NSObject, ObservableObject {
             pdfDocument = nil
             let request = QLThumbnailGenerator.Request(
                 fileAt: item.url,
-                size: CGSize(width: 1280, height: 720),
+                size: CGSize(width: 2000, height: 2000),
                 scale: NSScreen.main?.backingScaleFactor ?? 2,
                 representationTypes: QLThumbnailGenerator.Request.RepresentationTypes.thumbnail
             )

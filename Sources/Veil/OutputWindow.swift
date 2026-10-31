@@ -156,24 +156,28 @@ extension VeilModel {
                 }
                 continue
             }
-            if window == OutputWindowStore.shared.window, let canvasSize = sourceWindowSize() {
-                window.contentAspectRatio = NSSize(width: canvasSize.width, height: canvasSize.height)
-                let current = window.contentRect(forFrameRect: window.frame).size
-                if abs(canvasSize.width - current.width) > 1 || abs(canvasSize.height - current.height) > 1 {
-                    window.setContentSize(canvasSize)
-                }
+            if window == OutputWindowStore.shared.window, let sourceSize = sourceWindowSize() {
+                var canvasSize = sourceSize
                 if let screen = window.screen ?? NSScreen.main {
                     let visible = screen.visibleFrame
-                    var frame = window.frame
+                    let scale = min(1, visible.width / canvasSize.width, visible.height / canvasSize.height)
+                    canvasSize = CGSize(width: canvasSize.width * scale, height: canvasSize.height * scale)
+                }
+                window.contentAspectRatio = NSSize(width: canvasSize.width, height: canvasSize.height)
+                var frame = window.frame
+                frame.size = NSSize(width: canvasSize.width, height: canvasSize.height)
+                if let screen = window.screen ?? NSScreen.main {
+                    let visible = screen.visibleFrame
                     frame.origin.x = max(visible.minX, min(frame.origin.x, visible.maxX - frame.width))
                     frame.origin.y = max(visible.minY, min(frame.origin.y, visible.maxY - frame.height))
-                    if abs(frame.origin.x - window.frame.origin.x) > 1 || abs(frame.origin.y - window.frame.origin.y) > 1 {
-                        window.setFrameOrigin(frame.origin)
-                    }
+                }
+                if abs(frame.width - window.frame.width) > 1 || abs(frame.height - window.frame.height) > 1
+                    || abs(frame.origin.x - window.frame.origin.x) > 1 || abs(frame.origin.y - window.frame.origin.y) > 1 {
+                    window.setFrame(frame, display: true)
                 }
                 continue
             }
-            let current = window.contentRect(forFrameRect: window.frame).size
+            let current = window.frame.size
             var width = current.width
             var height = width / ratio
             if let screen = window.screen ?? NSScreen.main {
@@ -196,7 +200,7 @@ extension VeilModel {
                 height = 180
             }
             if abs(height - current.height) > 1 || abs(width - current.width) > 1 {
-                window.setContentSize(NSSize(width: width, height: height))
+                window.setFrame(NSRect(origin: window.frame.origin, size: NSSize(width: width, height: height)), display: true)
             }
         }
         dockFileControlToOutput()
@@ -206,7 +210,7 @@ extension VeilModel {
         let ratio = sourceAspectRatio
         guard ratio > 0 else { return }
         window.contentAspectRatio = NSSize(width: ratio, height: 1)
-        let current = window.contentRect(forFrameRect: window.frame).size
+        let current = window.frame.size
         var width = current.width
         var height = width / ratio
         if let screen = window.screen ?? NSScreen.main {
@@ -225,13 +229,15 @@ extension VeilModel {
             height = 180
         }
         if abs(height - current.height) > 1 || abs(width - current.width) > 1 {
-            window.setContentSize(NSSize(width: width, height: height))
+            window.setFrame(NSRect(origin: window.frame.origin, size: NSSize(width: width, height: height)), display: true)
         }
         dockFileControlToOutput()
     }
     private func initialContentSize(baseWidth: CGFloat) -> NSSize {
-        if let sourceSize = sourceWindowSize() {
-            return sourceSize
+        if let sourceSize = sourceWindowSize(), let screen = NSScreen.main {
+            let visible = screen.visibleFrame
+            let scale = min(1, visible.width / sourceSize.width, visible.height / sourceSize.height)
+            return NSSize(width: sourceSize.width * scale, height: sourceSize.height * scale)
         }
         return screenFitContentSize(for: NSScreen.main)
     }
@@ -403,6 +409,7 @@ extension VeilModel {
         configureFramelessSecondaryWindow(window)
         window.isMovableByWindowBackground = false
         window.contentView = NSHostingView(rootView: PreviewWindowRootView().environmentObject(self))
+        window.setFrame(frame, display: false)
         window.makeKeyAndOrderFront(nil)
         PreviewWindowStore.shared.window = window
         isPreviewVisible = true
@@ -504,6 +511,7 @@ extension VeilModel {
         configureFramelessSecondaryWindow(window)
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: OutputWindowRootView().environmentObject(self))
+        window.setFrame(NSRect(x: 100, y: 100, width: outputSize.width, height: outputSize.height), display: false)
         window.makeKeyAndOrderFront(nil)
         OutputWindowStore.shared.window = window
         isOutputVisible = true
