@@ -141,7 +141,7 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var activePresetID: UUID?
     @Published var isPreviewVisible = false
     @Published var isOutputVisible = false
-    @Published var sourceAspectRatio: CGFloat = 16.0 / 9.0
+    @Published var sourceAspectRatio: CGFloat = 0
     @Published var fileSources: [FileSource] = []
     @Published var activeFileID: UUID?
     @Published var filePageIndex = 0

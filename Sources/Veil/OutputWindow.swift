@@ -33,8 +33,19 @@ extension VeilModel {
         window.hasShadow = false
         window.isMovableByWindowBackground = true
     }
+    func capturedRatio() -> CGFloat {
+        if sourceAspectRatio > 0 { return sourceAspectRatio }
+        if let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first,
+           display.height > 0 {
+            return CGFloat(display.width) / CGFloat(display.height)
+        }
+        if let screen = NSScreen.main, screen.frame.height > 0 {
+            return screen.frame.width / screen.frame.height
+        }
+        return 1
+    }
     func screenFitContentSize(for screen: NSScreen?) -> NSSize {
-        let ratio = sourceAspectRatio > 0 ? sourceAspectRatio : (16.0 / 9.0)
+        let ratio = capturedRatio()
         var width: CGFloat = 960
         var height = width / ratio
         if let screen = screen ?? NSScreen.main {
@@ -56,7 +67,7 @@ extension VeilModel {
         guard let controlFrame = lastControlFrame,
               let screen = NSScreen.main else { return nil }
         let visible = screen.visibleFrame
-        let ratio = sourceAspectRatio > 0 ? sourceAspectRatio : (16.0 / 9.0)
+        let ratio = capturedRatio()
         let aboveTop = controlFrame.maxY + 6
         let availableHeight = max(180, visible.maxY - aboveTop)
         var width = controlFrame.width
@@ -104,7 +115,7 @@ extension VeilModel {
             result.origin.y = aboveTop
         } else {
             let availableHeight = max(180, visible.maxY - aboveTop)
-            let ratio = result.width > 0 && result.height > 0 ? result.width / result.height : sourceAspectRatio
+            let ratio = result.width > 0 && result.height > 0 ? result.width / result.height : capturedRatio()
             result.size.height = availableHeight
             result.size.width = availableHeight * ratio
             result.origin.y = aboveTop
@@ -205,7 +216,7 @@ extension VeilModel {
         return screenFitContentSize(for: NSScreen.main)
     }
     private func previewInitialContentSize() -> NSSize {
-        let ratio = sourceAspectRatio > 0 ? sourceAspectRatio : (16.0 / 9.0)
+        let ratio = capturedRatio()
         var width: CGFloat = 680
         if let controlWidth = lastControlFrame?.width {
             width = controlWidth
@@ -358,7 +369,9 @@ extension VeilModel {
         window.level = .floating
         window.collectionBehavior = [.canJoinAllSpaces]
         window.isReleasedWhenClosed = false
-        window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
+        if sourceAspectRatio > 0 {
+            window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
+        }
         configureFramelessSecondaryWindow(window)
         window.isMovableByWindowBackground = false
         window.contentView = NSHostingView(rootView: PreviewWindowRootView().environmentObject(self))
@@ -391,7 +404,9 @@ extension VeilModel {
     func updatePreviewFrameFromSource() {
         guard let window = PreviewWindowStore.shared.window, isPreviewVisible,
               let docked = previewDockedFrame() else { return }
-        window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
+        if sourceAspectRatio > 0 {
+            window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
+        }
         var frame = docked
         frame = previewFrameAvoidingControl(frame)
         let current = window.frame
@@ -455,7 +470,9 @@ extension VeilModel {
             defer: false
         )
         window.title = "Veil Output — share this window"
-        window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
+        if sourceAspectRatio > 0 {
+            window.contentAspectRatio = NSSize(width: sourceAspectRatio, height: 1)
+        }
         configureFramelessSecondaryWindow(window)
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: OutputWindowRootView().environmentObject(self))
