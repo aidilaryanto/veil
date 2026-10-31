@@ -913,6 +913,10 @@ struct OutputContentView: View {
                 } else {
                     backgroundView
                     mainImageView(outputSize: geometry.size)
+                }
+            }
+            .overlay(alignment: model.cameraPosition.alignment) {
+                if !model.isPanic, model.cameraEnabled {
                     cameraOverlay(outputWidth: geometry.size.width)
                 }
             }
@@ -998,30 +1002,25 @@ struct OutputContentView: View {
     }
     @ViewBuilder
     private func cameraOverlay(outputWidth: CGFloat) -> some View {
-        if model.cameraEnabled {
-            let referenceWidth: CGFloat = 960
-            let scale = outputWidth > 0 ? outputWidth / referenceWidth : 1
-            let relativeSize = model.cameraSize * scale
-            let relativeMargin = 16 * scale
-            ZStack(alignment: model.cameraPosition.alignment) {
-                Color.clear
-                Group {
-                    if model.cameraShape == .circle {
-                        CameraOverlayView(mirrored: model.cameraMirrored)
-                            .frame(width: relativeSize, height: relativeSize)
-                            .clipShape(Circle())
-                    } else if model.cameraShape == .square {
-                        CameraOverlayView(mirrored: model.cameraMirrored)
-                            .frame(width: relativeSize, height: relativeSize)
-                            .clipShape(Rectangle())
-                    } else {
-                        CameraOverlayView(mirrored: model.cameraMirrored)
-                            .frame(width: relativeSize, height: relativeSize)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                    }
-                }
-                .padding(relativeMargin)
+        let referenceWidth: CGFloat = 960
+        let scale = outputWidth > 0 ? outputWidth / referenceWidth : 1
+        let relativeSize = model.cameraSize * scale
+        let relativeMargin = 16 * scale
+        Group {
+            if model.cameraShape == .circle {
+                CameraOverlayView(mirrored: model.cameraMirrored)
+                    .frame(width: relativeSize, height: relativeSize)
+                    .clipShape(Circle())
+            } else if model.cameraShape == .square {
+                CameraOverlayView(mirrored: model.cameraMirrored)
+                    .frame(width: relativeSize, height: relativeSize)
+                    .clipShape(Rectangle())
+            } else {
+                CameraOverlayView(mirrored: model.cameraMirrored)
+                    .frame(width: relativeSize, height: relativeSize)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
         }
+        .padding(relativeMargin)
     }
 }

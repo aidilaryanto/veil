@@ -56,7 +56,15 @@ extension VeilModel {
             height = width / ratio
             if height > maxHeight { height = maxHeight; width = height * ratio }
         }
-        return NSSize(width: max(320, width), height: max(180, height))
+        if width < 320 {
+            height = height * 320 / width
+            width = 320
+        }
+        if height < 180 {
+            width = width * 180 / height
+            height = 180
+        }
+        return NSSize(width: width, height: height)
     }
     func sourceWindowSize() -> CGSize? {
         guard filePreviewImage == nil, let frame = previewSourceFrame(),
@@ -179,8 +187,14 @@ extension VeilModel {
                 if height > maxHeight { height = maxHeight; width = height * ratio }
                 if width > maxWidth { width = maxWidth; height = width / ratio }
             }
-            width = max(320, width)
-            height = max(180, height)
+            if width < 320 {
+                height = height * 320 / width
+                width = 320
+            }
+            if height < 180 {
+                width = width * 180 / height
+                height = 180
+            }
             if abs(height - current.height) > 1 || abs(width - current.width) > 1 {
                 window.setContentSize(NSSize(width: width, height: height))
             }
@@ -202,8 +216,14 @@ extension VeilModel {
             if height > maxHeight { height = maxHeight; width = height * ratio }
             if width > maxWidth { width = maxWidth; height = width / ratio }
         }
-        width = max(320, width)
-        height = max(180, height)
+        if width < 320 {
+            height = height * 320 / width
+            width = 320
+        }
+        if height < 180 {
+            width = width * 180 / height
+            height = 180
+        }
         if abs(height - current.height) > 1 || abs(width - current.width) > 1 {
             window.setContentSize(NSSize(width: width, height: height))
         }
@@ -235,7 +255,15 @@ extension VeilModel {
             if height > maxHeight { height = maxHeight; width = height * ratio }
             if width > maxWidth { width = maxWidth; height = width / ratio }
         }
-        return NSSize(width: max(320, width), height: max(180, height))
+        if width < 320 {
+            height = height * 320 / width
+            width = 320
+        }
+        if height < 180 {
+            width = width * 180 / height
+            height = 180
+        }
+        return NSSize(width: width, height: height)
     }
     func dockFileControlToOutput() {
         guard let flyer = FileControlWindowStore.shared.window,
