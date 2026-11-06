@@ -1503,6 +1503,7 @@ struct PreviewContentView: View {
                     }
                     PreviewFileControls(buttonSize: 28)
                         .environmentObject(model)
+                        .padding(.leading, 10)
                     if !model.cameraPosition.isLeftSide {
                         Spacer()
                     }
