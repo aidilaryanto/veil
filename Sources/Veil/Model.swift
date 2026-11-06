@@ -71,9 +71,6 @@ enum CameraPosition: String, CaseIterable, Codable {
         case .bottomRight: return "Bottom Right"
         }
     }
-    var isLeftSide: Bool {
-        self == .topLeft || self == .middleLeft || self == .bottomLeft
-    }
     var icon: String {
         switch self {
         case .topLeft: return "arrow.up.left"

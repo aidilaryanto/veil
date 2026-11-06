@@ -1498,13 +1498,13 @@ struct PreviewContentView: View {
             VStack {
                 Spacer()
                 HStack {
-                    if model.cameraPosition.isLeftSide {
+                    if model.cameraEnabled && model.cameraPosition == .bottomLeft {
                         Spacer()
                     }
                     PreviewFileControls(buttonSize: 28)
                         .environmentObject(model)
                         .padding(.leading, 10)
-                    if !model.cameraPosition.isLeftSide {
+                    if !(model.cameraEnabled && model.cameraPosition == .bottomLeft) {
                         Spacer()
                     }
                     Button {
