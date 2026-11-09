@@ -426,7 +426,7 @@ extension VeilModel {
         } else {
             x = output.frame.maxX - size.width
         }
-        let y = output.frame.minY - gap - size.height
+        var y = output.frame.minY - gap - size.height
         if x < visible.minX { x = visible.minX }
         if x + size.width > visible.maxX { x = visible.maxX - size.width }
         if y < visible.minY { y = visible.minY }
