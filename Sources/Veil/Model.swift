@@ -597,15 +597,17 @@ final class VeilModel: NSObject, ObservableObject {
         guard presentationTimer == nil else { return }
         presentationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self else { return }
-            let counting = self.presentationTimerActive && self.isSharing && !self.isPaused && !self.isPanic
-            if counting {
-                let since = self.presentationCountingSince ?? Date()
-                self.presentationCountingSince = since
-                self.presentationElapsed = self.presentationAccumulated + Date().timeIntervalSince(since)
-            } else if let since = self.presentationCountingSince {
-                self.presentationAccumulated += Date().timeIntervalSince(since)
-                self.presentationCountingSince = nil
-                self.presentationElapsed = self.presentationAccumulated
+            Task { @MainActor in
+                let counting = self.presentationTimerActive && self.isSharing && !self.isPaused && !self.isPanic
+                if counting {
+                    let since = self.presentationCountingSince ?? Date()
+                    self.presentationCountingSince = since
+                    self.presentationElapsed = self.presentationAccumulated + Date().timeIntervalSince(since)
+                } else if let since = self.presentationCountingSince {
+                    self.presentationAccumulated += Date().timeIntervalSince(since)
+                    self.presentationCountingSince = nil
+                    self.presentationElapsed = self.presentationAccumulated
+                }
             }
         }
     }
