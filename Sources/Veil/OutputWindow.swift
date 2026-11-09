@@ -337,7 +337,7 @@ extension VeilModel {
             return
         }
         let window = NSWindow(
-            contentRect: NSRect(x: 120, y: 120, width: 240, height: 48),
+            contentRect: NSRect(x: 120, y: 120, width: 240, height: 36),
             styleMask: [.closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -402,7 +402,7 @@ extension VeilModel {
               output.isVisible, flyer.isVisible else { return }
         enforceBottomControlSpace()
         let gap: CGFloat = 8
-        let size = flyer.frame.size
+        let size = CGSize(width: flyer.frame.width, height: 36)
         var x = output.frame.maxX - size.width
         var y = output.frame.minY - gap - size.height
         if let screen = output.screen ?? NSScreen.main {
@@ -412,7 +412,12 @@ extension VeilModel {
             if y < visible.minY { y = visible.minY }
             if y + size.height > visible.maxY { y = visible.maxY - size.height }
         }
-        flyer.setFrameOrigin(NSPoint(x: x, y: y))
+        let frame = NSRect(x: x, y: y, width: size.width, height: size.height)
+        let current = flyer.frame
+        if abs(frame.width - current.width) > 1 || abs(frame.height - current.height) > 1
+            || abs(frame.origin.x - current.origin.x) > 1 || abs(frame.origin.y - current.origin.y) > 1 {
+            flyer.setFrame(frame, display: true)
+        }
     }
     func reopenFileControlIfNeeded() {
         if isCaptureAreaVisible, activeFile != nil, FileControlWindowStore.shared.window == nil {
@@ -420,7 +425,7 @@ extension VeilModel {
         }
     }
     func timerControlSize(expanded: Bool) -> CGSize {
-        expanded ? CGSize(width: 200, height: 48) : CGSize(width: 36, height: 48)
+        expanded ? CGSize(width: 200, height: 36) : CGSize(width: 36, height: 36)
     }
     func timerControlFrame(expanded: Bool) -> CGRect? {
         guard let output = CaptureAreaWindowStore.shared.window, output.isVisible,
@@ -457,7 +462,7 @@ extension VeilModel {
             return
         }
         let window = NSWindow(
-            contentRect: NSRect(x: 120, y: 120, width: 36, height: 48),
+            contentRect: NSRect(x: 120, y: 120, width: 36, height: 36),
             styleMask: [.closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -529,7 +534,7 @@ extension VeilModel {
         }
     }
     func annotationControlSize(expanded: Bool) -> CGSize {
-        expanded ? CGSize(width: 172, height: 48) : CGSize(width: 36, height: 48)
+        expanded ? CGSize(width: 172, height: 36) : CGSize(width: 36, height: 36)
     }
     func annotationControlFrame(expanded: Bool) -> CGRect? {
         guard let output = CaptureAreaWindowStore.shared.window, output.isVisible,
@@ -555,7 +560,7 @@ extension VeilModel {
             return
         }
         let window = NSWindow(
-            contentRect: NSRect(x: 120, y: 120, width: 36, height: 48),
+            contentRect: NSRect(x: 120, y: 120, width: 36, height: 36),
             styleMask: [.closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
