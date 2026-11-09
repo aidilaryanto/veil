@@ -233,7 +233,7 @@ struct ContentView: View {
             }
             .allowsHitTesting(false)
             VStack(alignment: .leading, spacing: 2) {
-                Text(model.isSharing ? "Stream Running" : (model.mode == .allow && model.selectedWindowIDs.isEmpty && model.activeFile == nil ? "Nothing is currently selected to share" : "Stream Stopped"))
+                Text(model.isSharing ? "Stream Running" : (model.mode == .allow && model.canvasMode == .isolated && model.selectedWindowIDs.isEmpty && model.activeFile == nil ? "Nothing is currently selected to share" : "Stream Stopped"))
                     .font(.subheadline).bold()
                 Text("\(model.appCount) apps • \(model.sources.count) windows")
                     .font(.caption)
@@ -926,6 +926,12 @@ struct ContentView: View {
     }
     private func selectCanvasMode(_ mode: CanvasMode) {
         model.canvasMode = mode
+        if mode == .fullDisplay {
+            model.selectedWindowIDs.removeAll()
+            model.previewSnapshotImage = nil
+            model.stopPreviewSnapshotTimer()
+            model.closeFile()
+        }
         if model.filePreviewImage != nil {
             model.updateSourceAspectRatioFromSelection()
             model.resizeCaptureAreaWindow()

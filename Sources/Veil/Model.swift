@@ -197,7 +197,7 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var filePageIndex = 0
     @Published var filePreviewImage: NSImage?
     var shouldShowStreamPreview: Bool {
-        isSharing && !(mode == .allow && selectedWindowIDs.isEmpty)
+        isSharing && !(mode == .allow && canvasMode == .isolated && selectedWindowIDs.isEmpty)
     }
     var capturedWindows: [SCWindow] = []
     var capturedApplications: [SCRunningApplication] = []
