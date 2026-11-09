@@ -1487,7 +1487,6 @@ struct TimerControlView: View {
             if model.presentationTimerExpanded {
                 Text(model.presentationTimerText)
                     .font(.system(size: 16, weight: .bold, design: .monospaced))
-                    .frame(minWidth: 72, alignment: .leading)
                     .padding(.leading, 8)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
                 Rectangle()
@@ -1554,6 +1553,7 @@ struct TimerControlView: View {
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         .animation(.easeInOut(duration: 0.35), value: model.presentationTimerExpanded)
+        .animation(.easeInOut(duration: 0.35), value: model.presentationTimerText)
     }
 }
 struct FileListPopupView: View {
