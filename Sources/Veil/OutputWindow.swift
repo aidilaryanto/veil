@@ -356,10 +356,28 @@ extension VeilModel {
               output.childWindows?.contains(flyer) != true else { return }
         output.addChildWindow(flyer, ordered: .above)
     }
+    func enforceFilePillSpace() {
+        guard let flyer = FileControlWindowStore.shared.window, flyer.isVisible,
+              let output = CaptureAreaWindowStore.shared.window, output.isVisible,
+              let screen = output.screen ?? NSScreen.main else { return }
+        let limit = screen.visibleFrame.minY + 8 + flyer.frame.height
+        var frame = output.frame
+        guard frame.minY < limit - 1 else { return }
+        let ratio = previewRenderedRatio > 0 ? previewRenderedRatio : previewRatio()
+        let delta = limit - frame.minY
+        var height = frame.height - delta
+        if height < 180 { height = 180 }
+        var width = ratio > 0 ? height * ratio : frame.width
+        if width < 320 { width = 320; height = ratio > 0 ? width / ratio : height }
+        frame.origin.y = limit
+        frame.size = CGSize(width: width, height: height)
+        output.setFrame(frame, display: true)
+    }
     func dockFileControlToCaptureArea() {
         guard let flyer = FileControlWindowStore.shared.window,
               let output = CaptureAreaWindowStore.shared.window,
               output.isVisible, flyer.isVisible else { return }
+        enforceFilePillSpace()
         let gap: CGFloat = 8
         let size = flyer.frame.size
         var x = output.frame.maxX - size.width
