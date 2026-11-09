@@ -177,6 +177,9 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var isSharing = false { didSet { saveLastSession() } }
     @Published var isPanic = false
     @Published var isPaused = false
+    @Published var presentationElapsed: TimeInterval = 0
+    @Published var presentationTimerActive = false
+    @Published var presentationTimerExpanded = false
     @Published var previewImage: NSImage?
     @Published var streamHasFrame = false
     @Published var previewSnapshotImage: NSImage?
@@ -202,6 +205,9 @@ final class VeilModel: NSObject, ObservableObject {
     var pendingDynamicUnion: CGRect?
     var lastControlFrame: CGRect?
     private var previewSnapshotTimer: Timer?
+    private var presentationTimer: Timer?
+    private var presentationAccumulated: TimeInterval = 0
+    private var presentationCountingSince: Date?
     private var positionPollTimer: Timer?
     private var stream: SCStream?
     private var snapshotStream: SCStream?
@@ -224,8 +230,10 @@ final class VeilModel: NSObject, ObservableObject {
         addBuiltInPresetsIfNeeded()
         restoreLastSession()
         installFilePageKeyMonitor()
+        startPresentationTimer()
     }
     deinit {
+        presentationTimer?.invalidate()
         if let monitor = filePageKeyMonitor {
             NSEvent.removeMonitor(monitor)
         }
@@ -584,6 +592,54 @@ final class VeilModel: NSObject, ObservableObject {
         snapshotStream = nil
         CaptureRouting.shared.setSnapshotStreamID(nil)
         Task { try? await oldStream?.stopCapture() }
+    }
+    private func startPresentationTimer() {
+        guard presentationTimer == nil else { return }
+        presentationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            let counting = self.presentationTimerActive && self.isSharing && !self.isPaused && !self.isPanic
+            if counting {
+                let since = self.presentationCountingSince ?? Date()
+                self.presentationCountingSince = since
+                self.presentationElapsed = self.presentationAccumulated + Date().timeIntervalSince(since)
+            } else if let since = self.presentationCountingSince {
+                self.presentationAccumulated += Date().timeIntervalSince(since)
+                self.presentationCountingSince = nil
+                self.presentationElapsed = self.presentationAccumulated
+            }
+        }
+    }
+    func resetPresentationTimer() {
+        presentationTimerActive = false
+        presentationAccumulated = 0
+        presentationCountingSince = nil
+        presentationElapsed = 0
+    }
+    func togglePresentationTimer() {
+        if presentationTimerActive {
+            if let since = presentationCountingSince {
+                presentationAccumulated += Date().timeIntervalSince(since)
+                presentationCountingSince = nil
+            }
+            presentationElapsed = presentationAccumulated
+            presentationTimerActive = false
+        } else {
+            presentationCountingSince = Date()
+            presentationTimerActive = true
+        }
+    }
+    var presentationTimerRunning: Bool {
+        presentationTimerActive && isSharing && !isPaused && !isPanic
+    }
+    var presentationTimerText: String {
+        let total = Int(presentationElapsed)
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        }
+        return String(format: "%02d:%02d", minutes, seconds)
     }
     func startPreviewSnapshotTimer() {
         guard !isSharing, previewSnapshotTimer == nil else { return }
@@ -1040,6 +1096,7 @@ final class VeilModel: NSObject, ObservableObject {
                         startCaptureWatchdog()
                         resizeCaptureAreaWindow()
                         reopenFileControlIfNeeded()
+                        reopenTimerControlIfNeeded()
                     }
                 } catch {
                     await MainActor.run {

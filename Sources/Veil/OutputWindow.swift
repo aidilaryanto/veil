@@ -16,6 +16,11 @@ final class FileControlWindowStore {
     var window: NSWindow?
     private init() {}
 }
+final class TimerControlWindowStore {
+    static let shared = TimerControlWindowStore()
+    var window: NSWindow?
+    private init() {}
+}
 final class PanelWindowStore {
     static let shared = PanelWindowStore()
     var window: NSWindow?
@@ -323,6 +328,7 @@ extension VeilModel {
             window.makeKeyAndOrderFront(nil)
             attachFileControlWindow()
             dockFileControlToCaptureArea()
+            dockTimerControlToCaptureArea()
             return
         }
         let window = NSWindow(
@@ -340,6 +346,7 @@ extension VeilModel {
         FileControlWindowStore.shared.window = window
         attachFileControlWindow()
         dockFileControlToCaptureArea()
+        dockTimerControlToCaptureArea()
     }
     func closeFileControlWindow() {
         if let window = FileControlWindowStore.shared.window {
@@ -349,6 +356,7 @@ extension VeilModel {
             window.close()
             FileControlWindowStore.shared.window = nil
         }
+        dockTimerControlToCaptureArea()
     }
     func attachFileControlWindow() {
         guard let output = CaptureAreaWindowStore.shared.window,
@@ -356,11 +364,18 @@ extension VeilModel {
               output.childWindows?.contains(flyer) != true else { return }
         output.addChildWindow(flyer, ordered: .above)
     }
-    func enforceFilePillSpace() {
-        guard let flyer = FileControlWindowStore.shared.window, flyer.isVisible,
-              let output = CaptureAreaWindowStore.shared.window, output.isVisible,
+    func enforceBottomControlSpace() {
+        guard let output = CaptureAreaWindowStore.shared.window, output.isVisible,
               let screen = output.screen ?? NSScreen.main else { return }
-        let limit = screen.visibleFrame.minY + 8 + flyer.frame.height
+        var controlHeight: CGFloat = 0
+        if let flyer = FileControlWindowStore.shared.window, flyer.isVisible {
+            controlHeight = max(controlHeight, flyer.frame.height)
+        }
+        if let timer = TimerControlWindowStore.shared.window, timer.isVisible {
+            controlHeight = max(controlHeight, timer.frame.height)
+        }
+        guard controlHeight > 0 else { return }
+        let limit = screen.visibleFrame.minY + 8 + controlHeight
         var frame = output.frame
         guard frame.minY < limit - 1 else { return }
         let ratio = previewRenderedRatio > 0 ? previewRenderedRatio : previewRatio()
@@ -377,7 +392,7 @@ extension VeilModel {
         guard let flyer = FileControlWindowStore.shared.window,
               let output = CaptureAreaWindowStore.shared.window,
               output.isVisible, flyer.isVisible else { return }
-        enforceFilePillSpace()
+        enforceBottomControlSpace()
         let gap: CGFloat = 8
         let size = flyer.frame.size
         var x = output.frame.maxX - size.width
@@ -396,9 +411,100 @@ extension VeilModel {
             openFileControlWindow()
         }
     }
+    func timerControlSize(expanded: Bool) -> CGSize {
+        expanded ? CGSize(width: 182, height: 48) : CGSize(width: 48, height: 48)
+    }
+    func timerControlFrame(expanded: Bool) -> CGRect? {
+        guard let output = CaptureAreaWindowStore.shared.window, output.isVisible,
+              let screen = output.screen ?? NSScreen.main else { return nil }
+        let visible = screen.visibleFrame
+        let size = timerControlSize(expanded: expanded)
+        let gap: CGFloat = 8
+        var x: CGFloat
+        var y: CGFloat
+        if let flyer = FileControlWindowStore.shared.window, flyer.isVisible {
+            x = flyer.frame.minX - gap - size.width
+            y = flyer.frame.minY
+        } else {
+            x = output.frame.maxX - size.width
+            y = output.frame.minY - gap - size.height
+        }
+        if x < visible.minX { x = visible.minX }
+        if x + size.width > visible.maxX { x = visible.maxX - size.width }
+        if y < visible.minY { y = visible.minY }
+        if y + size.height > visible.maxY { y = visible.maxY - size.height }
+        return CGRect(x: x, y: y, width: size.width, height: size.height)
+    }
+    func openTimerControlWindow() {
+        guard CaptureAreaWindowStore.shared.window != nil, isCaptureAreaVisible else { return }
+        if let window = TimerControlWindowStore.shared.window {
+            window.makeKeyAndOrderFront(nil)
+            attachTimerControlWindow()
+            dockTimerControlToCaptureArea()
+            return
+        }
+        let window = NSWindow(
+            contentRect: NSRect(x: 120, y: 120, width: 48, height: 48),
+            styleMask: [.closable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Veil Timer Control"
+        window.level = .floating
+        window.isReleasedWhenClosed = false
+        configureCaptureAreaWindow(window)
+        window.contentView = NSHostingView(rootView: TimerControlView().environmentObject(self))
+        window.makeKeyAndOrderFront(nil)
+        TimerControlWindowStore.shared.window = window
+        attachTimerControlWindow()
+        dockTimerControlToCaptureArea()
+    }
+    func closeTimerControlWindow() {
+        if let window = TimerControlWindowStore.shared.window {
+            if let output = CaptureAreaWindowStore.shared.window {
+                output.removeChildWindow(window)
+            }
+            window.close()
+            TimerControlWindowStore.shared.window = nil
+        }
+    }
+    func attachTimerControlWindow() {
+        guard let output = CaptureAreaWindowStore.shared.window,
+              let timer = TimerControlWindowStore.shared.window,
+              output.childWindows?.contains(timer) != true else { return }
+        output.addChildWindow(timer, ordered: .above)
+    }
+    func dockTimerControlToCaptureArea() {
+        guard let timer = TimerControlWindowStore.shared.window,
+              let output = CaptureAreaWindowStore.shared.window,
+              output.isVisible, timer.isVisible else { return }
+        enforceBottomControlSpace()
+        guard let frame = timerControlFrame(expanded: presentationTimerExpanded) else { return }
+        let current = timer.frame
+        if abs(frame.width - current.width) > 1 || abs(frame.height - current.height) > 1
+            || abs(frame.origin.x - current.origin.x) > 1 || abs(frame.origin.y - current.origin.y) > 1 {
+            timer.setFrame(frame, display: true)
+        }
+    }
+    func setTimerControlExpanded(_ expanded: Bool) {
+        presentationTimerExpanded = expanded
+        guard let window = TimerControlWindowStore.shared.window,
+              let frame = timerControlFrame(expanded: expanded) else { return }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.35
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            window.animator().setFrame(frame, display: true)
+        }
+    }
+    func reopenTimerControlIfNeeded() {
+        if isCaptureAreaVisible, TimerControlWindowStore.shared.window == nil {
+            openTimerControlWindow()
+        }
+    }
     func resizeCaptureAreaWindow() {
         guard let window = CaptureAreaWindowStore.shared.window else {
             dockFileControlToCaptureArea()
+            dockTimerControlToCaptureArea()
             return
         }
         let size = captureAreaWindowSize(width: window.frame.width)
@@ -424,6 +530,7 @@ extension VeilModel {
             window.setFrame(frame, display: true)
         }
         dockFileControlToCaptureArea()
+        dockTimerControlToCaptureArea()
     }
     func toggleCaptureAreaWindow() {
         if isCaptureAreaVisible {
@@ -434,6 +541,7 @@ extension VeilModel {
     }
     func closeCaptureAreaWindow() {
         closeFileControlWindow()
+        closeTimerControlWindow()
         if let window = CaptureAreaWindowStore.shared.window {
             if let observer = CaptureAreaWindowStore.shared.closeObserver {
                 NotificationCenter.default.removeObserver(observer)
@@ -457,6 +565,7 @@ extension VeilModel {
             dockFileControlToCaptureArea()
             attachFileControlWindow()
             reopenFileControlIfNeeded()
+            openTimerControlWindow()
             refreshCaptureFilter()
             return
         }
@@ -497,6 +606,7 @@ extension VeilModel {
         dockFileControlToCaptureArea()
         attachFileControlWindow()
         reopenFileControlIfNeeded()
+        openTimerControlWindow()
         refreshCaptureFilter()
         CaptureAreaWindowStore.shared.closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
@@ -506,7 +616,10 @@ extension VeilModel {
         CaptureAreaWindowStore.shared.resizeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didResizeNotification, object: window, queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.dockFileControlToCaptureArea() }
+            Task { @MainActor in
+                self?.dockFileControlToCaptureArea()
+                self?.dockTimerControlToCaptureArea()
+            }
         }
     }
 }

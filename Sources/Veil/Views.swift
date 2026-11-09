@@ -1480,6 +1480,73 @@ struct PreviewFileControls: View {
         }
     }
 }
+struct TimerControlView: View {
+    @EnvironmentObject var model: VeilModel
+    var body: some View {
+        HStack(spacing: 6) {
+            if model.presentationTimerExpanded {
+                Text(model.presentationTimerText)
+                    .font(.system(.subheadline, design: .monospaced))
+                    .frame(minWidth: 64, alignment: .leading)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                Button {
+                    model.togglePresentationTimer()
+                } label: {
+                    Color.white.opacity(0.01)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                        .overlay(
+                            Image(systemName: model.presentationTimerActive ? "pause.fill" : "play.fill")
+                                .font(.system(size: 13))
+                        )
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .help(model.presentationTimerActive ? "Pause timer" : "Start timer")
+                .pointingHandOnHover()
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+                Button {
+                    model.resetPresentationTimer()
+                } label: {
+                    Color.white.opacity(0.01)
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
+                        .overlay(
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(.system(size: 11))
+                        )
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .disabled(model.presentationElapsed == 0 && !model.presentationTimerActive)
+                .help("Reset timer")
+                .pointingHandOnHover()
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+            Button {
+                model.setTimerControlExpanded(!model.presentationTimerExpanded)
+            } label: {
+                Color.white.opacity(0.01)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+                    .overlay(
+                        Image(systemName: "timer")
+                            .font(.system(size: 16))
+                    )
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .foregroundStyle(model.presentationTimerRunning ? Color.green : Color.white)
+            .help(model.presentationTimerExpanded ? "Collapse timer" : "Expand timer")
+            .pointingHandOnHover()
+        }
+        .padding(6)
+        .background(Capsule().fill(Color.black.opacity(0.45)))
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: model.presentationTimerExpanded)
+    }
+}
 struct FileListPopupView: View {
     @EnvironmentObject var model: VeilModel
     @Binding var showFilePopup: Bool
