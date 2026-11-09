@@ -1486,8 +1486,13 @@ struct TimerControlView: View {
         HStack(spacing: 6) {
             if model.presentationTimerExpanded {
                 Text(model.presentationTimerText)
-                    .font(.system(.subheadline, design: .monospaced))
-                    .frame(minWidth: 64, alignment: .leading)
+                    .font(.system(size: 16, weight: .bold, design: .monospaced))
+                    .frame(minWidth: 72, alignment: .leading)
+                    .padding(.leading, 8)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                Rectangle()
+                    .fill(Color.white.opacity(0.2))
+                    .frame(width: 1, height: 20)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
                 Button {
                     model.togglePresentationTimer()
@@ -1527,11 +1532,11 @@ struct TimerControlView: View {
                 model.setTimerControlExpanded(!model.presentationTimerExpanded)
             } label: {
                 Color.white.opacity(0.01)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
                     .overlay(
                         Image(systemName: "timer")
-                            .font(.system(size: 16))
+                            .font(.system(size: 13))
                     )
             }
             .buttonStyle(.plain)
@@ -1540,7 +1545,8 @@ struct TimerControlView: View {
             .help(model.presentationTimerExpanded ? "Collapse timer" : "Expand timer")
             .pointingHandOnHover()
         }
-        .padding(6)
+        .padding(.horizontal, 4)
+        .frame(height: 36)
         .background(Capsule().fill(Color.black.opacity(0.45)))
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
