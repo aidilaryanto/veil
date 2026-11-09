@@ -421,14 +421,12 @@ extension VeilModel {
         let size = timerControlSize(expanded: expanded)
         let gap: CGFloat = 8
         var x: CGFloat
-        var y: CGFloat
         if let flyer = FileControlWindowStore.shared.window, flyer.isVisible {
             x = flyer.frame.minX - gap - size.width
-            y = flyer.frame.minY
         } else {
             x = output.frame.maxX - size.width
-            y = output.frame.minY - gap - size.height
         }
+        let y = output.frame.minY - gap - size.height
         if x < visible.minX { x = visible.minX }
         if x + size.width > visible.maxX { x = visible.maxX - size.width }
         if y < visible.minY { y = visible.minY }
