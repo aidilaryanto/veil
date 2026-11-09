@@ -30,6 +30,14 @@ struct VeilApp: App {
                 }
                 .keyboardShortcut("p", modifiers: [.command, .shift])
             }
+            CommandMenu("Presets") {
+                ForEach(Array(model.hotkeyPresets.enumerated()), id: \.element.id) { index, preset in
+                    Button("Apply \(preset.name)") {
+                        model.applyPreset(preset)
+                    }
+                    .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
+                }
+            }
         }
     }
 }

@@ -1041,6 +1041,14 @@ struct ContentView: View {
                     Image(systemName: preset.isBuiltIn ? (preset.name == "Presentation" ? "rectangle.on.rectangle" : "person.2") : "bookmark")
                         .foregroundStyle(Color.white)
                     Text(preset.name).font(.subheadline).bold().lineLimit(1)
+                    if let number = model.hotkeyNumber(for: preset) {
+                        Text("⌘\(number)")
+                            .font(.caption)
+                            .foregroundStyle(Color.white.opacity(0.85))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.white.opacity(0.15)))
+                    }
                     Spacer()
                     if !preset.isBuiltIn {
                         Menu {

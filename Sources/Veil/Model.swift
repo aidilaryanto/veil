@@ -1560,6 +1560,12 @@ final class VeilModel: NSObject, ObservableObject {
         persistPresets()
         status = "Preset '\(preset.name)' saved."
     }
+    var hotkeyPresets: [Preset] {
+        Array((presets.filter { !$0.isBuiltIn } + presets.filter { $0.isBuiltIn }).prefix(9))
+    }
+    func hotkeyNumber(for preset: Preset) -> Int? {
+        hotkeyPresets.firstIndex(where: { $0.id == preset.id }).map { $0 + 1 }
+    }
     func applyPreset(_ preset: Preset) {
         activePresetID = preset.id
         mode = preset.mode
