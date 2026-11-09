@@ -74,6 +74,69 @@ struct WindowDragView: NSViewRepresentable {
         (nsView as? WindowDragNSView)?.resizable = resizable
     }
 }
+final class AnnotationInputNSView: NSView {
+    var model: VeilModel?
+    private var isDrawing = false
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard let model = model, model.annotationEnabled, !model.isPanic else { return nil }
+        return self
+    }
+    override func mouseDown(with event: NSEvent) {
+        guard let model = model, model.annotationEnabled, !model.isPanic else { return }
+        if model.annotationTool == .pen {
+            isDrawing = true
+            model.startAnnotationStroke(at: normalizedPoint(from: event))
+        }
+    }
+    override func mouseDragged(with event: NSEvent) {
+        guard let model = model, model.annotationEnabled, !model.isPanic else { return }
+        let point = normalizedPoint(from: event)
+        if model.annotationTool == .pen, isDrawing {
+            model.addAnnotationPoint(point)
+        } else if model.annotationTool == .laser {
+            model.laserPosition = point
+        }
+    }
+    override func mouseUp(with event: NSEvent) {
+        guard let model = model, model.annotationEnabled, !model.isPanic else { return }
+        if model.annotationTool == .pen {
+            isDrawing = false
+            model.endAnnotationStroke()
+        }
+    }
+    override func mouseMoved(with event: NSEvent) {
+        guard let model = model, model.annotationEnabled, !model.isPanic else { return }
+        if model.annotationTool == .laser {
+            model.laserPosition = normalizedPoint(from: event)
+        }
+    }
+    override func mouseExited(with event: NSEvent) {
+        model?.laserPosition = nil
+    }
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach { removeTrackingArea($0) }
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self, userInfo: nil))
+    }
+    private func normalizedPoint(from event: NSEvent) -> CGPoint {
+        let p = convert(event.locationInWindow, from: nil)
+        let w = max(bounds.width, 1)
+        let h = max(bounds.height, 1)
+        return CGPoint(x: min(max(p.x / w, 0), 1), y: min(max(1 - p.y / h, 0), 1))
+    }
+}
+struct AnnotationInputView: NSViewRepresentable {
+    var model: VeilModel
+    func makeNSView(context: Context) -> NSView {
+        let view = AnnotationInputNSView()
+        view.model = model
+        return view
+    }
+    func updateNSView(_ nsView: NSView, context: Context) {
+        (nsView as? AnnotationInputNSView)?.model = model
+    }
+}
 extension View {
     func pointingHandOnHover() -> some View {
         onHover { hovering in
@@ -96,6 +159,7 @@ struct ContentView: View {
     @State private var showPresetsPopover = false
     @State private var showCameraPopover = false
     @State private var showSessionPopover = false
+    @State private var showAnnotatePopover = false
     @State private var expandedApps: Set<String> = []
     @State private var renamingPresetID: UUID?
     @State private var renamingName = ""
@@ -103,7 +167,7 @@ struct ContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if model.isPreviewVisible {
-                PreviewContentView()
+                PreviewContentView(showAnnotatePopover: $showAnnotatePopover)
                     .environmentObject(model)
                     .frame(width: embeddedPreviewSize.width, height: embeddedPreviewSize.height)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -166,31 +230,34 @@ struct ContentView: View {
             }
         }
         .onChange(of: popup) { _, newValue in
-            if newValue != nil { showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
+            if newValue != nil { showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false; showAnnotatePopover = false }
         }
         .onChange(of: showSourcesPopover) { _, newValue in
-            if newValue { popup = nil; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
+            if newValue { popup = nil; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false; showAnnotatePopover = false }
         }
         .onChange(of: showDisplayPopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false; showAnnotatePopover = false }
         }
         .onChange(of: showFramePopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false; showAnnotatePopover = false }
         }
         .onChange(of: showModePopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false; showAnnotatePopover = false }
         }
         .onChange(of: showCanvasPopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false; showAnnotatePopover = false }
         }
         .onChange(of: showPresetsPopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showCameraPopover = false; showSessionPopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showCameraPopover = false; showSessionPopover = false; showAnnotatePopover = false }
         }
         .onChange(of: showCameraPopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showSessionPopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showSessionPopover = false; showAnnotatePopover = false }
         }
         .onChange(of: showSessionPopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showAnnotatePopover = false }
+        }
+        .onChange(of: showAnnotatePopover) { _, newValue in
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
     }
     private var embeddedPreviewSize: CGSize {
@@ -1642,6 +1709,7 @@ struct FileListPopupView: View {
 }
 struct PreviewContentView: View {
     @EnvironmentObject var model: VeilModel
+    @Binding var showAnnotatePopover: Bool
     var body: some View {
         ZStack(alignment: .topLeading) {
             OutputContentView(isPreview: true)
@@ -1668,18 +1736,36 @@ struct PreviewContentView: View {
                     if !(model.cameraEnabled && model.cameraPosition == .bottomLeft) {
                         Spacer()
                     }
-                    Button {
-                        model.cameraEnabled.toggle()
-                    } label: {
-                        Image(systemName: model.cameraEnabled ? "video.fill" : "video.slash.fill")
-                            .font(.subheadline)
-                            .frame(width: 28, height: 28)
-                            .background(Circle().fill(model.cameraEnabled ? Color(red: 0.45, green: 0.80, blue: 0.60) : Color(red: 0.90, green: 0.55, blue: 0.55)))
-                            .foregroundStyle(.white)
+                    HStack(spacing: 8) {
+                        Button {
+                            showAnnotatePopover.toggle()
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.subheadline)
+                                .frame(width: 28, height: 28)
+                                .background(Circle().fill(model.annotationEnabled ? Color(red: 0.95, green: 0.55, blue: 0.20) : Color(red: 0.45, green: 0.45, blue: 0.50)))
+                                .foregroundStyle(.white)
+                        }
+                        .buttonStyle(.plain)
+                        .pointingHandOnHover()
+                        .help(model.annotationEnabled ? "Turn annotation off" : "Annotate the Output")
+                        .popover(isPresented: $showAnnotatePopover, arrowEdge: .top) {
+                            annotatePopup
+                                .preferredColorScheme(.dark)
+                        }
+                        Button {
+                            model.cameraEnabled.toggle()
+                        } label: {
+                            Image(systemName: model.cameraEnabled ? "video.fill" : "video.slash.fill")
+                                .font(.subheadline)
+                                .frame(width: 28, height: 28)
+                                .background(Circle().fill(model.cameraEnabled ? Color(red: 0.45, green: 0.80, blue: 0.60) : Color(red: 0.90, green: 0.55, blue: 0.55)))
+                                .foregroundStyle(.white)
+                        }
+                        .buttonStyle(.plain)
+                        .pointingHandOnHover()
+                        .help(model.cameraEnabled ? "Turn camera overlay off" : "Turn camera overlay on")
                     }
-                    .buttonStyle(.plain)
-                    .pointingHandOnHover()
-                    .help(model.cameraEnabled ? "Turn camera overlay off" : "Turn camera overlay on")
                     .padding(10)
                 }
             }
@@ -1688,6 +1774,93 @@ struct PreviewContentView: View {
             model.resizeCaptureAreaWindow()
         }
     }
+    private var annotatePopup: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Annotate").font(.headline).bold()
+                Spacer()
+                Button { model.annotationEnabled.toggle() } label: {
+                    ZStack(alignment: model.annotationEnabled ? .trailing : .leading) {
+                        RoundedRectangle(cornerRadius: 11)
+                            .fill(model.annotationEnabled ? Color.red : Color.white.opacity(0.2))
+                            .frame(width: 36, height: 22)
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 16, height: 16)
+                            .padding(3)
+                    }
+                }
+                .buttonStyle(.plain)
+                .help(model.annotationEnabled ? "Turn annotation off" : "Turn annotation on")
+                .contentShape(Rectangle())
+                .pointingHandOnHover()
+                .animation(.easeInOut, value: model.annotationEnabled)
+            }
+            Text("Draw on the Capture Area. Annotations appear on the shared Output and in Preview. Turn Annotate off to move or resize the Capture Area.")
+                .font(.caption)
+                .foregroundStyle(Color.white.opacity(0.85))
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Tool").font(.subheadline).bold()
+            HStack(spacing: 8) {
+                Button { model.annotationTool = .pen } label: {
+                    Label("Pen", systemImage: "pencil")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(RoundedRectangle(cornerRadius: 10).fill(model.annotationTool == .pen ? Color.red : Color.black.opacity(0.45)))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .help("Draw freehand strokes")
+                .contentShape(Rectangle())
+                .pointingHandOnHover()
+                Button { model.annotationTool = .laser } label: {
+                    Label("Laser", systemImage: "cursorarrow.rays")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(RoundedRectangle(cornerRadius: 10).fill(model.annotationTool == .laser ? Color.red : Color.black.opacity(0.45)))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .help("Point with a laser dot that follows the mouse")
+                .contentShape(Rectangle())
+                .pointingHandOnHover()
+            }
+            Text("Pen Color").font(.subheadline).bold()
+            HStack(spacing: 8) {
+                ForEach(AnnotationColor.allCases, id: \.self) { color in
+                    Button { model.annotationColor = color } label: {
+                        Circle()
+                            .fill(color.color)
+                            .frame(width: 24, height: 24)
+                            .overlay(Circle().stroke(Color.white, lineWidth: model.annotationColor == color ? 2 : 0))
+                    }
+                    .buttonStyle(.plain)
+                    .help(color.rawValue.capitalized)
+                    .contentShape(Circle())
+                    .pointingHandOnHover()
+                }
+            }
+            Button("Clear All Annotations") { model.clearAnnotations() }
+                .font(.subheadline)
+                .foregroundStyle(Color.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color.black.opacity(0.45)))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                .buttonStyle(.plain)
+                .help("Remove all annotations")
+                .contentShape(Rectangle())
+                .pointingHandOnHover()
+                .disabled(model.annotationStrokes.isEmpty)
+        }
+        .padding(12)
+        .frame(width: 360)
+    }
 }
 struct CaptureAreaRootView: View {
     @EnvironmentObject var model: VeilModel
@@ -1695,10 +1868,52 @@ struct CaptureAreaRootView: View {
         OutputContentView()
             .environmentObject(model)
             .overlay(WindowDragView(resizable: true))
+            .overlay(AnnotationInputView(model: model))
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .onAppear {
                 model.resizeCaptureAreaWindow()
             }
+    }
+}
+struct AnnotationOverlayView: View {
+    @EnvironmentObject var model: VeilModel
+    var size: CGSize
+    var body: some View {
+        ZStack {
+            ForEach(model.annotationStrokes) { stroke in
+                annotationPath(for: stroke)
+            }
+            if model.annotationEnabled, model.annotationTool == .laser, let laser = model.laserPosition {
+                laserDot(at: laser)
+            }
+        }
+        .frame(width: size.width, height: size.height)
+    }
+    private func annotationPath(for stroke: AnnotationStroke) -> some View {
+        Path { path in
+            guard let first = stroke.points.first else { return }
+            path.move(to: CGPoint(x: first.x * size.width, y: first.y * size.height))
+            for point in stroke.points.dropFirst() {
+                path.addLine(to: CGPoint(x: point.x * size.width, y: point.y * size.height))
+            }
+        }
+        .stroke(stroke.color.color, style: StrokeStyle(lineWidth: stroke.widthFraction * size.width, lineCap: .round, lineJoin: .round))
+    }
+    private func laserDot(at point: CGPoint) -> some View {
+        let diameter = size.width * 0.02
+        let center = CGPoint(x: point.x * size.width, y: point.y * size.height)
+        return ZStack {
+            Circle()
+                .fill(Color.red.opacity(0.25))
+                .frame(width: diameter * 2.5, height: diameter * 2.5)
+            Circle()
+                .fill(Color.red)
+                .frame(width: diameter, height: diameter)
+            Circle()
+                .fill(Color.white)
+                .frame(width: diameter * 0.35, height: diameter * 0.35)
+        }
+        .position(center)
     }
 }
 struct OutputContentView: View {
@@ -1727,6 +1942,7 @@ struct OutputContentView: View {
                 } else {
                     backgroundView
                     mainImageView(outputSize: geometry.size)
+                    AnnotationOverlayView(size: geometry.size)
                 }
             }
             .overlay(alignment: model.cameraPosition.alignment) {

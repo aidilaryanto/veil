@@ -90,6 +90,32 @@ enum CameraShape: String, CaseIterable, Codable {
     case square = "Square"
     case rounded = "Rounded"
 }
+enum AnnotationTool: String, CaseIterable {
+    case pen
+    case laser
+}
+enum AnnotationColor: String, CaseIterable {
+    case red
+    case yellow
+    case green
+    case blue
+    case white
+    var color: Color {
+        switch self {
+        case .red: return Color(red: 0.95, green: 0.30, blue: 0.25)
+        case .yellow: return Color(red: 1.0, green: 0.85, blue: 0.20)
+        case .green: return Color(red: 0.30, green: 0.85, blue: 0.40)
+        case .blue: return Color(red: 0.25, green: 0.55, blue: 1.0)
+        case .white: return Color.white
+        }
+    }
+}
+struct AnnotationStroke: Identifiable {
+    var id = UUID()
+    var points: [CGPoint]
+    var color: AnnotationColor
+    var widthFraction: CGFloat
+}
 enum FileKind: String, Codable {
     case pdf = "PDF"
     case ppt = "PPT"
@@ -196,6 +222,12 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var activeFileID: UUID?
     @Published var filePageIndex = 0
     @Published var filePreviewImage: NSImage?
+    @Published var annotationEnabled = false
+    @Published var annotationTool: AnnotationTool = .pen
+    @Published var annotationColor: AnnotationColor = .red
+    @Published var annotationStrokes: [AnnotationStroke] = []
+    @Published var laserPosition: CGPoint? = nil
+    static let annotationPenWidthFraction: CGFloat = 0.004
     var shouldShowStreamPreview: Bool {
         isSharing && !(mode == .allow && canvasMode == .isolated && selectedWindowIDs.isEmpty)
     }
@@ -1565,6 +1597,22 @@ final class VeilModel: NSObject, ObservableObject {
     }
     func hotkeyNumber(for preset: Preset) -> Int? {
         hotkeyPresets.firstIndex(where: { $0.id == preset.id }).map { $0 + 1 }
+    }
+    func startAnnotationStroke(at point: CGPoint) {
+        annotationStrokes.append(AnnotationStroke(points: [point], color: annotationColor, widthFraction: Self.annotationPenWidthFraction))
+    }
+    func addAnnotationPoint(_ point: CGPoint) {
+        guard !annotationStrokes.isEmpty else { return }
+        annotationStrokes[annotationStrokes.count - 1].points.append(point)
+    }
+    func endAnnotationStroke() {
+        if let last = annotationStrokes.last, last.points.count < 2 {
+            annotationStrokes.removeLast()
+        }
+    }
+    func clearAnnotations() {
+        annotationStrokes.removeAll()
+        laserPosition = nil
     }
     func applyPreset(_ preset: Preset) {
         activePresetID = preset.id
