@@ -1080,6 +1080,7 @@ struct ContentView: View {
             model.previewSnapshotImage = nil
             model.stopPreviewSnapshotTimer()
             model.closeFile()
+            model.activePresetID = nil
         }
         if model.filePreviewImage != nil {
             model.updateSourceAspectRatioFromSelection()
