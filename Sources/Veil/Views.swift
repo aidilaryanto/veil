@@ -159,6 +159,7 @@ struct ContentView: View {
     @State private var showPresetsPopover = false
     @State private var showCameraPopover = false
     @State private var showSessionPopover = false
+    @State private var presetSearchText = ""
     @State private var expandedApps: Set<String> = []
     @State private var renamingPresetID: UUID?
     @State private var renamingName = ""
@@ -358,66 +359,91 @@ struct ContentView: View {
         .background(WindowDragView())
     }
     @ViewBuilder
+    private var stripPresets: [Preset] {
+        let query = presetSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return model.presets }
+        return model.presets.filter { $0.name.lowercased().contains(query) }
+    }
+    private func presetStripRow(_ preset: Preset) -> some View {
+        HStack(spacing: 4) {
+            Button {
+                model.applyPreset(preset)
+            } label: {
+                HStack(spacing: 6) {
+                    Text(preset.name)
+                        .font(.subheadline)
+                        .lineLimit(1)
+                    if let number = model.hotkeyNumber(for: preset) {
+                        Text("⌘\(number)")
+                            .font(.caption)
+                            .foregroundStyle(Color.white.opacity(0.85))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.white.opacity(0.15)))
+                    }
+                    Spacer()
+                    if model.activePresetID == preset.id {
+                        Image(systemName: "checkmark")
+                            .font(.caption)
+                            .bold()
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(model.activePresetID == preset.id ? Color.accentColor : Color.primary)
+            .pointingHandOnHover()
+            if model.activePresetID == preset.id {
+                Button {
+                    model.clearActivePreset()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption)
+                        .bold()
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.primary)
+                .help("Clear preset selection")
+                .pointingHandOnHover()
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.black.opacity(0.45))
+        )
+    }
     private var presetStrip: some View {
         if model.isSharing, !model.presets.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Scene / Preset")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(model.presets) { preset in
-                            if model.activePresetID == preset.id {
-                                HStack(spacing: 4) {
-                                    Button {
-                                        model.applyPreset(preset)
-                                    } label: {
-                                        Text(preset.name)
-                                            .padding(.leading, 10)
-                                            .padding(.trailing, 4)
-                                            .padding(.vertical, 6)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .foregroundStyle(Color.accentColor)
-                                    .pointingHandOnHover()
-                                    Button {
-                                        model.clearActivePreset()
-                                    } label: {
-                                        Image(systemName: "xmark")
-                                            .font(.caption)
-                                            .bold()
-                                            .padding(.leading, 8)
-                                            .padding(.trailing, 12)
-                                            .padding(.vertical, 8)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .foregroundStyle(Color.primary)
-                                    .help("Clear preset selection")
-                                    .pointingHandOnHover()
-                                }
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color.black.opacity(0.45))
-                                )
-                            } else {
-                                Button {
-                                    model.applyPreset(preset)
-                                } label: {
-                                    Text(preset.name)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 6)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .fill(Color.black.opacity(0.45))
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundStyle(model.activePresetID == preset.id ? Color.accentColor : Color.primary)
-                                .pointingHandOnHover()
+                TextField("Search presets", text: $presetSearchText)
+                    .textFieldStyle(.plain)
+                    .font(.subheadline)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color.black.opacity(0.45)))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.12), lineWidth: 1))
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 6) {
+                        if stripPresets.isEmpty {
+                            Text("No presets match.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.vertical, 8)
+                        } else {
+                            ForEach(stripPresets) { preset in
+                                presetStripRow(preset)
                             }
                         }
                     }
                 }
+                .frame(maxHeight: 180)
             }
         }
     }
