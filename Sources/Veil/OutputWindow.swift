@@ -426,7 +426,14 @@ extension VeilModel {
         } else {
             x = output.frame.maxX - size.width
         }
-        var y = output.frame.minY - gap - size.height
+        var y: CGFloat
+        if let flyer = FileControlWindowStore.shared.window, flyer.isVisible {
+            y = flyer.frame.minY
+        } else if let frame = positionedImageFrame(in: output.frame.size) {
+            y = output.frame.maxY - (frame.origin.y + frame.height) - gap - size.height
+        } else {
+            y = output.frame.minY - gap - size.height
+        }
         if x < visible.minX { x = visible.minX }
         if x + size.width > visible.maxX { x = visible.maxX - size.width }
         if y < visible.minY { y = visible.minY }
