@@ -1483,64 +1483,52 @@ struct PreviewFileControls: View {
 struct TimerControlView: View {
     @EnvironmentObject var model: VeilModel
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            Capsule()
-                .fill(Color.black.opacity(0.45))
-                .frame(width: model.presentationTimerExpanded ? 193 : 36, height: 36)
-            HStack(spacing: 6) {
-                if model.presentationTimerExpanded {
-                    Text(model.presentationTimerText)
-                        .font(.system(size: 16, weight: .bold, design: .monospaced))
-                        .frame(minWidth: 72, alignment: .leading)
-                        .padding(.leading, 8)
-                        .transition(.opacity)
-                    Rectangle()
-                        .fill(Color.white.opacity(0.2))
-                        .frame(width: 1, height: 20)
-                        .transition(.opacity)
-                    Button {
-                        model.togglePresentationTimer()
-                    } label: {
-                        Color.white.opacity(0.01)
-                            .frame(width: 28, height: 28)
-                            .contentShape(Rectangle())
-                            .overlay(
-                                Image(systemName: model.presentationTimerActive ? "pause.fill" : "play.fill")
-                                    .font(.system(size: 13))
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .contentShape(Rectangle())
-                    .focusable(false)
-                    .help(model.presentationTimerActive ? "Pause timer" : "Start timer")
-                    .pointingHandOnHover()
-                    .transition(.opacity)
-                    Button {
-                        model.resetPresentationTimer()
-                    } label: {
-                        Color.white.opacity(0.01)
-                            .frame(width: 24, height: 24)
-                            .contentShape(Rectangle())
-                            .overlay(
-                                Image(systemName: "arrow.counterclockwise")
-                                    .font(.system(size: 11))
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .contentShape(Rectangle())
-                    .focusable(false)
-                    .disabled(model.presentationElapsed == 0 && !model.presentationTimerActive)
-                    .help("Reset timer")
-                    .pointingHandOnHover()
-                    .transition(.opacity)
-                }
-            }
-            .padding(.leading, 4)
-            .frame(width: 155, height: 36, alignment: .leading)
-            .padding(.trailing, 38)
-            .mask(alignment: .trailing) {
+        HStack(spacing: 6) {
+            if model.presentationTimerExpanded {
+                Text(model.presentationTimerText)
+                    .font(.system(size: 16, weight: .bold, design: .monospaced))
+                    .frame(minWidth: 72, alignment: .leading)
+                    .padding(.leading, 8)
+                    .transition(.asymmetric(insertion: .opacity, removal: .move(edge: .trailing).combined(with: .opacity)))
                 Rectangle()
-                    .frame(width: model.presentationTimerExpanded ? 193 : 36, height: 36)
+                    .fill(Color.white.opacity(0.2))
+                    .frame(width: 1, height: 20)
+                    .transition(.asymmetric(insertion: .opacity, removal: .move(edge: .trailing).combined(with: .opacity)))
+                Button {
+                    model.togglePresentationTimer()
+                } label: {
+                    Color.white.opacity(0.01)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                        .overlay(
+                            Image(systemName: model.presentationTimerActive ? "pause.fill" : "play.fill")
+                                .font(.system(size: 13))
+                        )
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .focusable(false)
+                .help(model.presentationTimerActive ? "Pause timer" : "Start timer")
+                .pointingHandOnHover()
+                .transition(.asymmetric(insertion: .opacity, removal: .move(edge: .trailing).combined(with: .opacity)))
+                Button {
+                    model.resetPresentationTimer()
+                } label: {
+                    Color.white.opacity(0.01)
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
+                        .overlay(
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(.system(size: 11))
+                            )
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .focusable(false)
+                .disabled(model.presentationElapsed == 0 && !model.presentationTimerActive)
+                .help("Reset timer")
+                .pointingHandOnHover()
+                .transition(.asymmetric(insertion: .opacity, removal: .move(edge: .trailing).combined(with: .opacity)))
             }
             Button {
                 model.setTimerControlExpanded(!model.presentationTimerExpanded)
@@ -1559,9 +1547,11 @@ struct TimerControlView: View {
             .foregroundStyle(model.presentationTimerRunning ? Color.green : Color.white)
             .help(model.presentationTimerExpanded ? "Collapse timer" : "Expand timer")
             .pointingHandOnHover()
-            .frame(width: 28, height: 36)
-            .padding(.trailing, 4)
         }
+        .padding(.horizontal, 4)
+        .frame(height: 36)
+        .background(Capsule().fill(Color.black.opacity(0.45)))
+        .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         .animation(.easeInOut(duration: 0.35), value: model.presentationTimerExpanded)
     }
