@@ -21,6 +21,11 @@ final class TimerControlWindowStore {
     var window: NSWindow?
     private init() {}
 }
+final class AnnotationControlWindowStore {
+    static let shared = AnnotationControlWindowStore()
+    var window: NSWindow?
+    private init() {}
+}
 final class PanelWindowStore {
     static let shared = PanelWindowStore()
     var window: NSWindow?
@@ -374,6 +379,9 @@ extension VeilModel {
         if let timer = TimerControlWindowStore.shared.window, timer.isVisible {
             controlHeight = max(controlHeight, timer.frame.height)
         }
+        if let annotation = AnnotationControlWindowStore.shared.window, annotation.isVisible {
+            controlHeight = max(controlHeight, annotation.frame.height)
+        }
         guard controlHeight > 0 else { return }
         let limit = screen.visibleFrame.minY + 8 + controlHeight
         var frame = output.frame
@@ -490,6 +498,7 @@ extension VeilModel {
             || abs(frame.origin.x - current.origin.x) > 1 || abs(frame.origin.y - current.origin.y) > 1 {
             timer.setFrame(frame, display: true)
         }
+        dockAnnotationControlToCaptureArea()
     }
     func setTimerControlExpanded(_ expanded: Bool) {
         guard let window = TimerControlWindowStore.shared.window else {
@@ -502,6 +511,7 @@ extension VeilModel {
                 window.contentView?.layoutSubtreeIfNeeded()
             }
             presentationTimerExpanded = true
+            dockAnnotationControlToCaptureArea()
         } else {
             presentationTimerExpanded = false
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -509,6 +519,7 @@ extension VeilModel {
                       let window = TimerControlWindowStore.shared.window,
                       let frame = self.timerControlFrame(expanded: false) else { return }
                 window.setFrame(frame, display: true)
+                self.dockAnnotationControlToCaptureArea()
             }
         }
     }
@@ -517,10 +528,105 @@ extension VeilModel {
             openTimerControlWindow()
         }
     }
+    func annotationControlSize(expanded: Bool) -> CGSize {
+        expanded ? CGSize(width: 172, height: 48) : CGSize(width: 36, height: 48)
+    }
+    func annotationControlFrame(expanded: Bool) -> CGRect? {
+        guard let output = CaptureAreaWindowStore.shared.window, output.isVisible,
+              let screen = output.screen ?? NSScreen.main,
+              let timerFrame = timerControlFrame(expanded: presentationTimerExpanded) else { return nil }
+        let visible = screen.visibleFrame
+        let size = annotationControlSize(expanded: expanded)
+        let gap: CGFloat = 8
+        var x = timerFrame.minX - gap - size.width
+        var y = timerFrame.minY
+        if x < visible.minX { x = visible.minX }
+        if x + size.width > visible.maxX { x = visible.maxX - size.width }
+        if y < visible.minY { y = visible.minY }
+        if y + size.height > visible.maxY { y = visible.maxY - size.height }
+        return CGRect(x: x, y: y, width: size.width, height: size.height)
+    }
+    func openAnnotationControlWindow() {
+        guard CaptureAreaWindowStore.shared.window != nil, isCaptureAreaVisible else { return }
+        if let window = AnnotationControlWindowStore.shared.window {
+            window.makeKeyAndOrderFront(nil)
+            attachAnnotationControlWindow()
+            dockAnnotationControlToCaptureArea()
+            return
+        }
+        let window = NSWindow(
+            contentRect: NSRect(x: 120, y: 120, width: 36, height: 48),
+            styleMask: [.closable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Veil Annotation Control"
+        window.level = .floating
+        window.isReleasedWhenClosed = false
+        configureCaptureAreaWindow(window)
+        window.contentView = NSHostingView(rootView: AnnotationControlView().environmentObject(self))
+        window.makeKeyAndOrderFront(nil)
+        AnnotationControlWindowStore.shared.window = window
+        attachAnnotationControlWindow()
+        dockAnnotationControlToCaptureArea()
+    }
+    func closeAnnotationControlWindow() {
+        if let window = AnnotationControlWindowStore.shared.window {
+            if let output = CaptureAreaWindowStore.shared.window {
+                output.removeChildWindow(window)
+            }
+            window.close()
+            AnnotationControlWindowStore.shared.window = nil
+        }
+    }
+    func attachAnnotationControlWindow() {
+        guard let output = CaptureAreaWindowStore.shared.window,
+              let annotation = AnnotationControlWindowStore.shared.window,
+              output.childWindows?.contains(annotation) != true else { return }
+        output.addChildWindow(annotation, ordered: .above)
+    }
+    func dockAnnotationControlToCaptureArea() {
+        guard let annotation = AnnotationControlWindowStore.shared.window,
+              let output = CaptureAreaWindowStore.shared.window,
+              output.isVisible, annotation.isVisible else { return }
+        guard let frame = annotationControlFrame(expanded: annotationExpanded) else { return }
+        let current = annotation.frame
+        if abs(frame.width - current.width) > 1 || abs(frame.height - current.height) > 1
+            || abs(frame.origin.x - current.origin.x) > 1 || abs(frame.origin.y - current.origin.y) > 1 {
+            annotation.setFrame(frame, display: true)
+        }
+    }
+    func setAnnotationControlExpanded(_ expanded: Bool) {
+        guard let window = AnnotationControlWindowStore.shared.window else {
+            annotationExpanded = expanded
+            return
+        }
+        if expanded {
+            if let frame = annotationControlFrame(expanded: true) {
+                window.setFrame(frame, display: true)
+                window.contentView?.layoutSubtreeIfNeeded()
+            }
+            annotationExpanded = true
+        } else {
+            annotationExpanded = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self, !self.annotationExpanded,
+                      let window = AnnotationControlWindowStore.shared.window,
+                      let frame = self.annotationControlFrame(expanded: false) else { return }
+                window.setFrame(frame, display: true)
+            }
+        }
+    }
+    func reopenAnnotationControlIfNeeded() {
+        if isCaptureAreaVisible, AnnotationControlWindowStore.shared.window == nil {
+            openAnnotationControlWindow()
+        }
+    }
     func resizeCaptureAreaWindow() {
         guard let window = CaptureAreaWindowStore.shared.window else {
             dockFileControlToCaptureArea()
             dockTimerControlToCaptureArea()
+            dockAnnotationControlToCaptureArea()
             return
         }
         let size = captureAreaWindowSize(width: window.frame.width)
@@ -547,6 +653,7 @@ extension VeilModel {
         }
         dockFileControlToCaptureArea()
         dockTimerControlToCaptureArea()
+        dockAnnotationControlToCaptureArea()
     }
     func toggleCaptureAreaWindow() {
         if isCaptureAreaVisible {
@@ -558,6 +665,7 @@ extension VeilModel {
     func closeCaptureAreaWindow() {
         closeFileControlWindow()
         closeTimerControlWindow()
+        closeAnnotationControlWindow()
         if let window = CaptureAreaWindowStore.shared.window {
             if let observer = CaptureAreaWindowStore.shared.closeObserver {
                 NotificationCenter.default.removeObserver(observer)
@@ -582,6 +690,7 @@ extension VeilModel {
             attachFileControlWindow()
             reopenFileControlIfNeeded()
             openTimerControlWindow()
+            openAnnotationControlWindow()
             refreshCaptureFilter()
             return
         }
@@ -623,6 +732,7 @@ extension VeilModel {
         attachFileControlWindow()
         reopenFileControlIfNeeded()
         openTimerControlWindow()
+        openAnnotationControlWindow()
         refreshCaptureFilter()
         CaptureAreaWindowStore.shared.closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
@@ -635,6 +745,7 @@ extension VeilModel {
             Task { @MainActor in
                 self?.dockFileControlToCaptureArea()
                 self?.dockTimerControlToCaptureArea()
+                self?.dockAnnotationControlToCaptureArea()
             }
         }
     }

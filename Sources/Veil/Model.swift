@@ -206,6 +206,7 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var presentationElapsed: TimeInterval = 0
     @Published var presentationTimerActive = false
     @Published var presentationTimerExpanded = false
+    @Published var annotationExpanded = false
     @Published var previewImage: NSImage?
     @Published var streamHasFrame = false
     @Published var previewSnapshotImage: NSImage?

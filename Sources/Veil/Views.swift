@@ -159,7 +159,6 @@ struct ContentView: View {
     @State private var showPresetsPopover = false
     @State private var showCameraPopover = false
     @State private var showSessionPopover = false
-    @State private var showAnnotatePopover = false
     @State private var expandedApps: Set<String> = []
     @State private var renamingPresetID: UUID?
     @State private var renamingName = ""
@@ -167,7 +166,7 @@ struct ContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if model.isPreviewVisible {
-                PreviewContentView(showAnnotatePopover: $showAnnotatePopover)
+                PreviewContentView()
                     .environmentObject(model)
                     .frame(width: embeddedPreviewSize.width, height: embeddedPreviewSize.height)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -230,34 +229,31 @@ struct ContentView: View {
             }
         }
         .onChange(of: popup) { _, newValue in
-            if newValue != nil { showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false; showAnnotatePopover = false }
+            if newValue != nil { showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
         .onChange(of: showSourcesPopover) { _, newValue in
-            if newValue { popup = nil; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false; showAnnotatePopover = false }
+            if newValue { popup = nil; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
         .onChange(of: showDisplayPopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false; showAnnotatePopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
         .onChange(of: showFramePopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false; showAnnotatePopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
         .onChange(of: showModePopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false; showAnnotatePopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
         .onChange(of: showCanvasPopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false; showAnnotatePopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
         .onChange(of: showPresetsPopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showCameraPopover = false; showSessionPopover = false; showAnnotatePopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
         .onChange(of: showCameraPopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showSessionPopover = false; showAnnotatePopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showSessionPopover = false }
         }
         .onChange(of: showSessionPopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showAnnotatePopover = false }
-        }
-        .onChange(of: showAnnotatePopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false }
         }
     }
     private var embeddedPreviewSize: CGSize {
@@ -1638,6 +1634,143 @@ struct TimerControlView: View {
         .animation(.easeInOut(duration: 0.35), value: model.presentationTimerText)
     }
 }
+struct AnnotationControlView: View {
+    @EnvironmentObject var model: VeilModel
+    @State private var showColorPopover = false
+    var body: some View {
+        HStack(spacing: 6) {
+            if model.annotationExpanded {
+                Button {
+                    model.clearAnnotations()
+                } label: {
+                    Color.white.opacity(0.01)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                        .overlay(
+                            Image(systemName: "trash")
+                                .font(.system(size: 13))
+                        )
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .focusable(false)
+                .disabled(model.annotationStrokes.isEmpty)
+                .help("Clear all annotations")
+                .pointingHandOnHover()
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+                Button {
+                    showColorPopover.toggle()
+                } label: {
+                    Color.white.opacity(0.01)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                        .overlay(
+                            Circle()
+                                .fill(model.annotationColor.color)
+                                .frame(width: 18, height: 18)
+                                .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+                        )
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .focusable(false)
+                .help("Choose pen color")
+                .pointingHandOnHover()
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+                .popover(isPresented: $showColorPopover) {
+                    HStack(spacing: 8) {
+                        ForEach(AnnotationColor.allCases, id: \.self) { color in
+                            Button {
+                                model.annotationColor = color
+                                showColorPopover = false
+                            } label: {
+                                Circle()
+                                    .fill(color.color)
+                                    .frame(width: 24, height: 24)
+                                    .overlay(Circle().stroke(Color.white, lineWidth: model.annotationColor == color ? 2 : 0))
+                            }
+                            .buttonStyle(.plain)
+                            .help(color.rawValue.capitalized)
+                            .contentShape(Circle())
+                            .pointingHandOnHover()
+                        }
+                    }
+                    .padding(12)
+                    .preferredColorScheme(.dark)
+                }
+                Button {
+                    if model.annotationTool == .pen && model.annotationEnabled {
+                        model.annotationEnabled = false
+                    } else {
+                        model.annotationTool = .pen
+                        model.annotationEnabled = true
+                    }
+                } label: {
+                    Color.white.opacity(0.01)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                        .overlay(
+                            Image(systemName: "pencil")
+                                .font(.system(size: 13))
+                        )
+                        .background(Circle().fill(model.annotationTool == .pen && model.annotationEnabled ? Color.red : Color.clear))
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .focusable(false)
+                .help("Draw freehand strokes")
+                .pointingHandOnHover()
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+                Button {
+                    if model.annotationTool == .laser && model.annotationEnabled {
+                        model.annotationEnabled = false
+                    } else {
+                        model.annotationTool = .laser
+                        model.annotationEnabled = true
+                    }
+                } label: {
+                    Color.white.opacity(0.01)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                        .overlay(
+                            Image(systemName: "cursorarrow.rays")
+                                .font(.system(size: 13))
+                        )
+                        .background(Circle().fill(model.annotationTool == .laser && model.annotationEnabled ? Color.red : Color.clear))
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .focusable(false)
+                .help("Point with a laser dot that follows the mouse")
+                .pointingHandOnHover()
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+            Button {
+                model.setAnnotationControlExpanded(!model.annotationExpanded)
+            } label: {
+                Color.white.opacity(0.01)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+                    .overlay(
+                        Image(systemName: "pencil")
+                            .font(.system(size: 13))
+                    )
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .focusable(false)
+            .foregroundStyle(model.annotationEnabled ? Color(red: 0.95, green: 0.55, blue: 0.20) : Color.white)
+            .help(model.annotationExpanded ? "Collapse annotation" : "Expand annotation")
+            .pointingHandOnHover()
+        }
+        .padding(.horizontal, 4)
+        .frame(height: 36)
+        .background(Capsule().fill(Color.black.opacity(0.45)))
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        .animation(.easeInOut(duration: 0.35), value: model.annotationExpanded)
+    }
+}
 struct FileListPopupView: View {
     @EnvironmentObject var model: VeilModel
     @Binding var showFilePopup: Bool
@@ -1709,7 +1842,6 @@ struct FileListPopupView: View {
 }
 struct PreviewContentView: View {
     @EnvironmentObject var model: VeilModel
-    @Binding var showAnnotatePopover: Bool
     var body: some View {
         ZStack(alignment: .topLeading) {
             OutputContentView(isPreview: true)
@@ -1738,22 +1870,6 @@ struct PreviewContentView: View {
                     }
                     HStack(spacing: 8) {
                         Button {
-                            showAnnotatePopover.toggle()
-                        } label: {
-                            Image(systemName: "pencil")
-                                .font(.subheadline)
-                                .frame(width: 28, height: 28)
-                                .background(Circle().fill(model.annotationEnabled ? Color(red: 0.95, green: 0.55, blue: 0.20) : Color(red: 0.45, green: 0.45, blue: 0.50)))
-                                .foregroundStyle(.white)
-                        }
-                        .buttonStyle(.plain)
-                        .pointingHandOnHover()
-                        .help(model.annotationEnabled ? "Turn annotation off" : "Annotate the Output")
-                        .popover(isPresented: $showAnnotatePopover, arrowEdge: .top) {
-                            annotatePopup
-                                .preferredColorScheme(.dark)
-                        }
-                        Button {
                             model.cameraEnabled.toggle()
                         } label: {
                             Image(systemName: model.cameraEnabled ? "video.fill" : "video.slash.fill")
@@ -1773,93 +1889,6 @@ struct PreviewContentView: View {
         .onChange(of: model.sourceAspectRatio) { _, _ in
             model.resizeCaptureAreaWindow()
         }
-    }
-    private var annotatePopup: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Annotate").font(.headline).bold()
-                Spacer()
-                Button { model.annotationEnabled.toggle() } label: {
-                    ZStack(alignment: model.annotationEnabled ? .trailing : .leading) {
-                        RoundedRectangle(cornerRadius: 11)
-                            .fill(model.annotationEnabled ? Color.red : Color.white.opacity(0.2))
-                            .frame(width: 36, height: 22)
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 16, height: 16)
-                            .padding(3)
-                    }
-                }
-                .buttonStyle(.plain)
-                .help(model.annotationEnabled ? "Turn annotation off" : "Turn annotation on")
-                .contentShape(Rectangle())
-                .pointingHandOnHover()
-                .animation(.easeInOut, value: model.annotationEnabled)
-            }
-            Text("Draw on the Capture Area. Annotations appear on the shared Output and in Preview. Turn Annotate off to move or resize the Capture Area.")
-                .font(.caption)
-                .foregroundStyle(Color.white.opacity(0.85))
-                .lineLimit(nil)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("Tool").font(.subheadline).bold()
-            HStack(spacing: 8) {
-                Button { model.annotationTool = .pen } label: {
-                    Label("Pen", systemImage: "pencil")
-                        .font(.subheadline)
-                        .foregroundStyle(Color.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(model.annotationTool == .pen ? Color.red : Color.black.opacity(0.45)))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                .help("Draw freehand strokes")
-                .contentShape(Rectangle())
-                .pointingHandOnHover()
-                Button { model.annotationTool = .laser } label: {
-                    Label("Laser", systemImage: "cursorarrow.rays")
-                        .font(.subheadline)
-                        .foregroundStyle(Color.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(model.annotationTool == .laser ? Color.red : Color.black.opacity(0.45)))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                .help("Point with a laser dot that follows the mouse")
-                .contentShape(Rectangle())
-                .pointingHandOnHover()
-            }
-            Text("Pen Color").font(.subheadline).bold()
-            HStack(spacing: 8) {
-                ForEach(AnnotationColor.allCases, id: \.self) { color in
-                    Button { model.annotationColor = color } label: {
-                        Circle()
-                            .fill(color.color)
-                            .frame(width: 24, height: 24)
-                            .overlay(Circle().stroke(Color.white, lineWidth: model.annotationColor == color ? 2 : 0))
-                    }
-                    .buttonStyle(.plain)
-                    .help(color.rawValue.capitalized)
-                    .contentShape(Circle())
-                    .pointingHandOnHover()
-                }
-            }
-            Button("Clear All Annotations") { model.clearAnnotations() }
-                .font(.subheadline)
-                .foregroundStyle(Color.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 10).fill(Color.black.opacity(0.45)))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 1))
-                .buttonStyle(.plain)
-                .help("Remove all annotations")
-                .contentShape(Rectangle())
-                .pointingHandOnHover()
-                .disabled(model.annotationStrokes.isEmpty)
-        }
-        .padding(12)
-        .frame(width: 360)
     }
 }
 struct CaptureAreaRootView: View {
@@ -1900,7 +1929,7 @@ struct AnnotationOverlayView: View {
         .stroke(stroke.color.color, style: StrokeStyle(lineWidth: stroke.widthFraction * size.width, lineCap: .round, lineJoin: .round))
     }
     private func laserDot(at point: CGPoint) -> some View {
-        let diameter = size.width * 0.02
+        let diameter = size.width * 0.012
         let center = CGPoint(x: point.x * size.width, y: point.y * size.height)
         return ZStack {
             Circle()
