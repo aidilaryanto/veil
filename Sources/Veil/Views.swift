@@ -1488,6 +1488,7 @@ struct TimerControlView: View {
                 Text(model.presentationTimerText)
                     .font(.system(size: 16, weight: .bold, design: .monospaced))
                     .padding(.leading, 8)
+                    .padding(.trailing, 10)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
                 Rectangle()
                     .fill(Color.white.opacity(0.2))
