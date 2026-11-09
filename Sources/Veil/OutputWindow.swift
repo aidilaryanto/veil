@@ -494,6 +494,7 @@ extension VeilModel {
         if expanded {
             if let frame = timerControlFrame(expanded: true) {
                 window.setFrame(frame, display: true)
+                window.contentView?.layoutSubtreeIfNeeded()
             }
             presentationTimerExpanded = true
         } else {
