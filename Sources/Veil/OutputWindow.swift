@@ -487,13 +487,23 @@ extension VeilModel {
         }
     }
     func setTimerControlExpanded(_ expanded: Bool) {
-        presentationTimerExpanded = expanded
-        guard let window = TimerControlWindowStore.shared.window,
-              let frame = timerControlFrame(expanded: expanded) else { return }
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.35
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            window.animator().setFrame(frame, display: true)
+        guard let window = TimerControlWindowStore.shared.window else {
+            presentationTimerExpanded = expanded
+            return
+        }
+        if expanded {
+            if let frame = timerControlFrame(expanded: true) {
+                window.setFrame(frame, display: true)
+            }
+            presentationTimerExpanded = true
+        } else {
+            presentationTimerExpanded = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self, !self.presentationTimerExpanded,
+                      let window = TimerControlWindowStore.shared.window,
+                      let frame = self.timerControlFrame(expanded: false) else { return }
+                window.setFrame(frame, display: true)
+            }
         }
     }
     func reopenTimerControlIfNeeded() {

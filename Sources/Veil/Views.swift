@@ -1507,6 +1507,7 @@ struct TimerControlView: View {
                 }
                 .buttonStyle(.plain)
                 .contentShape(Rectangle())
+                .focusable(false)
                 .help(model.presentationTimerActive ? "Pause timer" : "Start timer")
                 .pointingHandOnHover()
                 .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -1523,6 +1524,7 @@ struct TimerControlView: View {
                 }
                 .buttonStyle(.plain)
                 .contentShape(Rectangle())
+                .focusable(false)
                 .disabled(model.presentationElapsed == 0 && !model.presentationTimerActive)
                 .help("Reset timer")
                 .pointingHandOnHover()
@@ -1541,6 +1543,7 @@ struct TimerControlView: View {
             }
             .buttonStyle(.plain)
             .contentShape(Rectangle())
+            .focusable(false)
             .foregroundStyle(model.presentationTimerRunning ? Color.green : Color.white)
             .help(model.presentationTimerExpanded ? "Collapse timer" : "Expand timer")
             .pointingHandOnHover()
