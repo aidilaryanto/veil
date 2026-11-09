@@ -598,7 +598,7 @@ final class VeilModel: NSObject, ObservableObject {
         presentationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
-                let counting = self.presentationTimerActive && self.isSharing && !self.isPaused && !self.isPanic
+                let counting = self.presentationTimerActive && !self.isPaused && !self.isPanic
                 if counting {
                     let since = self.presentationCountingSince ?? Date()
                     self.presentationCountingSince = since
@@ -631,7 +631,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
     }
     var presentationTimerRunning: Bool {
-        presentationTimerActive && isSharing && !isPaused && !isPanic
+        presentationTimerActive && !isPaused && !isPanic
     }
     var presentationTimerText: String {
         let total = Int(presentationElapsed)
