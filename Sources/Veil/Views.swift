@@ -358,11 +358,10 @@ struct ContentView: View {
         }
         .background(WindowDragView())
     }
-    @ViewBuilder
     private var stripPresets: [Preset] {
         let query = presetSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !query.isEmpty else { return model.presets }
-        return model.presets.filter { $0.name.lowercased().contains(query) }
+        guard !query.isEmpty else { return customPresets }
+        return customPresets.filter { $0.name.lowercased().contains(query) }
     }
     private func presetStripRow(_ preset: Preset) -> some View {
         HStack(spacing: 4) {
@@ -416,8 +415,9 @@ struct ContentView: View {
                 .fill(Color.black.opacity(0.45))
         )
     }
+    @ViewBuilder
     private var presetStrip: some View {
-        if model.isSharing, !model.presets.isEmpty {
+        if model.isSharing, !customPresets.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Scene / Preset")
                     .font(.caption)
