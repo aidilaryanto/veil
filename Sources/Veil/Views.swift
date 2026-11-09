@@ -1177,7 +1177,7 @@ struct ContentView: View {
         .frame(width: 360, height: 440)
     }
     private var cameraDevices: [AVCaptureDevice] {
-        AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera, .external], mediaType: .video, position: .unspecified).devices
+        AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera, .external, .continuityCamera], mediaType: .video, position: .unspecified).devices
     }
     private var cameraDeviceName: String {
         if let id = model.cameraDeviceID, let device = cameraDevices.first(where: { $0.uniqueID == id }) {
