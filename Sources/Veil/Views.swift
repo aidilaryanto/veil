@@ -1489,11 +1489,11 @@ struct TimerControlView: View {
                     .font(.system(size: 16, weight: .bold, design: .monospaced))
                     .frame(minWidth: 72, alignment: .leading)
                     .padding(.leading, 8)
-                    .transition(.asymmetric(insertion: .opacity, removal: .move(edge: .trailing).combined(with: .opacity)))
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
                 Rectangle()
                     .fill(Color.white.opacity(0.2))
                     .frame(width: 1, height: 20)
-                    .transition(.asymmetric(insertion: .opacity, removal: .move(edge: .trailing).combined(with: .opacity)))
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
                 Button {
                     model.togglePresentationTimer()
                 } label: {
@@ -1510,7 +1510,7 @@ struct TimerControlView: View {
                 .focusable(false)
                 .help(model.presentationTimerActive ? "Pause timer" : "Start timer")
                 .pointingHandOnHover()
-                .transition(.asymmetric(insertion: .opacity, removal: .move(edge: .trailing).combined(with: .opacity)))
+                .transition(.move(edge: .trailing).combined(with: .opacity))
                 Button {
                     model.resetPresentationTimer()
                 } label: {
@@ -1528,7 +1528,7 @@ struct TimerControlView: View {
                 .disabled(model.presentationElapsed == 0 && !model.presentationTimerActive)
                 .help("Reset timer")
                 .pointingHandOnHover()
-                .transition(.asymmetric(insertion: .opacity, removal: .move(edge: .trailing).combined(with: .opacity)))
+                .transition(.move(edge: .trailing).combined(with: .opacity))
             }
             Button {
                 model.setTimerControlExpanded(!model.presentationTimerExpanded)
