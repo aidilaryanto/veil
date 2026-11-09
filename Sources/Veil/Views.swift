@@ -1552,8 +1552,8 @@ struct TimerControlView: View {
         .frame(height: 36)
         .background(Capsule().fill(Color.black.opacity(0.45)))
         .foregroundStyle(.white)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: model.presentationTimerExpanded)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        .animation(.easeInOut(duration: 0.35), value: model.presentationTimerExpanded)
     }
 }
 struct FileListPopupView: View {
