@@ -95,6 +95,7 @@ struct ContentView: View {
     @State private var showCanvasPopover = false
     @State private var showPresetsPopover = false
     @State private var showCameraPopover = false
+    @State private var showSessionPopover = false
     @State private var expandedApps: Set<String> = []
     @State private var renamingPresetID: UUID?
     @State private var renamingName = ""
@@ -165,28 +166,31 @@ struct ContentView: View {
             }
         }
         .onChange(of: popup) { _, newValue in
-            if newValue != nil { showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false }
+            if newValue != nil { showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
         .onChange(of: showSourcesPopover) { _, newValue in
-            if newValue { popup = nil; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false }
+            if newValue { popup = nil; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
         .onChange(of: showDisplayPopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
         .onChange(of: showFramePopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
         .onChange(of: showModePopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
         .onChange(of: showCanvasPopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showPresetsPopover = false; showCameraPopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showPresetsPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
         .onChange(of: showPresetsPopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showCameraPopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showCameraPopover = false; showSessionPopover = false }
         }
         .onChange(of: showCameraPopover) { _, newValue in
-            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false }
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showSessionPopover = false }
+        }
+        .onChange(of: showSessionPopover) { _, newValue in
+            if newValue { popup = nil; showSourcesPopover = false; showDisplayPopover = false; showFramePopover = false; showModePopover = false; showCanvasPopover = false; showPresetsPopover = false; showCameraPopover = false }
         }
     }
     private var embeddedPreviewSize: CGSize {
@@ -274,9 +278,14 @@ struct ContentView: View {
                 .toggleStyle(.checkbox)
                 .font(.caption)
             Button {
+                showSessionPopover.toggle()
             } label: {
                 Image(systemName: "info.circle")
                     .padding(6)
+            }
+            .popover(isPresented: $showSessionPopover, arrowEdge: .bottom) {
+                sessionPopup
+                    .preferredColorScheme(.dark)
             }
             .buttonStyle(.plain)
             .contentShape(Circle())
@@ -853,6 +862,67 @@ struct ContentView: View {
         }
         .padding(12)
         .frame(width: 360)
+    }
+    private var sessionPopup: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "shield.fill")
+                Text("Current Session").font(.headline).bold()
+            }
+            Divider()
+            sessionRow(label: "Output", value: model.canvasMode == .isolated ? "Sanitized Windows" : "Full Desktop")
+            sessionRow(label: "Mode", value: model.mode == .allow ? "Allow List" : "Block List")
+            sessionRow(label: "Display", value: sessionDisplayName)
+            sessionRow(label: "Frame", value: model.framing == .full ? "Screen" : "Dynamic")
+            sessionRow(label: "Canvas", value: model.canvasBackground == .custom ? "Image" : model.canvasBackground.rawValue.capitalized)
+            sessionRow(label: "Discovered", value: "\(model.appCount) apps • \(model.sources.count) windows")
+            sessionRow(label: "Rules", value: model.sourceRuleCount == 1 ? "1 rule" : "\(model.sourceRuleCount) rules")
+            sessionRow(label: "Stream", value: model.isSharing ? "Stream Running" : "Stream Stopped")
+            VStack(alignment: .leading, spacing: 4) {
+                Text(sessionOutputDescription)
+                Text(sessionModeDescription)
+                Text(sessionFrameDescription)
+                Text(sessionCanvasDescription)
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
+        }
+        .padding(12)
+        .frame(width: 360)
+    }
+    private func sessionRow(label: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .leading)
+            Text(value)
+                .font(.subheadline)
+        }
+    }
+    private var sessionDisplayName: String {
+        if let id = model.selectedDisplayID, let display = model.displays.first(where: { $0.displayID == id }) {
+            return displayName(for: display)
+        }
+        return "No Display"
+    }
+    private var sessionOutputDescription: String {
+        model.canvasMode == .isolated ? "Only the selected apps and windows appear in Veil Output." : "The full selected display appears in Veil Output."
+    }
+    private var sessionModeDescription: String {
+        model.mode == .allow ? "Only checked apps and windows appear in Veil Output." : "Everything on the selected display appears except checked apps and windows."
+    }
+    private var sessionFrameDescription: String {
+        model.framing == .full ? "Use the full selected display as the output canvas." : "Automatically crop the output to the outer bounds of the shared windows on the selected display."
+    }
+    private var sessionCanvasDescription: String {
+        switch model.canvasBackground {
+        case .black: return "Use a black canvas behind isolated windows."
+        case .white: return "Use a white canvas behind isolated windows."
+        case .gray: return "Use a gray canvas behind isolated windows."
+        case .custom: return "Use your chosen image as the canvas behind isolated windows."
+        }
     }
     private func selectCanvasMode(_ mode: CanvasMode) {
         model.canvasMode = mode

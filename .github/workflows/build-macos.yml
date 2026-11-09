@@ -10,6 +10,9 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Build (release)
         run: swift build -c release
@@ -36,6 +39,9 @@ jobs:
             cp Veil.icns Veil.app/Contents/Resources/Veil.icns
             ICON_KEY="<key>CFBundleIconFile</key><string>Veil</string>"
           fi
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          VERSION=${TAG#v}
+          if [ -z "$VERSION" ]; then VERSION="1.0"; fi
           cat > Veil.app/Contents/Info.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -46,7 +52,7 @@ jobs:
             <key>CFBundleName</key><string>Veil</string>
             $ICON_KEY
             <key>CFBundlePackageType</key><string>APPL</string>
-            <key>CFBundleShortVersionString</key><string>1.0</string>
+            <key>CFBundleShortVersionString</key><string>$VERSION</string>
             <key>LSMinimumSystemVersion</key><string>14.0</string>
             <key>NSCameraUsageDescription</key><string>Veil uses the camera for the camera overlay during presentations.</string>
             <key>NSHighResolutionCapable</key><true/>
