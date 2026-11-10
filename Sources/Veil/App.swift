@@ -11,12 +11,6 @@ struct VeilApp: App {
                 .onAppear {
                     model.refreshSources()
                     Task {
-                        try? await Task.sleep(nanoseconds: 500_000_000)
-                        await MainActor.run {
-                            model.applyAlwaysOnTop()
-                        }
-                    }
-                    Task {
                         try? await Task.sleep(nanoseconds: 3_000_000_000)
                         await UpdateChecker.shared.check(manual: false)
                     }

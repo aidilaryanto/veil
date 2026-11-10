@@ -1148,7 +1148,12 @@ final class VeilModel: NSObject, ObservableObject {
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
                     await MainActor.run {
                         if self.isSharing, self.stream === newStream, !self.streamHasFrame {
-                            self.updateCapture()
+                            let inStrip = self.capturedWindows
+                                .filter { self.selectedWindowIDs.contains($0.windowID) }
+                                .contains { $0.frame.width < 320 && $0.frame.height < 240 && $0.frame.origin.x < 150 }
+                            if !inStrip {
+                                self.updateCapture()
+                            }
                         }
                     }
                 } catch {
