@@ -520,13 +520,20 @@ extension VeilModel {
             dockAnnotationControlToCaptureArea()
         } else {
             presentationTimerExpanded = false
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                guard let self, !self.presentationTimerExpanded,
-                      let window = TimerControlWindowStore.shared.window,
-                      let frame = self.timerControlFrame(expanded: false) else { return }
-                window.setFrame(frame, display: true)
+            guard let frame = timerControlFrame(expanded: false) else { return }
+            let annotationFrame = annotationControlFrame(expanded: annotationExpanded)
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.35
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                window.animator().setFrame(frame, display: true)
+                if let annotationFrame, let annotationWindow = AnnotationControlWindowStore.shared.window {
+                    annotationWindow.animator().setFrame(annotationFrame, display: true)
+                }
+            }, completionHandler: { [weak self] in
+                guard let self, !self.presentationTimerExpanded else { return }
+                self.dockTimerControlToCaptureArea()
                 self.dockAnnotationControlToCaptureArea()
-            }
+            })
         }
     }
     func reopenTimerControlIfNeeded() {
@@ -615,12 +622,15 @@ extension VeilModel {
             annotationExpanded = true
         } else {
             annotationExpanded = false
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                guard let self, !self.annotationExpanded,
-                      let window = AnnotationControlWindowStore.shared.window,
-                      let frame = self.annotationControlFrame(expanded: false) else { return }
-                window.setFrame(frame, display: true)
-            }
+            guard let frame = annotationControlFrame(expanded: false) else { return }
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.35
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                window.animator().setFrame(frame, display: true)
+            }, completionHandler: { [weak self] in
+                guard let self, !self.annotationExpanded else { return }
+                self.dockAnnotationControlToCaptureArea()
+            })
         }
     }
     func reopenAnnotationControlIfNeeded() {
