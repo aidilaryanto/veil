@@ -897,14 +897,6 @@ final class VeilModel: NSObject, ObservableObject {
             startPreviewSnapshotTimer()
         }
     }
-    private func bringSelectedWindowForward(_ id: CGWindowID) {
-        guard let window = capturedWindows.first(where: { $0.windowID == id }),
-              !window.isActive,
-              let pid = window.owningApplication?.processID,
-              let app = NSRunningApplication(processIdentifier: pid),
-              !app.isActive else { return }
-        app.activate()
-    }
     func resetAllSources() {
         clearSelection()
         closeFile()
@@ -1156,9 +1148,6 @@ final class VeilModel: NSObject, ObservableObject {
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
                     await MainActor.run {
                         if self.isSharing, self.stream === newStream, !self.streamHasFrame {
-                            if let firstID = self.selectedWindowIDs.first {
-                                self.bringSelectedWindowForward(firstID)
-                            }
                             self.updateCapture()
                         }
                     }
