@@ -1305,14 +1305,17 @@ final class VeilModel: NSObject, ObservableObject {
             if displays.map({ $0.displayID }) != content.displays.map({ $0.displayID }) {
                 displays = content.displays
             }
+            let selectedInStrip = selected.contains { $0.frame.width < 320 && $0.frame.height < 240 && $0.frame.origin.x < 150 }
             if newContentSignature != lastCaptureSignature {
                 sources = Self.sourceItems(from: content.windows)
                 lastCaptureSignature = newContentSignature
                 lastPositionSignature = newPositionSignature
-                updateCapture()
+                if !selectedInStrip {
+                    updateCapture()
+                }
             } else {
                 lastPositionSignature = newPositionSignature
-                if mode == .allow, framing == .dynamic, canvasMode != .fullDisplay, !selectedWindowIDs.isEmpty {
+                if mode == .allow, framing == .dynamic, canvasMode != .fullDisplay, !selectedWindowIDs.isEmpty, !selectedInStrip {
                     updateCapture()
                 }
             }
