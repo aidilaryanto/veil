@@ -1670,14 +1670,16 @@ struct CountdownDurationPopover: View {
                 ForEach(presetRows, id: \.self) { row in
                     HStack(spacing: 6) {
                         ForEach(row, id: \.self) { minutes in
-                            Button("\(minutes)m") {
+                            Button {
                                 model.setCountdownDuration(TimeInterval(minutes * 60))
                                 onDone()
+                            } label: {
+                                Text("\(minutes)m")
+                                    .font(.caption)
+                                    .frame(width: 56, height: 28)
+                                    .background(RoundedRectangle(cornerRadius: 7).fill(model.countdownDuration == TimeInterval(minutes * 60) ? Color.accentColor.opacity(0.35) : Color.black.opacity(0.45)))
                             }
                             .buttonStyle(.plain)
-                            .font(.caption)
-                            .frame(width: 56, height: 28)
-                            .background(RoundedRectangle(cornerRadius: 7).fill(model.countdownDuration == TimeInterval(minutes * 60) ? Color.accentColor.opacity(0.35) : Color.black.opacity(0.45)))
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -1688,17 +1690,19 @@ struct CountdownDurationPopover: View {
                 TextField("Minutes", text: $customMinutes)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 70)
-                Button("Set") {
+                Button {
                     if let minutes = Int(customMinutes), minutes > 0 {
                         model.setCountdownDuration(TimeInterval(minutes * 60))
                         onDone()
                     }
+                } label: {
+                    Text("Set")
+                        .font(.caption)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(RoundedRectangle(cornerRadius: 7).fill(Color.black.opacity(0.45)))
                 }
                 .buttonStyle(.plain)
-                .font(.caption)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(RoundedRectangle(cornerRadius: 7).fill(Color.black.opacity(0.45)))
             }
             Text("1 to 600 minutes")
                 .font(.caption2)
