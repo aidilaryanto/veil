@@ -308,8 +308,11 @@ extension VeilModel {
         window.hasShadow = false
         window.isMovableByWindowBackground = true
     }
+    private var captureAreaRatio: CGFloat {
+        (isPreviewVisible && previewRenderedRatio > 0) ? previewRenderedRatio : previewRatio()
+    }
     func captureAreaWindowSize(width: CGFloat) -> CGSize {
-        let ratio = previewRenderedRatio > 0 ? previewRenderedRatio : previewRatio()
+        let ratio = captureAreaRatio
         guard ratio > 0 else { return CGSize(width: width, height: width) }
         var w = width
         var h = w / ratio
@@ -386,7 +389,7 @@ extension VeilModel {
         let limit = screen.visibleFrame.minY + 8 + controlHeight
         var frame = output.frame
         guard frame.minY < limit - 1 else { return }
-        let ratio = previewRenderedRatio > 0 ? previewRenderedRatio : previewRatio()
+        let ratio = captureAreaRatio
         let delta = limit - frame.minY
         var height = frame.height - delta
         if height < 180 { height = 180 }
@@ -633,7 +636,7 @@ extension VeilModel {
             return
         }
         let size = captureAreaWindowSize(width: window.frame.width)
-        let ratio = previewRenderedRatio > 0 ? previewRenderedRatio : previewRatio()
+        let ratio = captureAreaRatio
         if ratio > 0 {
             window.contentAspectRatio = NSSize(width: ratio, height: 1)
         }
@@ -721,7 +724,7 @@ extension VeilModel {
         )
         window.title = "Veil Output — share this window"
         window.contentMinSize = NSSize(width: 320, height: 180)
-        let createRatio = previewRenderedRatio > 0 ? previewRenderedRatio : previewRatio()
+        let createRatio = captureAreaRatio
         if createRatio > 0 {
             window.contentAspectRatio = NSSize(width: createRatio, height: 1)
         }
