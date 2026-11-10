@@ -401,9 +401,9 @@ struct ContentView: View {
                     presetSearchFocused = true
                 } label: {
                     Image(systemName: "magnifyingglass")
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, 6)
                         .padding(.vertical, 6)
-                        .frame(height: 34)
+                        .frame(height: 28)
                         .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.45)))
                 }
                 .buttonStyle(.plain)
