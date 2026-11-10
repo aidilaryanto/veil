@@ -908,15 +908,6 @@ final class VeilModel: NSObject, ObservableObject {
               let firstID = selectedWindowIDs.first else { return }
         bringSelectedWindowForward(firstID)
     }
-    private func captureOneShotSnapshot() {
-        guard !isSharing, !isPanic, filePreviewImage == nil,
-              mode == .allow, !selectedWindowIDs.isEmpty,
-              let windowID = selectedWindowIDs.first else { return }
-        guard let cgImage = CGWindowListCreateImage(.null, .optionIncludingWindow, windowID, []) else { return }
-        let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
-        previewSnapshotImage = image
-        updateRatioFromImage(image)
-    }
     func resetAllSources() {
         clearSelection()
         closeFile()
@@ -1105,7 +1096,6 @@ final class VeilModel: NSObject, ObservableObject {
         }
     }
     func startCapture() {
-        captureOneShotSnapshot()
         stopPreviewSnapshotTimer()
         if stream != nil {
             if isSharing {
@@ -1130,6 +1120,7 @@ final class VeilModel: NSObject, ObservableObject {
             }
             return
         }
+        refreshPreviewSnapshot()
         lastCaptureSignature = captureSignature()
         lastPositionSignature = positionSignature()
         startPositionPoller()
@@ -1827,6 +1818,7 @@ extension VeilModel: SCStreamOutput {
             Task { @MainActor in
                 self.previewSnapshotImage = image
                 self.updateRatioFromImage(image)
+                self.stopSnapshotStream()
             }
         } else if CaptureRouting.shared.isMainStreamID(streamID), !CaptureRouting.shared.isPaused() {
             StreamDisplayLayers.shared.render(sampleBuffer)
