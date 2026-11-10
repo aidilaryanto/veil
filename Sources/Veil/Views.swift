@@ -401,15 +401,15 @@ struct ContentView: View {
                     presetSearchFocused = true
                 } label: {
                     Image(systemName: "magnifyingglass")
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .frame(height: 34)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.45)))
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Color.primary)
                 .help("Search presets")
                 .pointingHandOnHover()
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .frame(maxHeight: .infinity)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.45)))
                 .contentShape(Rectangle())
                 .transition(.opacity)
             }
