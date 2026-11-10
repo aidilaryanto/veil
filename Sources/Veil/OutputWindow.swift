@@ -832,12 +832,15 @@ final class MetalDisplayLayer: CAMetalLayer {
         fatalError()
     }
     func render(_ sampleBuffer: CMSampleBuffer) {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        render(pixelBuffer: pixelBuffer)
+    }
+    func render(pixelBuffer: CVPixelBuffer) {
         guard metalDevice != nil,
               let commandQueue,
               let pipelineState,
               let textureCache,
               let samplerState,
-              let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),
               let drawable = nextDrawable() else { return }
         let textureWidth = CVPixelBufferGetWidth(pixelBuffer)
         let textureHeight = CVPixelBufferGetHeight(pixelBuffer)
@@ -904,13 +907,23 @@ final class StreamDisplayLayers {
     static let shared = StreamDisplayLayers()
     let preview = MetalDisplayLayer()
     let output = MetalDisplayLayer()
+    private var lastPixelBuffer: CVPixelBuffer?
     private init() {
         preview.gravity = .resize
         output.gravity = .resize
     }
     func render(_ sampleBuffer: CMSampleBuffer) {
-        preview.render(sampleBuffer)
-        output.render(sampleBuffer)
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        lastPixelBuffer = pixelBuffer
+        preview.render(pixelBuffer: pixelBuffer)
+        output.render(pixelBuffer: pixelBuffer)
+        preview.flushCache()
+        output.flushCache()
+    }
+    func renderLastFrame() {
+        guard let pixelBuffer = lastPixelBuffer else { return }
+        preview.render(pixelBuffer: pixelBuffer)
+        output.render(pixelBuffer: pixelBuffer)
         preview.flushCache()
         output.flushCache()
     }
@@ -995,6 +1008,12 @@ final class DirectStreamNSView: NSView {
     }
     required init?(coder: NSCoder) {
         fatalError()
+    }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window != nil {
+            StreamDisplayLayers.shared.renderLastFrame()
+        }
     }
     override func layout() {
         super.layout()
