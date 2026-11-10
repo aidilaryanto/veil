@@ -530,9 +530,12 @@ extension VeilModel {
                     annotationWindow.animator().setFrame(annotationFrame, display: true)
                 }
             }, completionHandler: { [weak self] in
-                guard let self, !self.presentationTimerExpanded else { return }
-                self.dockTimerControlToCaptureArea()
-                self.dockAnnotationControlToCaptureArea()
+                guard let self else { return }
+                Task { @MainActor in
+                    guard !self.presentationTimerExpanded else { return }
+                    self.dockTimerControlToCaptureArea()
+                    self.dockAnnotationControlToCaptureArea()
+                }
             })
         }
     }
@@ -628,8 +631,11 @@ extension VeilModel {
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().setFrame(frame, display: true)
             }, completionHandler: { [weak self] in
-                guard let self, !self.annotationExpanded else { return }
-                self.dockAnnotationControlToCaptureArea()
+                guard let self else { return }
+                Task { @MainActor in
+                    guard !self.annotationExpanded else { return }
+                    self.dockAnnotationControlToCaptureArea()
+                }
             })
         }
     }
