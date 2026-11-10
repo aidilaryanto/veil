@@ -1319,7 +1319,6 @@ final class VeilModel: NSObject, ObservableObject {
             .folder
         ]
         guard panel.runModal() == .OK else { return }
-        fileSources.removeAll()
         var urls: [URL] = []
         for url in panel.urls {
             var isDirectory: ObjCBool = false
