@@ -9,7 +9,6 @@ final class CaptureAreaWindowStore {
     var window: NSWindow?
     var closeObserver: NSObjectProtocol?
     var resizeObserver: NSObjectProtocol?
-    var moveObserver: NSObjectProtocol?
     private init() {}
 }
 final class FileControlWindowStore {
@@ -335,6 +334,7 @@ extension VeilModel {
         }
         if let window = FileControlWindowStore.shared.window {
             window.makeKeyAndOrderFront(nil)
+            attachFileControlWindow()
             dockFileControlToCaptureArea()
             dockTimerControlToCaptureArea()
             return
@@ -347,20 +347,31 @@ extension VeilModel {
         )
         window.title = "Veil File Control"
         window.level = .floating
+        window.sharingType = .none
         window.isReleasedWhenClosed = false
         configureCaptureAreaWindow(window)
         window.contentView = NSHostingView(rootView: PreviewFileControls().environmentObject(self))
         window.makeKeyAndOrderFront(nil)
         FileControlWindowStore.shared.window = window
+        attachFileControlWindow()
         dockFileControlToCaptureArea()
         dockTimerControlToCaptureArea()
     }
     func closeFileControlWindow() {
         if let window = FileControlWindowStore.shared.window {
+            if let output = CaptureAreaWindowStore.shared.window {
+                output.removeChildWindow(window)
+            }
             window.close()
             FileControlWindowStore.shared.window = nil
         }
         dockTimerControlToCaptureArea()
+    }
+    func attachFileControlWindow() {
+        guard let output = CaptureAreaWindowStore.shared.window,
+              let flyer = FileControlWindowStore.shared.window,
+              output.childWindows?.contains(flyer) != true else { return }
+        output.addChildWindow(flyer, ordered: .above)
     }
     func enforceBottomControlSpace() {
         guard let output = CaptureAreaWindowStore.shared.window, output.isVisible,
@@ -448,6 +459,7 @@ extension VeilModel {
         guard CaptureAreaWindowStore.shared.window != nil, isCaptureAreaVisible else { return }
         if let window = TimerControlWindowStore.shared.window {
             window.makeKeyAndOrderFront(nil)
+            attachTimerControlWindow()
             dockTimerControlToCaptureArea()
             return
         }
@@ -459,18 +471,29 @@ extension VeilModel {
         )
         window.title = "Veil Timer Control"
         window.level = .floating
+        window.sharingType = .none
         window.isReleasedWhenClosed = false
         configureCaptureAreaWindow(window)
         window.contentView = NSHostingView(rootView: TimerControlView().environmentObject(self))
         window.makeKeyAndOrderFront(nil)
         TimerControlWindowStore.shared.window = window
+        attachTimerControlWindow()
         dockTimerControlToCaptureArea()
     }
     func closeTimerControlWindow() {
         if let window = TimerControlWindowStore.shared.window {
+            if let output = CaptureAreaWindowStore.shared.window {
+                output.removeChildWindow(window)
+            }
             window.close()
             TimerControlWindowStore.shared.window = nil
         }
+    }
+    func attachTimerControlWindow() {
+        guard let output = CaptureAreaWindowStore.shared.window,
+              let timer = TimerControlWindowStore.shared.window,
+              output.childWindows?.contains(timer) != true else { return }
+        output.addChildWindow(timer, ordered: .above)
     }
     func dockTimerControlToCaptureArea() {
         guard let timer = TimerControlWindowStore.shared.window,
@@ -545,6 +568,7 @@ extension VeilModel {
         guard CaptureAreaWindowStore.shared.window != nil, isCaptureAreaVisible else { return }
         if let window = AnnotationControlWindowStore.shared.window {
             window.makeKeyAndOrderFront(nil)
+            attachAnnotationControlWindow()
             dockAnnotationControlToCaptureArea()
             return
         }
@@ -556,18 +580,29 @@ extension VeilModel {
         )
         window.title = "Veil Annotation Control"
         window.level = .floating
+        window.sharingType = .none
         window.isReleasedWhenClosed = false
         configureCaptureAreaWindow(window)
         window.contentView = NSHostingView(rootView: AnnotationControlView().environmentObject(self))
         window.makeKeyAndOrderFront(nil)
         AnnotationControlWindowStore.shared.window = window
+        attachAnnotationControlWindow()
         dockAnnotationControlToCaptureArea()
     }
     func closeAnnotationControlWindow() {
         if let window = AnnotationControlWindowStore.shared.window {
+            if let output = CaptureAreaWindowStore.shared.window {
+                output.removeChildWindow(window)
+            }
             window.close()
             AnnotationControlWindowStore.shared.window = nil
         }
+    }
+    func attachAnnotationControlWindow() {
+        guard let output = CaptureAreaWindowStore.shared.window,
+              let annotation = AnnotationControlWindowStore.shared.window,
+              output.childWindows?.contains(annotation) != true else { return }
+        output.addChildWindow(annotation, ordered: .above)
     }
     func dockAnnotationControlToCaptureArea() {
         guard let annotation = AnnotationControlWindowStore.shared.window,
@@ -665,10 +700,6 @@ extension VeilModel {
                 NotificationCenter.default.removeObserver(observer)
                 CaptureAreaWindowStore.shared.resizeObserver = nil
             }
-            if let observer = CaptureAreaWindowStore.shared.moveObserver {
-                NotificationCenter.default.removeObserver(observer)
-                CaptureAreaWindowStore.shared.moveObserver = nil
-            }
             window.contentView = nil
             window.close()
             CaptureAreaWindowStore.shared.window = nil
@@ -681,6 +712,7 @@ extension VeilModel {
             window.makeKeyAndOrderFront(nil)
             isCaptureAreaVisible = true
             dockFileControlToCaptureArea()
+            attachFileControlWindow()
             reopenFileControlIfNeeded()
             openTimerControlWindow()
             openAnnotationControlWindow()
@@ -722,6 +754,7 @@ extension VeilModel {
         CaptureAreaWindowStore.shared.window = window
         isCaptureAreaVisible = true
         dockFileControlToCaptureArea()
+        attachFileControlWindow()
         reopenFileControlIfNeeded()
         openTimerControlWindow()
         openAnnotationControlWindow()
@@ -733,15 +766,6 @@ extension VeilModel {
         }
         CaptureAreaWindowStore.shared.resizeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didResizeNotification, object: window, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.dockFileControlToCaptureArea()
-                self?.dockTimerControlToCaptureArea()
-                self?.dockAnnotationControlToCaptureArea()
-            }
-        }
-        CaptureAreaWindowStore.shared.moveObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.didMoveNotification, object: window, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.dockFileControlToCaptureArea()
