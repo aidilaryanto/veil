@@ -284,6 +284,7 @@ struct ContentView: View {
         window.isOpaque = false
         window.hasShadow = false
         window.isMovableByWindowBackground = true
+        window.level = model.alwaysOnTop ? .floating : .normal
         model.registerPanelWindow(window)
     }
     private var header: some View {
