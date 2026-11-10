@@ -889,7 +889,21 @@ final class VeilModel: NSObject, ObservableObject {
         }
         if isSharing {
             stopPreviewSnapshotTimer()
+            if wasAdding {
+                streamHasFrame = false
+                CaptureRouting.shared.setFirstFrame(false)
+            }
             updateCapture()
+            if wasAdding {
+                Task {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    await MainActor.run {
+                        if self.isSharing, !self.streamHasFrame {
+                            self.updateCapture()
+                        }
+                    }
+                }
+            }
         } else if wasAdding, !selectedWindowIDs.isEmpty {
             startCapture()
         } else {
@@ -930,7 +944,21 @@ final class VeilModel: NSObject, ObservableObject {
         }
         if isSharing {
             stopPreviewSnapshotTimer()
+            if wasAdded {
+                streamHasFrame = false
+                CaptureRouting.shared.setFirstFrame(false)
+            }
             updateCapture()
+            if wasAdded {
+                Task {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    await MainActor.run {
+                        if self.isSharing, !self.streamHasFrame {
+                            self.updateCapture()
+                        }
+                    }
+                }
+            }
         } else if wasAdded, !selectedWindowIDs.isEmpty {
             startCapture()
         } else {
