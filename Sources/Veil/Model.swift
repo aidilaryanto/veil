@@ -257,6 +257,7 @@ final class VeilModel: NSObject, ObservableObject {
     private var launchAutoStart = true
     private var launchRetryPending = false
     private var isFirstRefresh = true
+    private var initialRefreshStarted = false
     override init() {
         super.init()
         loadPresets()
@@ -264,6 +265,7 @@ final class VeilModel: NSObject, ObservableObject {
         restoreLastSession()
         installFilePageKeyMonitor()
         startPresentationTimer()
+        refreshSources()
     }
     deinit {
         presentationTimer?.invalidate()
@@ -791,6 +793,10 @@ final class VeilModel: NSObject, ObservableObject {
         displays.first(where: { CGDisplayIsBuiltin($0.displayID) != 0 })?.displayID ?? displays.first?.displayID
     }
     func refreshSources() {
+        if isFirstRefresh {
+            guard !initialRefreshStarted else { return }
+            initialRefreshStarted = true
+        }
         Task {
             do {
                 let content = try await SCShareableContent.excludingDesktopWindows(
@@ -832,6 +838,9 @@ final class VeilModel: NSObject, ObservableObject {
                 }
                 status = "\(sources.count) windows on \(content.displays.count) displays."
             } catch {
+                if isFirstRefresh {
+                    initialRefreshStarted = false
+                }
                 status = "Failed to read windows: \(error.localizedDescription). Check Screen Recording permission."
             }
         }
