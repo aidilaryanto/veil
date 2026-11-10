@@ -366,29 +366,35 @@ struct ContentView: View {
         return customPresets.filter { $0.name.lowercased().contains(query) }
     }
     private var presetSearchControl: some View {
-        HStack(spacing: 6) {
+        Group {
             if presetSearchExpanded {
-                TextField("Search presets", text: $presetSearchText)
-                    .textFieldStyle(.plain)
-                    .font(.subheadline)
-                    .frame(width: 160)
-                    .focused($presetSearchFocused)
+                HStack(spacing: 6) {
+                    TextField("Search presets", text: $presetSearchText)
+                        .textFieldStyle(.plain)
+                        .font(.subheadline)
+                        .frame(width: 160)
+                        .focused($presetSearchFocused)
+                        .transition(.opacity.combined(with: .offset(x: -12)))
+                    Button {
+                        presetSearchText = ""
+                        presetSearchExpanded = false
+                        presetSearchFocused = false
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.caption)
+                            .bold()
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.primary)
+                    .help("Close search")
+                    .contentShape(Rectangle())
+                    .pointingHandOnHover()
                     .transition(.opacity.combined(with: .offset(x: -12)))
-                Button {
-                    presetSearchText = ""
-                    presetSearchExpanded = false
-                    presetSearchFocused = false
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.caption)
-                        .bold()
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.primary)
-                .help("Close search")
-                .contentShape(Rectangle())
-                .pointingHandOnHover()
-                .transition(.opacity.combined(with: .offset(x: -12)))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .frame(maxHeight: .infinity)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.45)))
             } else {
                 Button {
                     presetSearchExpanded = true
@@ -399,14 +405,15 @@ struct ContentView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(Color.primary)
                 .help("Search presets")
-                .contentShape(Rectangle())
                 .pointingHandOnHover()
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .frame(maxHeight: .infinity)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.45)))
+                .contentShape(Rectangle())
                 .transition(.opacity)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.45)))
         .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: presetSearchExpanded)
     }
     @ViewBuilder
