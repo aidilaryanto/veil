@@ -179,6 +179,10 @@ struct LastSession: Codable {
     var cameraDeviceID: String? = nil
     var wasSharing: Bool = false
 }
+enum PresentationTimerMode: String {
+    case countUp
+    case countDown
+}
 @MainActor
 final class VeilModel: NSObject, ObservableObject {
     @Published var sources: [SourceItem] = []
@@ -206,6 +210,13 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var presentationElapsed: TimeInterval = 0
     @Published var presentationTimerActive = false
     @Published var presentationTimerExpanded = false
+    @Published var presentationTimerMode: PresentationTimerMode = {
+        UserDefaults.standard.string(forKey: "Veil.timerMode") == "countDown" ? .countDown : .countUp
+    }() { didSet { UserDefaults.standard.set(presentationTimerMode.rawValue, forKey: "Veil.timerMode") } }
+    @Published var countdownDuration: TimeInterval = {
+        let saved = UserDefaults.standard.double(forKey: "Veil.countdownDuration")
+        return saved > 0 ? saved : 1800
+    }() { didSet { UserDefaults.standard.set(countdownDuration, forKey: "Veil.countdownDuration") } }
     @Published var annotationExpanded = false
     @Published var previewImage: NSImage?
     @Published var streamHasFrame = false
@@ -638,6 +649,12 @@ final class VeilModel: NSObject, ObservableObject {
                     let since = self.presentationCountingSince ?? Date()
                     self.presentationCountingSince = since
                     self.presentationElapsed = self.presentationAccumulated + Date().timeIntervalSince(since)
+                    if self.presentationTimerMode == .countDown && self.presentationElapsed >= self.countdownDuration {
+                        self.presentationElapsed = self.countdownDuration
+                        self.presentationAccumulated = self.countdownDuration
+                        self.presentationCountingSince = nil
+                        self.presentationTimerActive = false
+                    }
                 } else if let since = self.presentationCountingSince {
                     self.presentationAccumulated += Date().timeIntervalSince(since)
                     self.presentationCountingSince = nil
@@ -668,8 +685,26 @@ final class VeilModel: NSObject, ObservableObject {
     var presentationTimerRunning: Bool {
         presentationTimerActive && !isPaused && !isPanic
     }
+    var countdownRemaining: TimeInterval {
+        max(0, countdownDuration - presentationElapsed)
+    }
+    func toggleTimerMode() {
+        presentationTimerMode = presentationTimerMode == .countUp ? .countDown : .countUp
+        presentationAccumulated = 0
+        presentationCountingSince = presentationTimerActive ? Date() : nil
+        presentationElapsed = 0
+        if presentationTimerExpanded {
+            setTimerControlExpanded(true)
+        }
+    }
+    func setCountdownDuration(_ duration: TimeInterval) {
+        countdownDuration = max(60, min(duration, 36000))
+        presentationAccumulated = 0
+        presentationCountingSince = presentationTimerActive ? Date() : nil
+        presentationElapsed = 0
+    }
     var presentationTimerText: String {
-        let total = Int(presentationElapsed)
+        let total = Int(presentationTimerMode == .countDown ? countdownRemaining : presentationElapsed)
         let hours = total / 3600
         let minutes = (total % 3600) / 60
         let seconds = total % 60

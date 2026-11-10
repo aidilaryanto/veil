@@ -1654,13 +1654,63 @@ struct PreviewFileControls: View {
         }
     }
 }
+struct CountdownDurationPopover: View {
+    @EnvironmentObject var model: VeilModel
+    @Binding var customMinutes: String
+    var onDone: () -> Void
+    let presets: [Int] = [5, 10, 15, 20, 30, 45, 60]
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Countdown duration")
+                .font(.subheadline).bold()
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 52))], spacing: 6) {
+                ForEach(presets, id: \.self) { minutes in
+                    Button("\(minutes)m") {
+                        model.setCountdownDuration(TimeInterval(minutes * 60))
+                        onDone()
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(RoundedRectangle(cornerRadius: 7).fill(model.countdownDuration == TimeInterval(minutes * 60) ? Color.accentColor.opacity(0.35) : Color.black.opacity(0.45)))
+                }
+            }
+            Divider()
+            HStack(spacing: 6) {
+                TextField("Minutes", text: $customMinutes)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 70)
+                Button("Set") {
+                    if let minutes = Int(customMinutes), minutes > 0 {
+                        model.setCountdownDuration(TimeInterval(minutes * 60))
+                        onDone()
+                    }
+                }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(RoundedRectangle(cornerRadius: 7).fill(Color.black.opacity(0.45)))
+            }
+            Text("1 to 600 minutes")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .frame(width: 220)
+    }
+}
 struct TimerControlView: View {
     @EnvironmentObject var model: VeilModel
+    @State private var showDurationPopover = false
+    @State private var customMinutes = ""
     var body: some View {
         HStack(spacing: 6) {
             if model.presentationTimerExpanded {
                 Text(model.presentationTimerText)
                     .font(.system(size: 16, weight: .bold, design: .monospaced))
+                    .foregroundStyle(model.presentationTimerMode == .countDown && model.countdownRemaining <= 60 ? Color.red : Color.white)
                     .padding(.leading, 8)
                     .padding(.trailing, 10)
                     .transition(.opacity.combined(with: .offset(x: 12)))
@@ -1668,6 +1718,49 @@ struct TimerControlView: View {
                     .fill(Color.white.opacity(0.2))
                     .frame(width: 1, height: 20)
                     .transition(.opacity.combined(with: .offset(x: 12)))
+                Button {
+                    model.toggleTimerMode()
+                } label: {
+                    Color.white.opacity(0.01)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                        .overlay(
+                            Image(systemName: model.presentationTimerMode == .countUp ? "hourglass" : "stopwatch")
+                                .font(.system(size: 13))
+                        )
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .focusable(false)
+                .help(model.presentationTimerMode == .countUp ? "Switch to countdown" : "Switch to count-up")
+                .pointingHandOnHover()
+                .transition(.opacity.combined(with: .offset(x: 12)))
+                if model.presentationTimerMode == .countDown {
+                    Button {
+                        customMinutes = String(Int(model.countdownDuration / 60))
+                        showDurationPopover = true
+                    } label: {
+                        Color.white.opacity(0.01)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                            .overlay(
+                                Image(systemName: "list.bullet")
+                                    .font(.system(size: 13))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .focusable(false)
+                    .help("Choose countdown duration")
+                    .pointingHandOnHover()
+                    .transition(.opacity.combined(with: .offset(x: 12)))
+                    .popover(isPresented: $showDurationPopover, arrowEdge: .bottom) {
+                        CountdownDurationPopover(customMinutes: $customMinutes) {
+                            showDurationPopover = false
+                        }
+                        .preferredColorScheme(.dark)
+                    }
+                }
                 Button {
                     model.togglePresentationTimer()
                 } label: {
@@ -1728,6 +1821,7 @@ struct TimerControlView: View {
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.presentationTimerExpanded)
+        .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.presentationTimerMode)
         .animation(.easeInOut(duration: 0.35), value: model.presentationTimerText)
     }
 }

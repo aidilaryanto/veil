@@ -401,7 +401,8 @@ extension VeilModel {
         }
     }
     func timerControlSize(expanded: Bool) -> CGSize {
-        expanded ? CGSize(width: 200, height: 36) : CGSize(width: 36, height: 36)
+        guard expanded else { return CGSize(width: 36, height: 36) }
+        return presentationTimerMode == .countDown ? CGSize(width: 268, height: 36) : CGSize(width: 234, height: 36)
     }
     func timerControlFrame(expanded: Bool) -> CGRect? {
         guard let output = CaptureAreaWindowStore.shared.window, output.isVisible,
