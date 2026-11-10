@@ -544,7 +544,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
     }
     func refreshPreviewSnapshot() {
-        guard !isSharing, !isPanic, filePreviewImage == nil,
+        guard !isPanic, filePreviewImage == nil,
               mode == .allow, !selectedWindowIDs.isEmpty else {
             previewSnapshotImage = nil
             return
@@ -892,6 +892,7 @@ final class VeilModel: NSObject, ObservableObject {
             if wasAdding {
                 streamHasFrame = false
                 CaptureRouting.shared.setFirstFrame(false)
+                refreshPreviewSnapshot()
             }
             updateCapture()
             if wasAdding {
@@ -947,6 +948,7 @@ final class VeilModel: NSObject, ObservableObject {
             if wasAdded {
                 streamHasFrame = false
                 CaptureRouting.shared.setFirstFrame(false)
+                refreshPreviewSnapshot()
             }
             updateCapture()
             if wasAdded {
