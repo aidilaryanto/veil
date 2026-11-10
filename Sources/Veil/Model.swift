@@ -887,9 +887,6 @@ final class VeilModel: NSObject, ObservableObject {
         }
         updateSourceAspectRatio()
         updateSourceAspectRatioFromSelection()
-        if wasAdding, !ids.isEmpty {
-            bringSelectedWindowForward(ids[0])
-        }
         if isSharing {
             stopPreviewSnapshotTimer()
             updateCapture()
@@ -928,9 +925,6 @@ final class VeilModel: NSObject, ObservableObject {
         }
         updateSourceAspectRatio()
         updateSourceAspectRatioFromSelection()
-        if wasAdded {
-            bringSelectedWindowForward(id)
-        }
         if isSharing {
             stopPreviewSnapshotTimer()
             updateCapture()
@@ -1162,6 +1156,9 @@ final class VeilModel: NSObject, ObservableObject {
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
                     await MainActor.run {
                         if self.isSharing, self.stream === newStream, !self.streamHasFrame {
+                            if let firstID = self.selectedWindowIDs.first {
+                                self.bringSelectedWindowForward(firstID)
+                            }
                             self.updateCapture()
                         }
                     }
