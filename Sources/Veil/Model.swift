@@ -243,6 +243,9 @@ final class VeilModel: NSObject, ObservableObject {
     var shouldShowStreamPreview: Bool {
         isSharing && !(mode == .allow && canvasMode == .isolated && selectedWindowIDs.isEmpty)
     }
+    var isNothingSelected: Bool {
+        mode == .allow && canvasMode == .isolated && selectedWindowIDs.isEmpty && activeFile == nil
+    }
     var capturedWindows: [SCWindow] = []
     var capturedApplications: [SCRunningApplication] = []
     var dynamicCaptureUnion: CGRect?
@@ -544,7 +547,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
     }
     func refreshPreviewSnapshot() {
-        guard !isPanic, filePreviewImage == nil,
+        guard !isSharing, !isPanic, filePreviewImage == nil,
               mode == .allow, !selectedWindowIDs.isEmpty else {
             previewSnapshotImage = nil
             return
@@ -889,22 +892,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
         if isSharing {
             stopPreviewSnapshotTimer()
-            if wasAdding {
-                streamHasFrame = false
-                CaptureRouting.shared.setFirstFrame(false)
-                refreshPreviewSnapshot()
-            }
             updateCapture()
-            if wasAdding {
-                Task {
-                    try? await Task.sleep(nanoseconds: 1_000_000_000)
-                    await MainActor.run {
-                        if self.isSharing, !self.streamHasFrame {
-                            self.updateCapture()
-                        }
-                    }
-                }
-            }
         } else if wasAdding, !selectedWindowIDs.isEmpty {
             startCapture()
         } else {
@@ -945,22 +933,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
         if isSharing {
             stopPreviewSnapshotTimer()
-            if wasAdded {
-                streamHasFrame = false
-                CaptureRouting.shared.setFirstFrame(false)
-                refreshPreviewSnapshot()
-            }
             updateCapture()
-            if wasAdded {
-                Task {
-                    try? await Task.sleep(nanoseconds: 1_000_000_000)
-                    await MainActor.run {
-                        if self.isSharing, !self.streamHasFrame {
-                            self.updateCapture()
-                        }
-                    }
-                }
-            }
         } else if wasAdded, !selectedWindowIDs.isEmpty {
             startCapture()
         } else {
@@ -1014,6 +987,7 @@ final class VeilModel: NSObject, ObservableObject {
     func captureFilterAndConfig() -> (SCContentFilter, SCStreamConfiguration)? {
         pendingDynamicUnion = nil
         guard selectedDisplayID != nil else { return nil }
+        guard !isNothingSelected else { return nil }
         guard let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first else { return nil }
         let config = SCStreamConfiguration()
         config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
@@ -1087,7 +1061,12 @@ final class VeilModel: NSObject, ObservableObject {
             restartCapture()
             return
         }
-        guard let (filter, config) = captureFilterAndConfig() else { return }
+        guard let (filter, config) = captureFilterAndConfig() else {
+            if isNothingSelected {
+                stopStreamOnly()
+            }
+            return
+        }
         let target = current
         Task {
             do {
@@ -1138,8 +1117,12 @@ final class VeilModel: NSObject, ObservableObject {
             return
         }
         guard let (filter, config) = captureFilterAndConfig() else {
-            status = selectedDisplayID == nil ? "Pause the output until a display is selected." : "No display found. Press Refresh first."
             isSharing = false
+            if isNothingSelected {
+                status = "Nothing is currently selected to share."
+                return
+            }
+            status = selectedDisplayID == nil ? "Pause the output until a display is selected." : "No display found. Press Refresh first."
             if selectedDisplayID != nil {
                 launchRetryPending = true
                 refreshPreviewSnapshot()
@@ -1226,6 +1209,23 @@ final class VeilModel: NSObject, ObservableObject {
             closeCaptureAreaWindow()
             endSharingActivity()
         }
+        Task { try? await oldStream?.stopCapture() }
+    }
+    func stopStreamOnly() {
+        stopCaptureWatchdog()
+        stopPositionPoller()
+        dynamicCaptureUnion = nil
+        pendingDynamicUnion = nil
+        let oldStream = stream
+        stream = nil
+        CaptureRouting.shared.setMainStreamID(nil)
+        isSharing = false
+        previewImage = nil
+        previewSnapshotImage = nil
+        streamHasFrame = false
+        CaptureRouting.shared.setFirstFrame(false)
+        StreamDisplayLayers.shared.flush()
+        endSharingActivity()
         Task { try? await oldStream?.stopCapture() }
     }
     private func captureSignature() -> String {
