@@ -818,6 +818,7 @@ final class VeilModel: NSObject, ObservableObject {
                     minimizeOtherAppsToStageManagerIfEnabled()
                     if launchAutoStart, !isSharing, !isPanic, filePreviewImage == nil, selectedDisplayID != nil {
                         launchAutoStart = false
+                        activateFirstSelectedWindow()
                         startCapture()
                         return
                     }
@@ -825,6 +826,7 @@ final class VeilModel: NSObject, ObservableObject {
                 }
                 if launchRetryPending, !isSharing, !isPanic, filePreviewImage == nil, selectedDisplayID != nil {
                     launchRetryPending = false
+                    activateFirstSelectedWindow()
                     startCapture()
                     return
                 }
@@ -891,6 +893,20 @@ final class VeilModel: NSObject, ObservableObject {
               let app = NSRunningApplication(processIdentifier: pid),
               !app.isActive else { return }
         app.activate()
+    }
+    private func activateFirstSelectedWindow() {
+        guard mode == .allow, canvasMode != .fullDisplay,
+              let firstID = selectedWindowIDs.first else { return }
+        bringSelectedWindowForward(firstID)
+    }
+    private func captureOneShotSnapshot() {
+        guard !isSharing, !isPanic, filePreviewImage == nil,
+              mode == .allow, !selectedWindowIDs.isEmpty,
+              let windowID = selectedWindowIDs.first else { return }
+        guard let cgImage = CGWindowListCreateImage(.null, .optionIncludingWindow, windowID, []) else { return }
+        let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+        previewSnapshotImage = image
+        updateRatioFromImage(image)
     }
     func resetAllSources() {
         clearSelection()
@@ -1080,6 +1096,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
     }
     func startCapture() {
+        captureOneShotSnapshot()
         stopPreviewSnapshotTimer()
         if stream != nil {
             if isSharing {
@@ -1125,13 +1142,19 @@ final class VeilModel: NSObject, ObservableObject {
                         launchRetryPending = false
                         dynamicCaptureUnion = pendingDynamicUnion
                         beginSharingActivity()
-                        previewSnapshotImage = nil
                         stopPreviewSnapshotTimer()
                         status = "Sharing is live (\(selectedWindowIDs.count) windows). Share the Output window in Zoom/Meet/Teams."
                         startCaptureWatchdog()
                         resizeCaptureAreaWindow()
                         reopenFileControlIfNeeded()
                         reopenTimerControlIfNeeded()
+                    }
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    await MainActor.run {
+                        if self.isSharing, self.stream === newStream, !self.streamHasFrame {
+                            self.activateFirstSelectedWindow()
+                            self.updateCapture()
+                        }
                     }
                 } catch {
                     await MainActor.run {
@@ -1803,6 +1826,8 @@ extension VeilModel: SCStreamOutput {
             if CaptureRouting.shared.takeFirstFrame() {
                 Task { @MainActor in
                     self.streamHasFrame = true
+                    self.previewSnapshotImage = nil
+                    self.stopPreviewSnapshotTimer()
                 }
             }
             if frameWidth > 0, frameHeight > 0 {

@@ -2162,7 +2162,7 @@ struct OutputContentView: View {
                     .scaledToFit()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-        } else if model.shouldShowStreamPreview {
+        } else if model.shouldShowStreamPreview && model.streamHasFrame {
             if model.isPositionedCanvas {
                 if let frame = model.positionedImageFrame(in: outputSize) {
                     ZStack(alignment: .topLeading) {
@@ -2197,7 +2197,7 @@ struct OutputContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
             }
-        } else if !model.isSharing, let image = model.previewSnapshotImage {
+        } else if let image = model.previewSnapshotImage {
             if model.isPositionedCanvas {
                 positionedImage(image, outputSize: outputSize)
             } else if model.canvasMode == .isolated {
