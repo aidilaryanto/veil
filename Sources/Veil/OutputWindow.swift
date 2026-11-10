@@ -1012,7 +1012,9 @@ final class DirectStreamNSView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if window != nil {
-            StreamDisplayLayers.shared.renderLastFrame()
+            DispatchQueue.main.async {
+                StreamDisplayLayers.shared.renderLastFrame()
+            }
         }
     }
     override func layout() {
