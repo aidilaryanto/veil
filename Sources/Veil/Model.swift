@@ -760,27 +760,10 @@ final class VeilModel: NSObject, ObservableObject {
     private func minimizeOtherAppsToStageManagerIfEnabled() {
         guard UserDefaults(suiteName: "com.apple.WindowManager")?.bool(forKey: "GloballyEnabled") == true else { return }
         let veilPID = ProcessInfo.processInfo.processIdentifier
-        let list = "\"com.veil.app\""
-        let scriptSource = """
-        tell application "System Events"
-          repeat with proc in (every process whose background only is false)
-            try
-              if (unix id of proc is not \(veilPID)) and (name of proc is not "Veil") and (bundle identifier of proc is not in {\(list)}) then
-                repeat with win in (every window of proc)
-                  try
-                    set minimized of win to true
-                  end try
-                end repeat
-              end if
-            end try
-          end repeat
-        end tell
-        """
-        DispatchQueue.main.async {
-            var error: NSDictionary?
-            if let script = NSAppleScript(source: scriptSource) {
-                script.executeAndReturnError(&error)
-            }
+        for app in NSWorkspace.shared.runningApplications {
+            guard app.activationPolicy == .regular, !app.isHidden,
+                  app.processIdentifier != veilPID, app.bundleIdentifier != "com.veil.app" else { continue }
+            app.hide()
         }
     }
     private func defaultDisplayID(from displays: [SCDisplay]) -> UInt32? {
