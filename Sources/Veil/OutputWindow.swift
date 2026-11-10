@@ -626,9 +626,15 @@ extension VeilModel {
             return
         }
         let size = captureAreaWindowSize(width: window.frame.width)
-        let ratio = captureAreaRatio
-        if ratio > 0 {
-            window.contentAspectRatio = NSSize(width: ratio, height: 1)
+        if let screen = window.screen ?? NSScreen.main {
+            let visible = nativeFullscreenScreen()?.frame ?? screen.visibleFrame
+            if abs(window.frame.width - visible.width) < 2 && abs(window.frame.height - visible.height) < 2
+                && abs(window.frame.minX - visible.minX) < 2 && abs(window.frame.minY - visible.minY) < 2 {
+                dockFileControlToCaptureArea()
+                dockTimerControlToCaptureArea()
+                dockAnnotationControlToCaptureArea()
+                return
+            }
         }
         var frame = window.frame
         frame.size = size
@@ -714,10 +720,6 @@ extension VeilModel {
         )
         window.title = "Veil Output — share this window"
         window.contentMinSize = NSSize(width: 320, height: 180)
-        let createRatio = captureAreaRatio
-        if createRatio > 0 {
-            window.contentAspectRatio = NSSize(width: createRatio, height: 1)
-        }
         configureCaptureAreaWindow(window)
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: CaptureAreaRootView().environmentObject(self))
