@@ -1570,10 +1570,62 @@ struct ContentView: View {
         .frame(width: 360)
     }
 }
+struct FilePageOverviewView: View {
+    @EnvironmentObject var model: VeilModel
+    @Binding var showOverview: Bool
+    var body: some View {
+        if let active = model.activeFile {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("\(active.name) • \(active.pageCount) pages")
+                    .font(.subheadline).bold()
+                    .padding(.horizontal, 12)
+                    .padding(.top, 10)
+                    .padding(.bottom, 6)
+                ScrollView {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 10) {
+                        ForEach(0..<active.pageCount, id: \.self) { index in
+                            Button {
+                                model.goToFilePage(index)
+                                showOverview = false
+                            } label: {
+                                VStack(spacing: 4) {
+                                    if let thumbnail = model.filePageThumbnail(at: index) {
+                                        Image(nsImage: thumbnail)
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 96, height: 72)
+                                            .background(Color.black.opacity(0.45))
+                                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    } else {
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(Color.black.opacity(0.45))
+                                            .frame(width: 96, height: 72)
+                                    }
+                                    Text("\(index + 1)")
+                                        .font(.caption2)
+                                        .foregroundStyle(index == model.filePageIndex ? Color.accentColor : Color.secondary)
+                                }
+                                .padding(4)
+                                .background(RoundedRectangle(cornerRadius: 8).fill(index == model.filePageIndex ? Color.accentColor.opacity(0.25) : Color.clear))
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(index == model.filePageIndex ? Color.accentColor : Color.clear, lineWidth: 1.5))
+                            }
+                            .buttonStyle(.plain)
+                            .contentShape(Rectangle())
+                            .pointingHandOnHover()
+                        }
+                    }
+                    .padding(10)
+                }
+            }
+            .frame(width: 340, height: 380)
+        }
+    }
+}
 struct PreviewFileControls: View {
     var buttonSize: CGFloat = 36
     @EnvironmentObject var model: VeilModel
     @State private var showFilePopup = false
+    @State private var showOverview = false
     var body: some View {
         if let active = model.activeFile {
             HStack(spacing: 2) {
@@ -1630,6 +1682,27 @@ struct PreviewFileControls: View {
                 .popover(isPresented: $showFilePopup) {
                     FileListPopupView(showFilePopup: $showFilePopup)
                         .environmentObject(model)
+                }
+                if active.pageCount > 1 {
+                    Button {
+                        showOverview = true
+                    } label: {
+                        Color.white.opacity(0.01)
+                            .frame(width: buttonSize, height: buttonSize)
+                            .contentShape(Rectangle())
+                            .overlay(
+                                Image(systemName: "square.grid.2x2")
+                                    .font(.subheadline)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .help("Page overview")
+                    .pointingHandOnHover()
+                    .popover(isPresented: $showOverview) {
+                        FilePageOverviewView(showOverview: $showOverview)
+                            .environmentObject(model)
+                    }
                 }
                 Button {
                     model.closeFile()

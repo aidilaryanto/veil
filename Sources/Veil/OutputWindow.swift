@@ -340,7 +340,7 @@ extension VeilModel {
             return
         }
         let window = NSWindow(
-            contentRect: NSRect(x: 120, y: 120, width: 240, height: 36),
+            contentRect: NSRect(x: 120, y: 120, width: 280, height: 36),
             styleMask: [.closable, .fullSizeContentView],
             backing: .buffered,
             defer: false

@@ -257,6 +257,7 @@ final class VeilModel: NSObject, ObservableObject {
     private var snapshotStream: SCStream?
     private var pdfDocument: PDFDocument?
     private var filePageCache: [Int: NSImage] = [:]
+    private var fileOverviewCache: [Int: NSImage] = [:]
     private var filePageKeyMonitor: Any?
     private var captureWatchdog: Timer?
     private var lastCaptureSignature = ""
@@ -1434,6 +1435,7 @@ final class VeilModel: NSObject, ObservableObject {
         activeFileID = item.id
         filePageIndex = 0
         filePageCache.removeAll()
+        fileOverviewCache.removeAll()
         previewSnapshotImage = nil
         stopPreviewSnapshotTimer()
         if isCaptureAreaVisible { openFileControlWindow() }
@@ -1462,6 +1464,7 @@ final class VeilModel: NSObject, ObservableObject {
         activeFileID = nil
         pdfDocument = nil
         filePageCache.removeAll()
+        fileOverviewCache.removeAll()
         filePreviewImage = nil
         filePageIndex = 0
         fileSources.removeAll()
@@ -1501,6 +1504,21 @@ final class VeilModel: NSObject, ObservableObject {
         filePageIndex -= 1
         renderFilePage()
         return true
+    }
+    func goToFilePage(_ index: Int) {
+        guard let item = activeFile, index >= 0, index < item.pageCount else { return }
+        filePageIndex = index
+        renderFilePage()
+    }
+    func filePageThumbnail(at index: Int) -> NSImage? {
+        guard let item = activeFile, index >= 0, index < item.pageCount else { return nil }
+        if let cached = fileOverviewCache[index] {
+            return cached
+        }
+        guard let document = pdfDocument, let page = document.page(at: index) else { return nil }
+        let image = page.thumbnail(of: NSSize(width: 320, height: 320), for: .mediaBox)
+        fileOverviewCache[index] = image
+        return image
     }
     private func renderFilePage() {
         guard let document = pdfDocument else { return }
