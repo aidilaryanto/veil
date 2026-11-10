@@ -903,7 +903,7 @@ final class VeilModel: NSObject, ObservableObject {
               !app.isActive else { return }
         app.activate()
     }
-    private func activateFirstSelectedWindow() {
+    func activateFirstSelectedWindow() {
         guard mode == .allow, canvasMode != .fullDisplay,
               let firstID = selectedWindowIDs.first else { return }
         bringSelectedWindowForward(firstID)
