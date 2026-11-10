@@ -1659,21 +1659,28 @@ struct CountdownDurationPopover: View {
     @Binding var customMinutes: String
     var onDone: () -> Void
     let presets: [Int] = [5, 10, 15, 20, 30, 45, 60]
+    var presetRows: [[Int]] {
+        stride(from: 0, to: presets.count, by: 3).map { Array(presets[$0..<min($0 + 3, presets.count)]) }
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Countdown duration")
                 .font(.subheadline).bold()
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 52))], spacing: 6) {
-                ForEach(presets, id: \.self) { minutes in
-                    Button("\(minutes)m") {
-                        model.setCountdownDuration(TimeInterval(minutes * 60))
-                        onDone()
+            VStack(spacing: 6) {
+                ForEach(presetRows, id: \.self) { row in
+                    HStack(spacing: 6) {
+                        ForEach(row, id: \.self) { minutes in
+                            Button("\(minutes)m") {
+                                model.setCountdownDuration(TimeInterval(minutes * 60))
+                                onDone()
+                            }
+                            .buttonStyle(.plain)
+                            .font(.caption)
+                            .frame(width: 56, height: 28)
+                            .background(RoundedRectangle(cornerRadius: 7).fill(model.countdownDuration == TimeInterval(minutes * 60) ? Color.accentColor.opacity(0.35) : Color.black.opacity(0.45)))
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(RoundedRectangle(cornerRadius: 7).fill(model.countdownDuration == TimeInterval(minutes * 60) ? Color.accentColor.opacity(0.35) : Color.black.opacity(0.45)))
+                    .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
             Divider()

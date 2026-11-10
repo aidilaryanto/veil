@@ -708,7 +708,8 @@ final class VeilModel: NSObject, ObservableObject {
         let hours = total / 3600
         let minutes = (total % 3600) / 60
         let seconds = total % 60
-        if hours > 0 {
+        let showHours = presentationTimerMode == .countDown ? countdownDuration >= 3600 : hours > 0
+        if showHours {
             return String(format: "%d:%02d:%02d", hours, minutes, seconds)
         }
         return String(format: "%02d:%02d", minutes, seconds)
