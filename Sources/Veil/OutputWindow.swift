@@ -523,7 +523,7 @@ extension VeilModel {
             guard let frame = timerControlFrame(expanded: false) else { return }
             let annotationFrame = annotationControlFrame(expanded: annotationExpanded)
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.35
+                context.duration = 0.55
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().setFrame(frame, display: true)
                 if let annotationFrame, let annotationWindow = AnnotationControlWindowStore.shared.window {
@@ -627,7 +627,7 @@ extension VeilModel {
             annotationExpanded = false
             guard let frame = annotationControlFrame(expanded: false) else { return }
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.35
+                context.duration = 0.55
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().setFrame(frame, display: true)
             }, completionHandler: { [weak self] in

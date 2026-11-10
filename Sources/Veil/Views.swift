@@ -373,6 +373,7 @@ struct ContentView: View {
                     .font(.subheadline)
                     .frame(width: 160)
                     .focused($presetSearchFocused)
+                    .transition(.opacity.combined(with: .offset(x: -12)))
                 Button {
                     presetSearchText = ""
                     presetSearchExpanded = false
@@ -387,6 +388,7 @@ struct ContentView: View {
                 .help("Close search")
                 .contentShape(Rectangle())
                 .pointingHandOnHover()
+                .transition(.opacity.combined(with: .offset(x: -12)))
             } else {
                 Button {
                     presetSearchExpanded = true
@@ -399,12 +401,13 @@ struct ContentView: View {
                 .help("Search presets")
                 .contentShape(Rectangle())
                 .pointingHandOnHover()
+                .transition(.opacity)
             }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.45)))
-        .animation(.easeInOut(duration: 0.35), value: presetSearchExpanded)
+        .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: presetSearchExpanded)
     }
     @ViewBuilder
     private func presetStripPill(_ preset: Preset) -> some View {
@@ -1653,11 +1656,11 @@ struct TimerControlView: View {
                     .font(.system(size: 16, weight: .bold, design: .monospaced))
                     .padding(.leading, 8)
                     .padding(.trailing, 10)
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                    .transition(.opacity.combined(with: .offset(x: 12)))
                 Rectangle()
                     .fill(Color.white.opacity(0.2))
                     .frame(width: 1, height: 20)
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                    .transition(.opacity.combined(with: .offset(x: 12)))
                 Button {
                     model.togglePresentationTimer()
                 } label: {
@@ -1674,7 +1677,7 @@ struct TimerControlView: View {
                 .focusable(false)
                 .help(model.presentationTimerActive ? "Pause timer" : "Start timer")
                 .pointingHandOnHover()
-                .transition(.move(edge: .trailing).combined(with: .opacity))
+                .transition(.opacity.combined(with: .offset(x: 12)))
                 Button {
                     model.resetPresentationTimer()
                 } label: {
@@ -1692,7 +1695,7 @@ struct TimerControlView: View {
                 .disabled(model.presentationElapsed == 0 && !model.presentationTimerActive)
                 .help("Reset timer")
                 .pointingHandOnHover()
-                .transition(.move(edge: .trailing).combined(with: .opacity))
+                .transition(.opacity.combined(with: .offset(x: 12)))
             }
             Button {
                 model.setTimerControlExpanded(!model.presentationTimerExpanded)
@@ -1717,7 +1720,7 @@ struct TimerControlView: View {
         .background(Capsule().fill(Color.black.opacity(0.45)))
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-        .animation(.easeInOut(duration: 0.35), value: model.presentationTimerExpanded)
+        .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.presentationTimerExpanded)
         .animation(.easeInOut(duration: 0.35), value: model.presentationTimerText)
     }
 }
@@ -1744,7 +1747,7 @@ struct AnnotationControlView: View {
                 .disabled(model.annotationStrokes.isEmpty)
                 .help("Clear all annotations")
                 .pointingHandOnHover()
-                .transition(.move(edge: .trailing).combined(with: .opacity))
+                .transition(.opacity.combined(with: .offset(x: 12)))
                 Button {
                     showColorPopover.toggle()
                 } label: {
@@ -1763,7 +1766,7 @@ struct AnnotationControlView: View {
                 .focusable(false)
                 .help("Choose pen color")
                 .pointingHandOnHover()
-                .transition(.move(edge: .trailing).combined(with: .opacity))
+                .transition(.opacity.combined(with: .offset(x: 12)))
                 .popover(isPresented: $showColorPopover) {
                     HStack(spacing: 8) {
                         ForEach(AnnotationColor.allCases, id: \.self) { color in
@@ -1807,7 +1810,7 @@ struct AnnotationControlView: View {
                 .focusable(false)
                 .help("Draw freehand strokes")
                 .pointingHandOnHover()
-                .transition(.move(edge: .trailing).combined(with: .opacity))
+                .transition(.opacity.combined(with: .offset(x: 12)))
                 Button {
                     if model.annotationTool == .laser && model.annotationEnabled {
                         model.annotationEnabled = false
@@ -1830,7 +1833,7 @@ struct AnnotationControlView: View {
                 .focusable(false)
                 .help("Point with a laser dot that follows the mouse")
                 .pointingHandOnHover()
-                .transition(.move(edge: .trailing).combined(with: .opacity))
+                .transition(.opacity.combined(with: .offset(x: 12)))
             }
             Button {
                 model.setAnnotationControlExpanded(!model.annotationExpanded)
@@ -1855,7 +1858,7 @@ struct AnnotationControlView: View {
         .background(Capsule().fill(Color.black.opacity(0.45)))
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-        .animation(.easeInOut(duration: 0.35), value: model.annotationExpanded)
+        .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.annotationExpanded)
     }
 }
 struct FileListPopupView: View {
