@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import AVFoundation
 import CoreGraphics
 import Foundation
@@ -760,10 +761,38 @@ final class VeilModel: NSObject, ObservableObject {
     private func minimizeOtherAppsToStageManagerIfEnabled() {
         guard UserDefaults(suiteName: "com.apple.WindowManager")?.bool(forKey: "GloballyEnabled") == true else { return }
         let veilPID = ProcessInfo.processInfo.processIdentifier
+        for windowID in selectedWindowIDs {
+            guard let info = capturedWindows.first(where: { $0.windowID == windowID }),
+                  let pid = info.owningApplication?.processID else { continue }
+            minimizeWindow(windowID: windowID, pid: pid)
+        }
         for app in NSWorkspace.shared.runningApplications {
             guard app.activationPolicy == .regular, !app.isHidden,
                   app.processIdentifier != veilPID, app.bundleIdentifier != "com.veil.app" else { continue }
-            app.hide()
+            minimizeAllWindows(of: app.processIdentifier)
+        }
+    }
+    private func minimizeWindow(windowID: CGWindowID, pid: pid_t) {
+        let appElement = AXUIElementCreateApplication(pid)
+        var windowsValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsValue) == .success,
+              let windows = windowsValue as? [AXUIElement] else { return }
+        for window in windows {
+            var numberValue: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(window, "AXWindowNumber" as CFString, &numberValue) == .success,
+                  let number = numberValue as? NSNumber,
+                  number.uint32Value == windowID else { continue }
+            AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanTrue)
+            return
+        }
+    }
+    private func minimizeAllWindows(of pid: pid_t) {
+        let appElement = AXUIElementCreateApplication(pid)
+        var windowsValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsValue) == .success,
+              let windows = windowsValue as? [AXUIElement] else { return }
+        for window in windows {
+            AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanTrue)
         }
     }
     private func defaultDisplayID(from displays: [SCDisplay]) -> UInt32? {
