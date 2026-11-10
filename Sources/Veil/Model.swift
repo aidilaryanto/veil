@@ -760,13 +760,7 @@ final class VeilModel: NSObject, ObservableObject {
     private func minimizeOtherAppsToStageManagerIfEnabled() {
         guard UserDefaults(suiteName: "com.apple.WindowManager")?.bool(forKey: "GloballyEnabled") == true else { return }
         let veilPID = ProcessInfo.processInfo.processIdentifier
-        var excluded: [String] = ["com.veil.app"]
-        if mode == .allow, canvasMode != .fullDisplay, !selectedWindowIDs.isEmpty {
-            for id in capturedWindows.filter({ selectedWindowIDs.contains($0.windowID) }).compactMap({ $0.owningApplication?.bundleIdentifier }) where !excluded.contains(id) {
-                excluded.append(id)
-            }
-        }
-        let list = excluded.map { "\"\($0)\"" }.joined(separator: ", ")
+        let list = "\"com.veil.app\""
         let scriptSource = """
         tell application "System Events"
           repeat with proc in (every process whose background only is false)
@@ -824,7 +818,6 @@ final class VeilModel: NSObject, ObservableObject {
                     minimizeOtherAppsToStageManagerIfEnabled()
                     if launchAutoStart, !isSharing, !isPanic, filePreviewImage == nil, selectedDisplayID != nil {
                         launchAutoStart = false
-                        activateFirstSelectedWindow()
                         startCapture()
                         return
                     }
@@ -832,7 +825,6 @@ final class VeilModel: NSObject, ObservableObject {
                 }
                 if launchRetryPending, !isSharing, !isPanic, filePreviewImage == nil, selectedDisplayID != nil {
                     launchRetryPending = false
-                    activateFirstSelectedWindow()
                     startCapture()
                     return
                 }
@@ -902,11 +894,6 @@ final class VeilModel: NSObject, ObservableObject {
               let app = NSRunningApplication(processIdentifier: pid),
               !app.isActive else { return }
         app.activate()
-    }
-    func activateFirstSelectedWindow() {
-        guard mode == .allow, canvasMode != .fullDisplay,
-              let firstID = selectedWindowIDs.first else { return }
-        bringSelectedWindowForward(firstID)
     }
     func resetAllSources() {
         clearSelection()
@@ -1152,7 +1139,6 @@ final class VeilModel: NSObject, ObservableObject {
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
                     await MainActor.run {
                         if self.isSharing, self.stream === newStream, !self.streamHasFrame {
-                            self.activateFirstSelectedWindow()
                             self.updateCapture()
                         }
                     }

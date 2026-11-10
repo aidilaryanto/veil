@@ -12,12 +12,6 @@ struct VeilApp: App {
                     model.refreshSources()
                     model.applyAlwaysOnTop()
                     Task {
-                        try? await Task.sleep(nanoseconds: 500_000_000)
-                        await MainActor.run {
-                            model.activateFirstSelectedWindow()
-                        }
-                    }
-                    Task {
                         try? await Task.sleep(nanoseconds: 3_000_000_000)
                         await UpdateChecker.shared.check(manual: false)
                     }
