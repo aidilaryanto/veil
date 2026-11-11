@@ -325,8 +325,11 @@ final class VeilModel: NSObject, ObservableObject {
         canvasBackground = session.canvasBackground
         selectedWindowIDs = Set(session.selectedWindowIDs)
         selectedDisplayID = session.displayID
-        if let id = session.activePresetID, presets.contains(where: { $0.id == id }) {
+        if let id = session.activePresetID, let preset = presets.first(where: { $0.id == id }) {
             activePresetID = id
+            if !preset.files.isEmpty || preset.fileURL != nil {
+                applyPresetFiles(preset)
+            }
         }
         cameraEnabled = session.cameraEnabled
         cameraPosition = session.cameraPosition
@@ -1674,26 +1677,7 @@ final class VeilModel: NSObject, ObservableObject {
         annotationStrokes.removeAll()
         laserPosition = nil
     }
-    func applyPreset(_ preset: Preset) {
-        activePresetID = preset.id
-        mode = preset.mode
-        framing = preset.framing
-        canvasMode = preset.canvasMode
-        canvasBackground = preset.canvasBackground
-        if preset.canvasBackground != .custom { canvasImage = nil }
-        selectedWindowIDs = Set(preset.selectedWindowIDs)
-        previewImage = nil
-        previewSnapshotImage = nil
-        updateSourceAspectRatio()
-        updateSourceAspectRatioFromSelection()
-        cameraEnabled = preset.cameraEnabled
-        cameraPosition = preset.cameraPosition
-        cameraShape = preset.cameraShape
-        cameraSize = preset.cameraSize
-        cameraMirrored = preset.cameraMirrored
-        cameraMarginVertical = preset.cameraMarginVertical
-        cameraMarginHorizontal = preset.cameraMarginHorizontal
-        cameraDeviceID = preset.cameraDeviceID
+    func applyPresetFiles(_ preset: Preset) {
         var presetFiles = preset.files
         if presetFiles.isEmpty,
            let path = preset.fileURL, !path.isEmpty,
@@ -1718,6 +1702,28 @@ final class VeilModel: NSObject, ObservableObject {
             resizeCaptureAreaWindow()
             closeFileControlWindow()
         }
+    }
+    func applyPreset(_ preset: Preset) {
+        activePresetID = preset.id
+        mode = preset.mode
+        framing = preset.framing
+        canvasMode = preset.canvasMode
+        canvasBackground = preset.canvasBackground
+        if preset.canvasBackground != .custom { canvasImage = nil }
+        selectedWindowIDs = Set(preset.selectedWindowIDs)
+        previewImage = nil
+        previewSnapshotImage = nil
+        updateSourceAspectRatio()
+        updateSourceAspectRatioFromSelection()
+        cameraEnabled = preset.cameraEnabled
+        cameraPosition = preset.cameraPosition
+        cameraShape = preset.cameraShape
+        cameraSize = preset.cameraSize
+        cameraMirrored = preset.cameraMirrored
+        cameraMarginVertical = preset.cameraMarginVertical
+        cameraMarginHorizontal = preset.cameraMarginHorizontal
+        cameraDeviceID = preset.cameraDeviceID
+        applyPresetFiles(preset)
         if isSharing {
             stopPreviewSnapshotTimer()
             previewSnapshotImage = nil
