@@ -1229,9 +1229,13 @@ final class VeilModel: NSObject, ObservableObject {
                         reopenFileControlIfNeeded()
                         reopenTimerControlIfNeeded()
                     }
-                    try? await Task.sleep(nanoseconds: 1_000_000_000)
-                    await MainActor.run {
-                        if self.isSharing, self.stream === newStream, !self.streamHasFrame {
+                    for _ in 0..<30 {
+                        try? await Task.sleep(nanoseconds: 2_000_000_000)
+                        let shouldRetry = await MainActor.run {
+                            self.isSharing && self.stream === newStream && !self.streamHasFrame
+                        }
+                        guard shouldRetry else { break }
+                        await MainActor.run {
                             self.refreshCaptureFilter()
                         }
                     }
