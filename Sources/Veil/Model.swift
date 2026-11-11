@@ -1168,6 +1168,9 @@ final class VeilModel: NSObject, ObservableObject {
                         stopPreviewSnapshotTimer()
                         status = "Sharing is live (\(selectedWindowIDs.count) windows). Share the Output window in Zoom/Meet/Teams."
                         startCaptureWatchdog()
+                        if !isCaptureAreaVisible {
+                            openCaptureAreaWindow()
+                        }
                         resizeCaptureAreaWindow()
                         reopenFileControlIfNeeded()
                         reopenTimerControlIfNeeded()
