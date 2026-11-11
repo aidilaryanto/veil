@@ -626,6 +626,7 @@ extension VeilModel {
             dockAnnotationControlToCaptureArea()
             return
         }
+        guard isCaptureAreaVisible else { return }
         let size = captureAreaWindowSize(width: window.frame.width)
         if let screen = window.screen ?? NSScreen.main {
             let visible = nativeFullscreenScreen()?.frame ?? screen.visibleFrame
@@ -670,25 +671,23 @@ extension VeilModel {
         closeTimerControlWindow()
         closeAnnotationControlWindow()
         if let window = CaptureAreaWindowStore.shared.window {
-            if let observer = CaptureAreaWindowStore.shared.closeObserver {
-                NotificationCenter.default.removeObserver(observer)
-                CaptureAreaWindowStore.shared.closeObserver = nil
-            }
-            if let observer = CaptureAreaWindowStore.shared.resizeObserver {
-                NotificationCenter.default.removeObserver(observer)
-                CaptureAreaWindowStore.shared.resizeObserver = nil
-            }
-            window.contentView = nil
-            window.close()
-            CaptureAreaWindowStore.shared.window = nil
+            window.setFrameOrigin(CGPoint(x: -10000, y: -10000))
         }
         isCaptureAreaVisible = false
     }
     func openCaptureAreaWindow() {
         if let window = CaptureAreaWindowStore.shared.window {
+            isCaptureAreaVisible = true
+            if let screen = NSScreen.main {
+                let visible = screen.visibleFrame
+                let origin = CGPoint(
+                    x: max(visible.minX, visible.midX - window.frame.width / 2),
+                    y: max(visible.minY, visible.midY - window.frame.height / 2)
+                )
+                window.setFrameOrigin(origin)
+            }
             resizeCaptureAreaWindow()
             window.makeKeyAndOrderFront(nil)
-            isCaptureAreaVisible = true
             dockFileControlToCaptureArea()
             attachFileControlWindow()
             reopenFileControlIfNeeded()
