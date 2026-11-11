@@ -770,8 +770,12 @@ final class VeilModel: NSObject, ObservableObject {
         return ids.isEmpty ? nil : ids
     }
     private static func sourceItems(from windows: [SCWindow]) -> [SourceItem] {
+        let regularProcessIDs = Set(NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular }
+            .map { $0.processIdentifier })
         let withoutLayer = windows.filter { window in
-            guard let app = window.owningApplication, app.bundleIdentifier != Bundle.main.bundleIdentifier else { return false }
+            guard let app = window.owningApplication, app.bundleIdentifier != Bundle.main.bundleIdentifier,
+                  regularProcessIDs.contains(app.processID) else { return false }
             return window.frame.width >= 20 && window.frame.height >= 20
         }
         let normalLayers = normalLayerWindowIDs().flatMap { normal in
