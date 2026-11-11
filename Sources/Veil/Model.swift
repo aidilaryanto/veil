@@ -597,7 +597,7 @@ final class VeilModel: NSObject, ObservableObject {
             filter = SCContentFilter(desktopIndependentWindow: onlyWindow)
             config.width = max(2, Int(frame.width * scale))
             config.height = max(2, Int(frame.height * scale))
-        } else if framing == .dynamic, let singleWindow = dynamicUnionWindows().first, dynamicUnionWindows().count == 1 {
+        } else if let singleWindow = dynamicUnionWindows().first, dynamicUnionWindows().count == 1 {
             let frame = singleWindow.frame
             let scale = NSScreen.screens.first(where: { $0.frame.intersects(frame) })?.backingScaleFactor
                 ?? NSScreen.main?.backingScaleFactor ?? 1
@@ -1023,7 +1023,7 @@ final class VeilModel: NSObject, ObservableObject {
             filter = SCContentFilter(desktopIndependentWindow: onlyWindow)
             config.width = max(2, Int(frame.width * scale))
             config.height = max(2, Int(frame.height * scale))
-        } else if mode == .allow, framing == .dynamic,
+        } else if mode == .allow,
                   let singleWindow = dynamicUnionWindows().first, dynamicUnionWindows().count == 1 {
             let frame = singleWindow.frame
             let scale = scaleFactor(frame)

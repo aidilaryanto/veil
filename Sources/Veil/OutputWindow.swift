@@ -107,8 +107,9 @@ extension VeilModel {
         return nil
     }
     func positionedCanvasScreen() -> NSScreen? {
-        guard filePreviewImage == nil, mode == .allow, selectedWindowIDs.count == 1,
-              framing == .full, canvasMode == .isolated else { return nil }
+        guard filePreviewImage == nil, mode == .allow,
+              framing == .full, canvasMode == .isolated,
+              selectedWindowIDs.count == 1 || dynamicUnionWindows().count == 1 else { return nil }
         if let frame = previewSourceFrame() {
             return NSScreen.screens.first(where: { $0.frame.intersects(frame) }) ?? NSScreen.main
         }
@@ -261,6 +262,10 @@ extension VeilModel {
            let onlyID = selectedWindowIDs.first,
            let frame = capturedWindows.first(where: { $0.windowID == onlyID })?.frame {
             return frame
+        }
+        if mode == .allow, framing == .full, canvasMode == .isolated,
+           let singleWindow = dynamicUnionWindows().first, dynamicUnionWindows().count == 1 {
+            return singleWindow.frame
         }
         if isSharing, mode == .allow, framing == .dynamic, canvasMode == .isolated,
            selectedWindowIDs.count > 1, let captureUnion = dynamicCaptureUnion {
