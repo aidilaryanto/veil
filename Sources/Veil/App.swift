@@ -10,7 +10,17 @@ struct VeilApp: App {
                 .frame(width: 540)
                 .onAppear {
                     model.refreshSources()
-                    model.openCaptureAreaWindow(hidden: true)
+                    if !model.selectedWindowIDs.isEmpty {
+                        model.openCaptureAreaWindow()
+                        Task {
+                            try? await Task.sleep(nanoseconds: 1_500_000_000)
+                            await MainActor.run {
+                                model.closeCaptureAreaWindow()
+                            }
+                        }
+                    } else {
+                        model.openCaptureAreaWindow(hidden: true)
+                    }
                     Task {
                         try? await Task.sleep(nanoseconds: 3_000_000_000)
                         await UpdateChecker.shared.check(manual: false)
