@@ -126,7 +126,7 @@ extension VeilModel {
     }
     func positionedSourceFrame() -> CGRect? {
         if let live = livePositionedFrame, let liveID = livePositionedWindowID,
-           mode == .allow, selectedWindowIDs.count == 1, selectedWindowIDs.first == liveID {
+           mode == .allow, let effectiveID = effectiveSingleWindowID, effectiveID == liveID {
             return live
         }
         return previewSourceFrame()
@@ -155,7 +155,7 @@ extension VeilModel {
         guard let screen = positionedCanvasScreen() else { return nil }
         let frame: CGRect
         if let live = livePositionedFrame, let liveID = livePositionedWindowID,
-           mode == .allow, selectedWindowIDs.count == 1, selectedWindowIDs.first == liveID {
+           mode == .allow, let effectiveID = effectiveSingleWindowID, effectiveID == liveID {
             frame = live
         } else if let sourceFrame = previewSourceFrame() {
             frame = sourceFrame

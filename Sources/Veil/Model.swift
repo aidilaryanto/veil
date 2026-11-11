@@ -488,6 +488,16 @@ final class VeilModel: NSObject, ObservableObject {
         let onScreen = selected.filter { $0.isOnScreen }
         return onScreen.isEmpty ? selected : onScreen
     }
+    var effectiveSingleWindowID: CGWindowID? {
+        if selectedWindowIDs.count == 1 {
+            return selectedWindowIDs.first
+        }
+        let union = dynamicUnionWindows()
+        if union.count == 1 {
+            return union.first?.windowID
+        }
+        return nil
+    }
     func dynamicUnionFrame() -> CGRect? {
         dynamicUnionWindows().map { $0.frame }.reduce(nil as CGRect?, { $0 == nil ? $1 : $0!.union($1) })
     }
@@ -1304,9 +1314,8 @@ final class VeilModel: NSObject, ObservableObject {
         positionPollTimer = nil
     }
     private func pollPositionedFrame() {
-        guard isSharing, mode == .allow, selectedWindowIDs.count == 1,
-              positionedCanvasScreen() != nil,
-              let windowID = selectedWindowIDs.first,
+        guard isSharing, mode == .allow, positionedCanvasScreen() != nil,
+              let windowID = effectiveSingleWindowID,
               let list = CGWindowListCopyWindowInfo(.optionIncludingWindow, windowID) as? [[CFString: Any]],
               let raw = list.first?[kCGWindowBounds] else { return }
         var bounds: CGRect?
