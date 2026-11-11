@@ -418,8 +418,17 @@ final class VeilModel: NSObject, ObservableObject {
         presets = updated
         persistPresets()
     }
+    var selectedAppCount: Int {
+        Set(sources.filter { selectedWindowIDs.contains($0.id) }.map { $0.appName }).count
+    }
     var sourceRuleCount: Int {
-        selectedWindowIDs.count + (activeFile != nil ? 1 : 0)
+        selectedAppCount + (activeFile != nil ? 1 : 0)
+    }
+    var isSelectionOffScreen: Bool {
+        guard !selectedWindowIDs.isEmpty, canvasMode != .fullDisplay, mode == .allow, framing == .dynamic else { return false }
+        guard let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first else { return false }
+        guard let union = dynamicUnionFrame() else { return false }
+        return sourceRect(for: union, on: display) == nil
     }
     var activeFile: FileSource? {
         guard let id = activeFileID else { return nil }
@@ -551,7 +560,7 @@ final class VeilModel: NSObject, ObservableObject {
     }
     func refreshPreviewSnapshot() {
         guard !isSharing, !isPanic, filePreviewImage == nil,
-              mode == .allow, !selectedWindowIDs.isEmpty else {
+              mode == .allow, !selectedWindowIDs.isEmpty, !isSelectionOffScreen else {
             previewSnapshotImage = nil
             return
         }
@@ -604,8 +613,8 @@ final class VeilModel: NSObject, ObservableObject {
                     config.width = max(2, Int(rect.width * scale))
                     config.height = max(2, Int(rect.height * scale))
                 } else {
-                    config.width = display.width
-                    config.height = display.height
+                    previewSnapshotImage = nil
+                    return
                 }
             } else if let (rect, scale) = displayWithoutMenuBar(for: display) {
                 config.sourceRect = rect
@@ -977,6 +986,7 @@ final class VeilModel: NSObject, ObservableObject {
         pendingDynamicUnion = nil
         guard selectedDisplayID != nil else { return nil }
         guard !isNothingSelected else { return nil }
+        guard !isSelectionOffScreen else { return nil }
         guard let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first else { return nil }
         let config = SCStreamConfiguration()
         config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
@@ -1023,8 +1033,7 @@ final class VeilModel: NSObject, ObservableObject {
                         config.width = max(2, Int(rect.width * scale))
                         config.height = max(2, Int(rect.height * scale))
                     } else {
-                        config.width = display.width
-                        config.height = display.height
+                        return nil
                     }
                 } else if let (rect, scale) = displayWithoutMenuBar(for: display) {
                     config.sourceRect = rect
@@ -1053,6 +1062,9 @@ final class VeilModel: NSObject, ObservableObject {
         guard let (filter, config) = captureFilterAndConfig() else {
             if isNothingSelected {
                 stopStreamOnly()
+            } else if isSelectionOffScreen {
+                stopStreamOnly()
+                status = "Selected window is off screen."
             }
             return
         }
@@ -1135,6 +1147,10 @@ final class VeilModel: NSObject, ObservableObject {
                 status = "Nothing is currently selected to share."
                 return
             }
+            if isSelectionOffScreen {
+                status = "Selected window is off screen."
+                return
+            }
             status = selectedDisplayID == nil ? "Pause the output until a display is selected." : "No display found. Press Refresh first."
             if selectedDisplayID != nil {
                 launchRetryPending = true
@@ -1166,7 +1182,7 @@ final class VeilModel: NSObject, ObservableObject {
                         dynamicCaptureUnion = pendingDynamicUnion
                         beginSharingActivity()
                         stopPreviewSnapshotTimer()
-                        status = "Sharing is live (\(selectedWindowIDs.count) windows). Share the Output window in Zoom/Meet/Teams."
+                        status = "Sharing is live (\(selectedAppCount) \(selectedAppCount == 1 ? "app" : "apps")). Share the Output window in Zoom/Meet/Teams."
                         startCaptureWatchdog()
                         refreshCaptureFilter()
                         resizeCaptureAreaWindow()
