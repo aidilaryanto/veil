@@ -894,7 +894,7 @@ final class VeilModel: NSObject, ObservableObject {
             stopPreviewSnapshotTimer()
             updateCapture()
         } else if wasAdding, !selectedWindowIDs.isEmpty {
-            startCapture()
+            startCaptureWithFreshSources()
         } else {
             refreshPreviewSnapshot()
             startPreviewSnapshotTimer()
@@ -924,7 +924,7 @@ final class VeilModel: NSObject, ObservableObject {
             stopPreviewSnapshotTimer()
             updateCapture()
         } else if wasAdded, !selectedWindowIDs.isEmpty {
-            startCapture()
+            startCaptureWithFreshSources()
         } else {
             refreshPreviewSnapshot()
             startPreviewSnapshotTimer()
@@ -1087,6 +1087,30 @@ final class VeilModel: NSObject, ObservableObject {
                 guard isSharing, stream != nil else { return }
                 updateCapture()
             } catch {
+            }
+        }
+    }
+    func startCaptureWithFreshSources() {
+        Task {
+            do {
+                let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false)
+                await MainActor.run {
+                    displays = content.displays
+                    capturedWindows = content.windows
+                    capturedApplications = content.applications
+                    sources = Self.sourceItems(from: content.windows)
+                    updateSourceAspectRatio()
+                    resizeCaptureAreaWindow()
+                    if !selectedWindowIDs.isEmpty, !isSharing {
+                        startCapture()
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    if !selectedWindowIDs.isEmpty, !isSharing {
+                        startCapture()
+                    }
+                }
             }
         }
     }
