@@ -597,6 +597,13 @@ final class VeilModel: NSObject, ObservableObject {
             filter = SCContentFilter(desktopIndependentWindow: onlyWindow)
             config.width = max(2, Int(frame.width * scale))
             config.height = max(2, Int(frame.height * scale))
+        } else if framing == .dynamic, let singleWindow = dynamicUnionWindows().first, dynamicUnionWindows().count == 1 {
+            let frame = singleWindow.frame
+            let scale = NSScreen.screens.first(where: { $0.frame.intersects(frame) })?.backingScaleFactor
+                ?? NSScreen.main?.backingScaleFactor ?? 1
+            filter = SCContentFilter(desktopIndependentWindow: singleWindow)
+            config.width = max(2, Int(frame.width * scale))
+            config.height = max(2, Int(frame.height * scale))
         } else {
             guard let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first,
                   let union = dynamicUnionFrame(), union.width > 0, union.height > 0 else {
@@ -1014,6 +1021,13 @@ final class VeilModel: NSObject, ObservableObject {
             let frame = onlyWindow.frame
             let scale = scaleFactor(frame)
             filter = SCContentFilter(desktopIndependentWindow: onlyWindow)
+            config.width = max(2, Int(frame.width * scale))
+            config.height = max(2, Int(frame.height * scale))
+        } else if mode == .allow, framing == .dynamic,
+                  let singleWindow = dynamicUnionWindows().first, dynamicUnionWindows().count == 1 {
+            let frame = singleWindow.frame
+            let scale = scaleFactor(frame)
+            filter = SCContentFilter(desktopIndependentWindow: singleWindow)
             config.width = max(2, Int(frame.width * scale))
             config.height = max(2, Int(frame.height * scale))
         } else {
