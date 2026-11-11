@@ -2061,6 +2061,9 @@ extension VeilModel: SCStreamOutput {
             if frameIndex <= 5 {
                 DebugLog.log("delegate: main frame #\(frameIndex) \(frameWidth)x\(frameHeight) black=\(isBlack)")
             }
+            if frameIndex % 120 == 0 {
+                DebugLog.log("delegate: frame #\(frameIndex) \(frameWidth)x\(frameHeight) black=\(isBlack)")
+            }
             if isBlack {
                 if CaptureRouting.shared.recordBlackFrame() {
                     DebugLog.log("delegate: 15 black frames in a row, restarting capture")
