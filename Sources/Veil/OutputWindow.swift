@@ -944,6 +944,8 @@ final class CaptureRouting {
     private var paused = false
     private var firstFrame = false
     private var lastRatio: CGFloat = 0
+    private var consecutiveBlackFrames = 0
+    private var lastBlackRestart = Date.distantPast
     private init() {}
     func setMainStreamID(_ id: ObjectIdentifier?) {
         lock.lock()
@@ -1000,6 +1002,22 @@ final class CaptureRouting {
         }
         lock.unlock()
         return changed
+    }
+    func recordBlackFrame() -> Bool {
+        lock.lock()
+        consecutiveBlackFrames += 1
+        let shouldRestart = consecutiveBlackFrames >= 15 && Date().timeIntervalSince(lastBlackRestart) > 3
+        if shouldRestart {
+            consecutiveBlackFrames = 0
+            lastBlackRestart = Date()
+        }
+        lock.unlock()
+        return shouldRestart
+    }
+    func resetBlackFrames() {
+        lock.lock()
+        consecutiveBlackFrames = 0
+        lock.unlock()
     }
 }
 final class DirectStreamNSView: NSView {

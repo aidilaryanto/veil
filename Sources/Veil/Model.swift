@@ -1964,11 +1964,20 @@ extension VeilModel: SCStreamOutput {
             StreamDisplayLayers.shared.render(sampleBuffer)
             let frameWidth = CVPixelBufferGetWidth(pixelBuffer)
             let frameHeight = CVPixelBufferGetHeight(pixelBuffer)
-            if !Self.isBlackPixelBuffer(pixelBuffer), CaptureRouting.shared.takeFirstFrame() {
-                Task { @MainActor in
-                    self.streamHasFrame = true
-                    self.previewSnapshotImage = nil
-                    self.stopPreviewSnapshotTimer()
+            if Self.isBlackPixelBuffer(pixelBuffer) {
+                if CaptureRouting.shared.recordBlackFrame() {
+                    Task { @MainActor in
+                        self.restartCapture()
+                    }
+                }
+            } else {
+                CaptureRouting.shared.resetBlackFrames()
+                if CaptureRouting.shared.takeFirstFrame() {
+                    Task { @MainActor in
+                        self.streamHasFrame = true
+                        self.previewSnapshotImage = nil
+                        self.stopPreviewSnapshotTimer()
+                    }
                 }
             }
             if frameWidth > 0, frameHeight > 0 {
