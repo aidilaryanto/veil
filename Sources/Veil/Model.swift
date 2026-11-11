@@ -786,7 +786,7 @@ final class VeilModel: NSObject, ObservableObject {
         let withoutLayer = windows.filter { window in
             guard let app = window.owningApplication, app.bundleIdentifier != Bundle.main.bundleIdentifier,
                   regularProcessIDs.contains(app.processID) else { return false }
-            return window.frame.width >= 20 && window.frame.height >= 20
+            return window.isOnScreen && window.frame.width >= 20 && window.frame.height >= 20
         }
         let normalLayers = normalLayerWindowIDs().flatMap { normal in
             withoutLayer.contains(where: { normal.contains($0.windowID) }) ? normal : nil
