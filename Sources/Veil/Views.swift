@@ -745,7 +745,7 @@ struct ContentView: View {
                 .font(.caption)
                 .foregroundStyle(Color.white.opacity(0.85))
             if model.visibleSources.isEmpty {
-                Text(model.sources.isEmpty ? "No on-screen windows found. Bring an app forward, reopen Sources, and check Screen Recording permission if the list stays empty." : "No Matching Sources")
+                Text(model.sources.isEmpty ? "No windows found. Bring an app forward, reopen Sources, and check Screen Recording permission if the list stays empty." : "No Matching Sources")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 20)
@@ -757,6 +757,7 @@ struct ContentView: View {
                             let noneSelected = group.items.allSatisfy { !model.selectedWindowIDs.contains($0.id) }
                             let appShown = group.items.contains { model.isWindowShown($0.id) }
                             let appActive = group.items.contains { $0.isActive }
+                            let appOnScreen = group.items.contains { $0.isOnScreen }
                             let isExpanded = !model.searchText.isEmpty || expandedApps.contains(group.app)
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack(spacing: 10) {
@@ -786,7 +787,7 @@ struct ContentView: View {
                                     .pointingHandOnHover()
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text(group.app).font(.subheadline).bold().lineLimit(1)
-                                        Text(appActive ? "Currently focused" : "On screen")
+                                        Text(appActive ? "Currently focused" : (appOnScreen ? "On screen" : "Off screen"))
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                             .lineLimit(2)
@@ -820,8 +821,11 @@ struct ContentView: View {
                                                     sourceCheckbox(selected: model.selectedWindowIDs.contains(item.id), partial: false)
                                                     VStack(alignment: .leading, spacing: 4) {
                                                         Text(item.title).font(.subheadline).lineLimit(1)
-                                                        if item.isActive {
-                                                            smallPill("Focused", .blue)
+                                                        HStack(spacing: 6) {
+                                                            smallPill(item.isOnScreen ? "On Screen" : "Off Screen", item.isOnScreen ? .gray : .orange)
+                                                            if item.isActive {
+                                                                smallPill("Focused", .blue)
+                                                            }
                                                         }
                                                     }
                                                     Spacer()
