@@ -750,7 +750,13 @@ final class VeilModel: NSObject, ObservableObject {
     func startPreviewSnapshotTimer() {
         guard !isSharing, previewSnapshotTimer == nil else { return }
         previewSnapshotTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refreshPreviewSnapshot() }
+            Task { @MainActor in
+                if self?.launchRetryPending == true {
+                    self?.refreshSources()
+                } else {
+                    self?.refreshPreviewSnapshot()
+                }
+            }
         }
     }
     func stopPreviewSnapshotTimer() {
@@ -866,10 +872,6 @@ final class VeilModel: NSObject, ObservableObject {
                     isFirstRefresh = false
                     if let id = selectedDisplayID, !displays.contains(where: { $0.displayID == id }) {
                         selectedDisplayID = defaultDisplayID(from: displays)
-                    }
-                    if canvasMode != .fullDisplay {
-                        let liveIDs = Set(capturedWindows.map { $0.windowID })
-                        selectedWindowIDs = selectedWindowIDs.intersection(liveIDs)
                     }
                     if launchAutoStart, !isSharing, !isPanic, filePreviewImage == nil, selectedDisplayID != nil {
                         launchAutoStart = false
@@ -1054,6 +1056,9 @@ final class VeilModel: NSObject, ObservableObject {
             config.width = max(2, Int(frame.width * scale))
             config.height = max(2, Int(frame.height * scale))
         } else {
+            if mode == .allow, !selectedWindowIDs.isEmpty, capturedWindows.filter({ selectedWindowIDs.contains($0.windowID) }).isEmpty {
+                return nil
+            }
             let excluded: [SCWindow]
             if mode == .allow {
                 excluded = capturedWindows.filter { !selectedWindowIDs.contains($0.windowID) || $0.owningApplication?.bundleIdentifier == Bundle.main.bundleIdentifier }
