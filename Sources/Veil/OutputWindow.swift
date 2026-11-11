@@ -680,7 +680,8 @@ extension VeilModel {
     private func moveCaptureAreaOffScreen(_ window: NSWindow) {
         let screen = window.screen ?? NSScreen.main
         let visible = screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
-        window.setFrameOrigin(CGPoint(x: visible.maxX, y: visible.minY - window.frame.height))
+        let sliver: CGFloat = 4
+        window.setFrameOrigin(CGPoint(x: visible.maxX - sliver, y: visible.minY - window.frame.height + sliver))
     }
     func closeCaptureAreaWindow() {
         closeFileControlWindow()
