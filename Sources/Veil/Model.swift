@@ -2024,11 +2024,10 @@ extension VeilModel: SCStreamOutput {
             let statusName: String
             switch frameStatus {
             case .started: statusName = "started"
-            case .continuing: statusName = "continuing"
             case .suspended: statusName = "suspended"
             case .idle: statusName = "idle"
-            case .contentRectChanged: statusName = "contentRectChanged"
-            case .contentChanged: statusName = "contentChanged"
+            case .blank: statusName = "blank"
+            case .stopped: statusName = "stopped"
             case .complete: statusName = "complete"
             @unknown default: statusName = "unknown(\(statusValue))"
             }
