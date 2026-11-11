@@ -1176,12 +1176,7 @@ final class VeilModel: NSObject, ObservableObject {
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
                     await MainActor.run {
                         if self.isSharing, self.stream === newStream, !self.streamHasFrame {
-                            let inStrip = self.capturedWindows
-                                .filter { self.selectedWindowIDs.contains($0.windowID) }
-                                .contains { $0.frame.width < 320 && $0.frame.height < 240 && $0.frame.origin.x < 150 }
-                            if !inStrip {
-                                self.updateCapture()
-                            }
+                            self.updateCapture()
                         }
                     }
                 } catch {
@@ -1338,17 +1333,14 @@ final class VeilModel: NSObject, ObservableObject {
             if displays.map({ $0.displayID }) != content.displays.map({ $0.displayID }) {
                 displays = content.displays
             }
-            let selectedInStrip = selected.contains { $0.frame.width < 320 && $0.frame.height < 240 && $0.frame.origin.x < 150 }
             if newContentSignature != lastCaptureSignature {
                 sources = Self.sourceItems(from: content.windows)
                 lastCaptureSignature = newContentSignature
                 lastPositionSignature = newPositionSignature
-                if !selectedInStrip {
-                    updateCapture()
-                }
+                updateCapture()
             } else {
                 lastPositionSignature = newPositionSignature
-                if mode == .allow, framing == .dynamic, canvasMode != .fullDisplay, !selectedWindowIDs.isEmpty, !selectedInStrip {
+                if mode == .allow, framing == .dynamic, canvasMode != .fullDisplay, !selectedWindowIDs.isEmpty {
                     updateCapture()
                 }
             }
