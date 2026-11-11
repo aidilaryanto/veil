@@ -779,6 +779,15 @@ final class VeilModel: NSObject, ObservableObject {
         }
         return ids.isEmpty ? nil : ids
     }
+    private static func isFullscreenWindow(_ window: SCWindow) -> Bool {
+        let frame = window.frame
+        return NSScreen.screens.contains { screen in
+            abs(frame.origin.x - screen.frame.origin.x) < 2 &&
+            abs(frame.origin.y - screen.frame.origin.y) < 2 &&
+            abs(frame.width - screen.frame.width) < 2 &&
+            abs(frame.height - screen.frame.height) < 2
+        }
+    }
     private static func sourceItems(from windows: [SCWindow]) -> [SourceItem] {
         let regularProcessIDs = Set(NSWorkspace.shared.runningApplications
             .filter { $0.activationPolicy == .regular }
@@ -786,7 +795,7 @@ final class VeilModel: NSObject, ObservableObject {
         let withoutLayer = windows.filter { window in
             guard let app = window.owningApplication, app.bundleIdentifier != Bundle.main.bundleIdentifier,
                   regularProcessIDs.contains(app.processID) else { return false }
-            return window.isOnScreen && window.frame.width >= 20 && window.frame.height >= 20
+            return (window.isOnScreen || isFullscreenWindow(window)) && window.frame.width >= 20 && window.frame.height >= 20
         }
         let normalLayers = normalLayerWindowIDs().flatMap { normal in
             withoutLayer.contains(where: { normal.contains($0.windowID) }) ? normal : nil
