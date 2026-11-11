@@ -493,7 +493,7 @@ struct ContentView: View {
     }
     @ViewBuilder
     private var presetStrip: some View {
-        if model.isSharing, !customPresets.isEmpty {
+        if !customPresets.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Scene / Preset")
                     .font(.caption)
