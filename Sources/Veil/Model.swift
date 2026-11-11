@@ -1910,6 +1910,30 @@ final class VeilModel: NSObject, ObservableObject {
 }
 extension VeilModel: SCStreamOutput {
     nonisolated private static let sharedFrameContext = CIContext()
+    nonisolated private static func isBlackPixelBuffer(_ pixelBuffer: CVPixelBuffer) -> Bool {
+        CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+        guard let base = CVPixelBufferGetBaseAddress(pixelBuffer) else { return false }
+        let width = CVPixelBufferGetWidth(pixelBuffer)
+        let height = CVPixelBufferGetHeight(pixelBuffer)
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+        guard width > 0, height > 0, bytesPerRow >= width * 4 else { return false }
+        let samples = 4
+        for gy in 0..<samples {
+            for gx in 0..<samples {
+                let x = min(max((gx * width) / samples + width / (samples * 2), 0), width - 1)
+                let y = min(max((gy * height) / samples + height / (samples * 2), 0), height - 1)
+                let pixel = base.advanced(by: y * bytesPerRow + x * 4)
+                let b = pixel.load(as: UInt8.self)
+                let g = pixel.advanced(by: 1).load(as: UInt8.self)
+                let r = pixel.advanced(by: 2).load(as: UInt8.self)
+                if r > 4 || g > 4 || b > 4 {
+                    return false
+                }
+            }
+        }
+        return true
+    }
     nonisolated func stream(
         _ stream: SCStream,
         didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
@@ -1940,7 +1964,7 @@ extension VeilModel: SCStreamOutput {
             StreamDisplayLayers.shared.render(sampleBuffer)
             let frameWidth = CVPixelBufferGetWidth(pixelBuffer)
             let frameHeight = CVPixelBufferGetHeight(pixelBuffer)
-            if CaptureRouting.shared.takeFirstFrame() {
+            if !Self.isBlackPixelBuffer(pixelBuffer), CaptureRouting.shared.takeFirstFrame() {
                 Task { @MainActor in
                     self.streamHasFrame = true
                     self.previewSnapshotImage = nil
