@@ -495,7 +495,7 @@ extension VeilModel {
         } else {
             presentationTimerExpanded = false
             guard let frame = timerControlFrame(expanded: false) else { return }
-            let annotationFrame = annotationControlFrame(expanded: annotationExpanded)
+            let annotationFrame = annotationFrame(forTimerFrame: frame, expanded: annotationExpanded)
             NSAnimationContext.runAnimationGroup({ context in
                 context.duration = 0.55
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
@@ -521,10 +521,9 @@ extension VeilModel {
     func annotationControlSize(expanded: Bool) -> CGSize {
         expanded ? CGSize(width: 172, height: 36) : CGSize(width: 36, height: 36)
     }
-    func annotationControlFrame(expanded: Bool) -> CGRect? {
+    func annotationFrame(forTimerFrame timerFrame: CGRect, expanded: Bool) -> CGRect? {
         guard let output = CaptureAreaWindowStore.shared.window, output.isVisible,
-              let screen = output.screen ?? NSScreen.main,
-              let timerFrame = timerControlFrame(expanded: presentationTimerExpanded) else { return nil }
+              let screen = output.screen ?? NSScreen.main else { return nil }
         let visible = screen.visibleFrame
         let size = annotationControlSize(expanded: expanded)
         let gap: CGFloat = 8
@@ -535,6 +534,13 @@ extension VeilModel {
         if y < visible.minY { y = visible.minY }
         if y + size.height > visible.maxY { y = visible.maxY - size.height }
         return CGRect(x: x, y: y, width: size.width, height: size.height)
+    }
+    func annotationControlFrame(expanded: Bool) -> CGRect? {
+        if let timerWindow = TimerControlWindowStore.shared.window {
+            return annotationFrame(forTimerFrame: timerWindow.frame, expanded: expanded)
+        }
+        guard let timerFrame = timerControlFrame(expanded: presentationTimerExpanded) else { return nil }
+        return annotationFrame(forTimerFrame: timerFrame, expanded: expanded)
     }
     func openAnnotationControlWindow() {
         guard CaptureAreaWindowStore.shared.window != nil, isCaptureAreaVisible else { return }
