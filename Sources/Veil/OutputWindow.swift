@@ -785,6 +785,9 @@ final class MetalDisplayLayer: CAMetalLayer {
     private var samplerState: MTLSamplerState?
     private var positionBuffer: MTLBuffer?
     private var texCoordBuffer: MTLBuffer?
+    private var nilDrawableCount = 0
+    private var setupNilCount = 0
+    private let logLock = NSLock()
     override init() {
         super.init()
         guard let device = MTLCreateSystemDefaultDevice() else { return }
@@ -844,8 +847,26 @@ final class MetalDisplayLayer: CAMetalLayer {
               let commandQueue,
               let pipelineState,
               let textureCache,
-              let samplerState,
-              let drawable = nextDrawable() else { return }
+              let samplerState else {
+            logLock.lock()
+            setupNilCount += 1
+            let count = setupNilCount
+            logLock.unlock()
+            if count <= 3 {
+                DebugLog.log("metal: render setup nil count=\(count) device=\(metalDevice != nil) pipeline=\(pipelineState != nil) cache=\(textureCache != nil) sampler=\(samplerState != nil)")
+            }
+            return
+        }
+        guard let drawable = nextDrawable() else {
+            logLock.lock()
+            nilDrawableCount += 1
+            let count = nilDrawableCount
+            logLock.unlock()
+            if count <= 3 || count % 600 == 0 {
+                DebugLog.log("metal: nextDrawable nil count=\(count) drawableSize=\(drawableSize) bounds=\(bounds.size)")
+            }
+            return
+        }
         let textureWidth = CVPixelBufferGetWidth(pixelBuffer)
         let textureHeight = CVPixelBufferGetHeight(pixelBuffer)
         guard textureWidth > 0, textureHeight > 0 else { return }
@@ -1053,9 +1074,14 @@ final class DirectStreamNSView: NSView {
     required init?(coder: NSCoder) {
         fatalError()
     }
+    func syncDrawableSize() {
+        let scale = window?.backingScaleFactor ?? layer?.contentsScale ?? 1
+        displayLayer.drawableSize = CGSize(width: bounds.width * scale, height: bounds.height * scale)
+    }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if window != nil {
+            syncDrawableSize()
             DispatchQueue.main.async {
                 StreamDisplayLayers.shared.renderLastFrame()
             }
@@ -1063,8 +1089,7 @@ final class DirectStreamNSView: NSView {
     }
     override func layout() {
         super.layout()
-        let scale = window?.backingScaleFactor ?? layer?.contentsScale ?? 1
-        displayLayer.drawableSize = CGSize(width: bounds.width * scale, height: bounds.height * scale)
+        syncDrawableSize()
     }
 }
 struct DirectStreamView: NSViewRepresentable {
@@ -1077,5 +1102,6 @@ struct DirectStreamView: NSViewRepresentable {
     }
     func updateNSView(_ nsView: DirectStreamNSView, context: Context) {
         layer.gravity = gravity
+        nsView.syncDrawableSize()
     }
 }
