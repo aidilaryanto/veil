@@ -666,17 +666,28 @@ extension VeilModel {
             openCaptureAreaWindow()
         }
     }
+    private func moveCaptureAreaOffScreen(_ window: NSWindow) {
+        let screen = window.screen ?? NSScreen.main
+        let visible = screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
+        window.setFrameOrigin(CGPoint(x: visible.maxX, y: visible.minY - window.frame.height))
+    }
     func closeCaptureAreaWindow() {
         closeFileControlWindow()
         closeTimerControlWindow()
         closeAnnotationControlWindow()
         if let window = CaptureAreaWindowStore.shared.window {
-            window.setFrameOrigin(CGPoint(x: -10000, y: -10000))
+            moveCaptureAreaOffScreen(window)
         }
         isCaptureAreaVisible = false
     }
-    func openCaptureAreaWindow() {
+    func openCaptureAreaWindow(hidden: Bool = false) {
         if let window = CaptureAreaWindowStore.shared.window {
+            if hidden {
+                moveCaptureAreaOffScreen(window)
+                window.orderFront(nil)
+                isCaptureAreaVisible = false
+                return
+            }
             isCaptureAreaVisible = true
             if let screen = NSScreen.main {
                 let visible = screen.visibleFrame
@@ -723,15 +734,21 @@ extension VeilModel {
         configureCaptureAreaWindow(window)
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: CaptureAreaRootView().environmentObject(self))
-        window.makeKeyAndOrderFront(nil)
         CaptureAreaWindowStore.shared.window = window
-        isCaptureAreaVisible = true
-        dockFileControlToCaptureArea()
-        attachFileControlWindow()
-        reopenFileControlIfNeeded()
-        openTimerControlWindow()
-        openAnnotationControlWindow()
-        refreshCaptureFilter()
+        if hidden {
+            moveCaptureAreaOffScreen(window)
+            window.orderFront(nil)
+            isCaptureAreaVisible = false
+        } else {
+            window.makeKeyAndOrderFront(nil)
+            isCaptureAreaVisible = true
+            dockFileControlToCaptureArea()
+            attachFileControlWindow()
+            reopenFileControlIfNeeded()
+            openTimerControlWindow()
+            openAnnotationControlWindow()
+            refreshCaptureFilter()
+        }
         CaptureAreaWindowStore.shared.closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
         ) { [weak self] _ in
