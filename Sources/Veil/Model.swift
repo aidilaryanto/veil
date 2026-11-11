@@ -9,6 +9,46 @@ import QuickLookThumbnailing
 import ScreenCaptureKit
 import SwiftUI
 import UniformTypeIdentifiers
+enum DebugLog {
+    private static let queue = DispatchQueue(label: "veil.debuglog")
+    private static let launchDate = Date()
+    private static var handle: FileHandle?
+    static var path: String {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        return base?.appendingPathComponent("Veil/veil-debug.log").path ?? "?"
+    }
+    static func start() {
+        queue.sync {
+            openFresh()
+            append("LAUNCH Veil \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
+        }
+    }
+    static func log(_ message: String) {
+        queue.async {
+            if handle == nil {
+                openFresh()
+            }
+            append(message)
+        }
+    }
+    private static func openFresh() {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        guard let url = base?.appendingPathComponent("Veil/veil-debug.log") else { return }
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? "".write(to: url, atomically: true, encoding: .utf8)
+        handle = try? FileHandle(forWritingTo: url)
+    }
+    private static func append(_ message: String) {
+        let elapsed = Date().timeIntervalSince(launchDate)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        let stamp = formatter.string(from: Date())
+        let line = "[\(stamp)] [T+\(String(format: "%.2f", elapsed))s] \(message)\n"
+        if let data = line.data(using: .utf8) {
+            handle?.write(data)
+        }
+    }
+}
 struct SourceItem: Identifiable, Hashable {
     let id: CGWindowID
     let appName: String
@@ -275,12 +315,14 @@ final class VeilModel: NSObject, ObservableObject {
     private var initialRefreshStarted = false
     override init() {
         super.init()
+        DebugLog.start()
         loadPresets()
         addBuiltInPresetsIfNeeded()
         restoreLastSession()
         installFilePageKeyMonitor()
         startPresentationTimer()
         refreshSources()
+        DebugLog.log("init done: sources=\(sources.count) windows, selected=\(selectedWindowIDs.count) display=\(selectedDisplayID ?? 0)")
     }
     deinit {
         presentationTimer?.invalidate()
@@ -886,11 +928,14 @@ final class VeilModel: NSObject, ObservableObject {
                     return
                 }
                 status = "\(sources.count) windows on \(content.displays.count) displays."
+                let selectedLive = content.windows.filter { selectedWindowIDs.contains($0.windowID) }.map { "\($0.windowID):\(Int($0.frame.width))x\(Int($0.frame.height))@\(Int($0.frame.origin.x)),\(Int($0.frame.origin.y))" }.joined(separator: ",")
+                DebugLog.log("refreshSources: \(content.windows.count) windows, \(content.applications.count) apps, selectedLive=[\(selectedLive)]")
             } catch {
                 if isFirstRefresh {
                     initialRefreshStarted = false
                 }
                 status = "Failed to read windows: \(error.localizedDescription). Check Screen Recording permission."
+                DebugLog.log("refreshSources ERROR: \(error.localizedDescription)")
             }
         }
     }
@@ -922,6 +967,7 @@ final class VeilModel: NSObject, ObservableObject {
         } else {
             ids.forEach { selectedWindowIDs.remove($0) }
         }
+        DebugLog.log("toggleApp \(app): wasAdding=\(wasAdding) ids=\(ids) selected=\(selectedWindowIDs.sorted())")
         if isSharing {
             previewSnapshotImage = nil
         } else {
@@ -952,6 +998,7 @@ final class VeilModel: NSObject, ObservableObject {
         } else {
             selectedWindowIDs.remove(id)
         }
+        DebugLog.log("toggleSource id=\(id): wasAdded=\(wasAdded) selected=\(selectedWindowIDs.sorted())")
         if isSharing {
             previewSnapshotImage = nil
         } else {
@@ -981,6 +1028,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
     }
     func restartCapture() {
+        DebugLog.log("restartCapture: called, isSharing=\(isSharing)")
         stopCapture(keepSharing: true)
         startCapture()
     }
@@ -1097,6 +1145,7 @@ final class VeilModel: NSObject, ObservableObject {
         return (filter, config)
     }
     func updateCapture() {
+        DebugLog.log("updateCapture: called, isSharing=\(isSharing) streamNil=\(stream == nil)")
         guard let current = stream, isSharing else {
             restartCapture()
             return
@@ -1108,6 +1157,7 @@ final class VeilModel: NSObject, ObservableObject {
                 stopStreamOnly()
                 status = "Selected window is off screen."
             }
+            DebugLog.log("updateCapture: filter nil, nothingSelected=\(isNothingSelected) offScreen=\(isSelectionOffScreen)")
             return
         }
         let target = current
@@ -1124,13 +1174,16 @@ final class VeilModel: NSObject, ObservableObject {
                         self.resizeCaptureAreaWindow()
                     }
                 }
+                DebugLog.log("updateCapture: reconfigure ok, config=\(config.width)x\(config.height)")
             } catch {
+                DebugLog.log("updateCapture ERROR: \(error.localizedDescription), restarting")
                 await MainActor.run { self.restartCapture() }
             }
         }
     }
     func refreshCaptureFilter() {
         guard isSharing else { return }
+        DebugLog.log("refreshCaptureFilter: refetching shareable content...")
         Task {
             do {
                 let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false)
@@ -1139,12 +1192,16 @@ final class VeilModel: NSObject, ObservableObject {
                 displays = content.displays
                 sources = Self.sourceItems(from: content.windows)
                 guard isSharing, stream != nil else { return }
+                let selectedLive = content.windows.filter { selectedWindowIDs.contains($0.windowID) }.map { "\($0.windowID):\(Int($0.frame.width))x\(Int($0.frame.height))@\(Int($0.frame.origin.x)),\(Int($0.frame.origin.y))" }.joined(separator: ",")
+                DebugLog.log("refreshCaptureFilter: fetch ok, \(content.windows.count) windows, selectedLive=[\(selectedLive)]")
                 updateCapture()
             } catch {
+                DebugLog.log("refreshCaptureFilter ERROR: \(error.localizedDescription)")
             }
         }
     }
     func startCaptureWithFreshSources() {
+        DebugLog.log("startCaptureWithFreshSources: fetching, selected=\(selectedWindowIDs.sorted())")
         Task {
             do {
                 let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false)
@@ -1155,11 +1212,14 @@ final class VeilModel: NSObject, ObservableObject {
                     sources = Self.sourceItems(from: content.windows)
                     updateSourceAspectRatio()
                     resizeCaptureAreaWindow()
+                    let selectedLive = content.windows.filter { selectedWindowIDs.contains($0.windowID) }.map { "\($0.windowID):\(Int($0.frame.width))x\(Int($0.frame.height))@\(Int($0.frame.origin.x)),\(Int($0.frame.origin.y)) onScreen=\($0.isOnScreen)" }.joined(separator: ",")
+                    DebugLog.log("startCaptureWithFreshSources: fetch ok, \(content.windows.count) windows, selectedLive=[\(selectedLive)]")
                     if !selectedWindowIDs.isEmpty, !isSharing {
                         startCapture()
                     }
                 }
             } catch {
+                DebugLog.log("startCaptureWithFreshSources ERROR: \(error.localizedDescription)")
                 await MainActor.run {
                     if !selectedWindowIDs.isEmpty, !isSharing {
                         startCapture()
@@ -1187,13 +1247,16 @@ final class VeilModel: NSObject, ObservableObject {
             isSharing = false
             if isNothingSelected {
                 status = "Nothing is currently selected to share."
+                DebugLog.log("startCapture: filter nil, nothing selected")
                 return
             }
             if isSelectionOffScreen {
                 status = "Selected window is off screen."
+                DebugLog.log("startCapture: filter nil, selection off screen")
                 return
             }
             status = selectedDisplayID == nil ? "Pause the output until a display is selected." : "No display found. Press Refresh first."
+            DebugLog.log("startCapture: filter nil, display=\(selectedDisplayID ?? 0) selected=\(selectedWindowIDs.sorted())")
             if selectedDisplayID != nil {
                 launchRetryPending = true
                 refreshPreviewSnapshot()
@@ -1201,6 +1264,8 @@ final class VeilModel: NSObject, ObservableObject {
             }
             return
         }
+        let selectedFrames = capturedWindows.filter { selectedWindowIDs.contains($0.windowID) }.map { "\($0.windowID):\(Int($0.frame.width))x\(Int($0.frame.height))@\(Int($0.frame.origin.x)),\(Int($0.frame.origin.y)) onScreen=\($0.isOnScreen)" }.joined(separator: ",")
+        DebugLog.log("startCapture: filter ok, config=\(config.width)x\(config.height) showsCursor=\(config.showsCursor) selected=[\(selectedFrames)] mode=\(mode.rawValue) framing=\(framing.rawValue) canvas=\(canvasMode.rawValue)")
         lastCaptureSignature = captureSignature()
         lastPositionSignature = positionSignature()
         startPositionPoller()
@@ -1214,6 +1279,7 @@ final class VeilModel: NSObject, ObservableObject {
             CaptureRouting.shared.setMainStreamID(ObjectIdentifier(newStream))
             streamHasFrame = false
             CaptureRouting.shared.setFirstFrame(false)
+            DebugLog.log("startCapture: stream created id=\(ObjectIdentifier(newStream)), starting...")
             Task {
                 do {
                     try await newStream.startCapture()
@@ -1229,17 +1295,23 @@ final class VeilModel: NSObject, ObservableObject {
                         reopenFileControlIfNeeded()
                         reopenTimerControlIfNeeded()
                     }
-                    for _ in 0..<30 {
+                    DebugLog.log("startCapture: stream started, isSharing=true")
+                    for attempt in 1...30 {
                         try? await Task.sleep(nanoseconds: 2_000_000_000)
                         let shouldRetry = await MainActor.run {
                             self.isSharing && self.stream === newStream && !self.streamHasFrame
                         }
                         guard shouldRetry else { break }
+                        let dropped = CaptureRouting.shared.droppedSummary()
+                        DebugLog.log("noFrameRetry attempt=\(attempt): still no frame, dropped=\(dropped.0) lastDropped=\(dropped.1), refetching...")
                         await MainActor.run {
                             self.refreshCaptureFilter()
                         }
                     }
+                    let dropped = CaptureRouting.shared.droppedSummary()
+                    DebugLog.log("noFrameRetry done: streamHasFrame=\(streamHasFrame) dropped=\(dropped.0) lastDropped=\(dropped.1)")
                 } catch {
+                    DebugLog.log("startCapture ERROR: \(error.localizedDescription)")
                     await MainActor.run {
                         if self.stream === newStream {
                             self.stream = nil
@@ -1388,6 +1460,7 @@ final class VeilModel: NSObject, ObservableObject {
             let newContentSignature = "\(canvasMode.rawValue)|\(mode.rawValue)|\(framing.rawValue)|\(selectedDisplayID ?? 0)|" + selected.map { "\($0.windowID):\(Int($0.frame.width))x\(Int($0.frame.height))" }.joined(separator: ",")
             let newPositionSignature = selected.map { "\($0.windowID):\(Int($0.frame.origin.x)),\(Int($0.frame.origin.y))" }.joined(separator: ",")
             guard newContentSignature != lastCaptureSignature || newPositionSignature != lastPositionSignature else { return }
+            DebugLog.log("watchdog: signature changed, oldContent=\(lastCaptureSignature) newContent=\(newContentSignature) oldPos=\(lastPositionSignature) newPos=\(newPositionSignature)")
             capturedWindows = content.windows
             if displays.map({ $0.displayID }) != content.displays.map({ $0.displayID }) {
                 displays = content.displays
@@ -1948,6 +2021,22 @@ extension VeilModel: SCStreamOutput {
            let statusValue = attachments.first?[.status] as? Int,
            let frameStatus = SCFrameStatus(rawValue: statusValue),
            frameStatus != .complete {
+            let statusName: String
+            switch frameStatus {
+            case .started: statusName = "started"
+            case .continuing: statusName = "continuing"
+            case .suspended: statusName = "suspended"
+            case .idle: statusName = "idle"
+            case .contentRectChanged: statusName = "contentRectChanged"
+            case .contentChanged: statusName = "contentChanged"
+            case .complete: statusName = "complete"
+            @unknown default: statusName = "unknown(\(statusValue))"
+            }
+            CaptureRouting.shared.recordDroppedFrame(status: statusName)
+            let dropped = CaptureRouting.shared.droppedSummary()
+            if dropped.0 <= 5 {
+                DebugLog.log("delegate: DROPPED frame status=\(statusName) totalDropped=\(dropped.0)")
+            }
             return
         }
         let streamID = ObjectIdentifier(stream)
@@ -1958,6 +2047,7 @@ extension VeilModel: SCStreamOutput {
                 cgImage: cgImage,
                 size: NSSize(width: cgImage.width, height: cgImage.height)
             )
+            DebugLog.log("delegate: snapshot frame \(cgImage.width)x\(cgImage.height)")
             Task { @MainActor in
                 self.previewSnapshotImage = image
                 self.updateRatioFromImage(image)
@@ -1967,8 +2057,14 @@ extension VeilModel: SCStreamOutput {
             StreamDisplayLayers.shared.render(sampleBuffer)
             let frameWidth = CVPixelBufferGetWidth(pixelBuffer)
             let frameHeight = CVPixelBufferGetHeight(pixelBuffer)
-            if Self.isBlackPixelBuffer(pixelBuffer) {
+            let frameIndex = CaptureRouting.shared.nextMainFrameIndex()
+            let isBlack = Self.isBlackPixelBuffer(pixelBuffer)
+            if frameIndex <= 5 {
+                DebugLog.log("delegate: main frame #\(frameIndex) \(frameWidth)x\(frameHeight) black=\(isBlack)")
+            }
+            if isBlack {
                 if CaptureRouting.shared.recordBlackFrame() {
+                    DebugLog.log("delegate: 15 black frames in a row, restarting capture")
                     Task { @MainActor in
                         self.restartCapture()
                     }
@@ -1976,6 +2072,7 @@ extension VeilModel: SCStreamOutput {
             } else {
                 CaptureRouting.shared.resetBlackFrames()
                 if CaptureRouting.shared.takeFirstFrame() {
+                    DebugLog.log("delegate: first non-black frame #\(frameIndex) \(frameWidth)x\(frameHeight), streamHasFrame=true")
                     Task { @MainActor in
                         self.streamHasFrame = true
                         self.previewSnapshotImage = nil
@@ -1998,6 +2095,7 @@ extension VeilModel: SCStreamOutput {
 
 extension VeilModel: SCStreamDelegate {
     nonisolated func stream(_ stream: SCStream, didStopWithError error: Error) {
+        DebugLog.log("stream didStopWithError: \(error.localizedDescription)")
         Task { @MainActor in
             guard self.isSharing, self.stream === stream else { return }
             self.stopCaptureWatchdog()

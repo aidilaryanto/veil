@@ -946,7 +946,29 @@ final class CaptureRouting {
     private var lastRatio: CGFloat = 0
     private var consecutiveBlackFrames = 0
     private var lastBlackRestart = Date.distantPast
+    private var droppedFrames = 0
+    private var lastDroppedStatus = ""
+    private var mainFrameCount = 0
     private init() {}
+    func recordDroppedFrame(status: String) {
+        lock.lock()
+        droppedFrames += 1
+        lastDroppedStatus = status
+        lock.unlock()
+    }
+    func droppedSummary() -> (Int, String) {
+        lock.lock()
+        let value = (droppedFrames, lastDroppedStatus)
+        lock.unlock()
+        return value
+    }
+    func nextMainFrameIndex() -> Int {
+        lock.lock()
+        mainFrameCount += 1
+        let value = mainFrameCount
+        lock.unlock()
+        return value
+    }
     func setMainStreamID(_ id: ObjectIdentifier?) {
         lock.lock()
         mainStreamID = id
