@@ -1201,7 +1201,6 @@ final class VeilModel: NSObject, ObservableObject {
             }
             return
         }
-        refreshPreviewSnapshot()
         lastCaptureSignature = captureSignature()
         lastPositionSignature = positionSignature()
         startPositionPoller()
