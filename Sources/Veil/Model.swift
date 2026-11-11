@@ -1232,7 +1232,7 @@ final class VeilModel: NSObject, ObservableObject {
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
                     await MainActor.run {
                         if self.isSharing, self.stream === newStream, !self.streamHasFrame {
-                            self.updateCapture()
+                            self.refreshCaptureFilter()
                         }
                     }
                 } catch {
