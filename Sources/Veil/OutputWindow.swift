@@ -787,16 +787,16 @@ final class CaptureRouting {
     private var droppedFrames = 0
     private var lastDroppedStatus = ""
     private var mainFrameCount = 0
-    private var expectedMainFrameSize: CGSize = .zero
+    private var expectedMainFrameSizeValue: CGSize = .zero
     private init() {}
     func setExpectedMainFrameSize(_ size: CGSize) {
         lock.lock()
-        expectedMainFrameSize = size
+        expectedMainFrameSizeValue = size
         lock.unlock()
     }
     func expectedMainFrameSize() -> CGSize {
         lock.lock()
-        let value = expectedMainFrameSize
+        let value = expectedMainFrameSizeValue
         lock.unlock()
         return value
     }
