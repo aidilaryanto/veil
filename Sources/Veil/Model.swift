@@ -552,6 +552,15 @@ final class VeilModel: NSObject, ObservableObject {
         }
         return nil
     }
+    func stripCaptureRect(for window: SCWindow) -> CGRect {
+        let frame = window.frame
+        return CGRect(
+            x: frame.minX + 12,
+            y: frame.minY + 36,
+            width: max(1, frame.width - 24),
+            height: max(1, frame.height - 12 - 36)
+        )
+    }
     var effectiveSingleWindowID: CGWindowID? {
         if selectedWindowIDs.count == 1 {
             return selectedWindowIDs.first
@@ -1102,7 +1111,7 @@ final class VeilModel: NSObject, ObservableObject {
         guard !isSelectionOffScreen else { return nil }
         guard let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first else { return nil }
         if mode == .allow, canvasMode != .fullDisplay, let stripWindow = stripThumbnailWindow(),
-           sourceRect(for: stripWindow.frame.insetBy(dx: 12, dy: 12), on: display) == nil {
+           sourceRect(for: stripCaptureRect(for: stripWindow), on: display) == nil {
             DebugLog.log("strip: guard nil, window \(stripWindow.windowID) frame \(stripWindow.frame) onScreen=\(stripWindow.isOnScreen)")
             return nil
         }
@@ -1127,7 +1136,7 @@ final class VeilModel: NSObject, ObservableObject {
             config.width = display.width
             config.height = display.height
         } else if mode == .allow, let stripWindow = stripThumbnailWindow(),
-                  let rect = sourceRect(for: stripWindow.frame.insetBy(dx: 12, dy: 12), on: display) {
+                  let rect = sourceRect(for: stripCaptureRect(for: stripWindow), on: display) {
             let veilWindows = capturedWindows.filter { $0.owningApplication?.bundleIdentifier == Bundle.main.bundleIdentifier }
             filter = SCContentFilter(display: display, excludingWindows: veilWindows)
             config.sourceRect = rect
