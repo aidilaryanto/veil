@@ -223,6 +223,32 @@ enum PresentationTimerMode: String {
     case countUp
     case countDown
 }
+struct SkyLightCapture {
+    typealias CaptureFn = @convention(c) (Int32, UnsafeMutablePointer<CGWindowID>, Int32, UInt32) -> Unmanaged<CFArray>?
+    typealias ConnectionFn = @convention(c) () -> Int32
+    private static var cached: (fn: CaptureFn, connection: Int32)? = nil
+    private static var loadAttempted = false
+    static func capture(windowID: CGWindowID) -> CGImage? {
+        if !loadAttempted {
+            loadAttempted = true
+            cached = load()
+        }
+        guard let (fn, connection) = cached else { return nil }
+        var wid = windowID
+        let options: UInt32 = (1 << 11) | (1 << 8) | (1 << 19)
+        guard let array = fn(connection, &wid, 1, options)?.takeRetainedValue() else { return nil }
+        let images = array as! [CGImage]
+        return images.first
+    }
+    private static func load() -> (fn: CaptureFn, connection: Int32)? {
+        guard let handle = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_NOW) else { return nil }
+        guard let capturePtr = dlsym(handle, "CGSHWCaptureWindowList") else { return nil }
+        guard let connPtr = dlsym(handle, "CGSMainConnectionID") ?? dlsym(handle, "CGSDefaultConnectionForThread") else { return nil }
+        let fn = unsafeBitCast(capturePtr, to: CaptureFn.self)
+        let connFn = unsafeBitCast(connPtr, to: ConnectionFn.self)
+        return (fn, connFn())
+    }
+}
 @MainActor
 final class VeilModel: NSObject, ObservableObject {
     @Published var sources: [SourceItem] = []
@@ -314,6 +340,7 @@ final class VeilModel: NSObject, ObservableObject {
     private var launchRetryPending = false
     private var lastStripRetry = Date.distantPast
     private var lastWindowRatio: CGFloat = 0
+    private var stripPollTask: Task<Void, Never>? = nil
     private var isFirstRefresh = true
     private var initialRefreshStarted = false
     override init() {
@@ -1233,6 +1260,11 @@ final class VeilModel: NSObject, ObservableObject {
                         self.lastPositionSignature = self.positionSignature()
                         self.updateSourceAspectRatioFromSelection()
                         self.resizeCaptureAreaWindow()
+                        if CaptureRouting.shared.isStripCapture(), let stripWindow = self.stripThumbnailWindow() {
+                            self.startStripPolling(windowID: stripWindow.windowID)
+                        } else {
+                            self.stopStripPolling()
+                        }
                     }
                 }
                 DebugLog.log("updateCapture: reconfigure ok, config=\(config.width)x\(config.height)")
@@ -1356,6 +1388,9 @@ final class VeilModel: NSObject, ObservableObject {
                         resizeCaptureAreaWindow()
                         reopenFileControlIfNeeded()
                         reopenTimerControlIfNeeded()
+                        if CaptureRouting.shared.isStripCapture(), let stripWindow = self.stripThumbnailWindow() {
+                            self.startStripPolling(windowID: stripWindow.windowID)
+                        }
                     }
                     DebugLog.log("startCapture: stream started, isSharing=true")
                     for attempt in 1...30 {
@@ -1399,9 +1434,38 @@ final class VeilModel: NSObject, ObservableObject {
             }
         }
     }
+    func startStripPolling(windowID: CGWindowID) {
+        stopStripPolling()
+        stripPollTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                guard !Task.isCancelled else { break }
+                let shouldContinue = await MainActor.run {
+                    self.isSharing && self.stripThumbnailWindow()?.windowID == windowID
+                }
+                guard shouldContinue else { break }
+                if let cgImage = SkyLightCapture.capture(windowID: windowID) {
+                    let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+                    await MainActor.run {
+                        self.previewLiveImage = image
+                        if !self.streamHasFrame {
+                            self.streamHasFrame = true
+                            self.previewSnapshotImage = nil
+                            self.stopPreviewSnapshotTimer()
+                        }
+                    }
+                }
+            }
+        }
+    }
+    func stopStripPolling() {
+        stripPollTask?.cancel()
+        stripPollTask = nil
+    }
     func stopCapture(keepSharing: Bool = false) {
         stopCaptureWatchdog()
         stopPositionPoller()
+        stopStripPolling()
         dynamicCaptureUnion = nil
         pendingDynamicUnion = nil
         let oldStream = stream
@@ -1422,6 +1486,7 @@ final class VeilModel: NSObject, ObservableObject {
     func stopStreamOnly() {
         stopCaptureWatchdog()
         stopPositionPoller()
+        stopStripPolling()
         dynamicCaptureUnion = nil
         pendingDynamicUnion = nil
         let oldStream = stream
@@ -2140,6 +2205,7 @@ extension VeilModel: SCStreamOutput {
                         self.streamHasFrame = true
                         self.previewSnapshotImage = nil
                         self.stopPreviewSnapshotTimer()
+                        self.stopStripPolling()
                     }
                 }
                 if frameIndex % 2 == 0 {
