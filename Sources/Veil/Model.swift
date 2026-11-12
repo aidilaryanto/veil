@@ -531,6 +531,22 @@ final class VeilModel: NSObject, ObservableObject {
         let onScreen = selected.filter { $0.isOnScreen }
         return onScreen.isEmpty ? selected : onScreen
     }
+    private func isStripThumbnail(_ window: SCWindow) -> Bool {
+        let frame = window.frame
+        return frame.width <= 200 && frame.height <= 200 && frame.origin.x < 100
+    }
+    private func stripThumbnailWindow() -> SCWindow? {
+        if selectedWindowIDs.count == 1, let onlyID = selectedWindowIDs.first,
+           let onlyWindow = capturedWindows.first(where: { $0.windowID == onlyID }),
+           isStripThumbnail(onlyWindow) {
+            return onlyWindow
+        }
+        let union = dynamicUnionWindows()
+        if union.count == 1, let singleWindow = union.first, isStripThumbnail(singleWindow) {
+            return singleWindow
+        }
+        return nil
+    }
     var effectiveSingleWindowID: CGWindowID? {
         if selectedWindowIDs.count == 1 {
             return selectedWindowIDs.first
@@ -1089,6 +1105,14 @@ final class VeilModel: NSObject, ObservableObject {
             }
             config.width = display.width
             config.height = display.height
+        } else if mode == .allow, let stripWindow = stripThumbnailWindow(),
+                  let rect = sourceRect(for: stripWindow.frame, on: display) {
+            let veilWindows = capturedWindows.filter { $0.owningApplication?.bundleIdentifier == Bundle.main.bundleIdentifier }
+            filter = SCContentFilter(display: display, excludingWindows: veilWindows)
+            config.sourceRect = rect
+            let scale = scaleFactor(stripWindow.frame)
+            config.width = max(2, Int(rect.width * scale))
+            config.height = max(2, Int(rect.height * scale))
         } else if mode == .allow, selectedWindowIDs.count == 1,
                   let onlyID = selectedWindowIDs.first,
                   let onlyWindow = capturedWindows.first(where: { $0.windowID == onlyID }) {
