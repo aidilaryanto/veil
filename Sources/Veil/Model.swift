@@ -313,6 +313,7 @@ final class VeilModel: NSObject, ObservableObject {
     private var launchAutoStart = true
     private var launchRetryPending = false
     private var lastStripRetry = Date.distantPast
+    private var lastStripRestart = Date.distantPast
     private var lastWindowRatio: CGFloat = 0
     private var isFirstRefresh = true
     private var initialRefreshStarted = false
@@ -1214,6 +1215,12 @@ final class VeilModel: NSObject, ObservableObject {
         }
         CaptureRouting.shared.setExpectedMainFrameSize(CGSize(width: config.width, height: config.height))
         DebugLog.log("updateCapture: expected size \(config.width)x\(config.height)")
+        if CaptureRouting.shared.isStripCapture(), !streamHasFrame, Date().timeIntervalSince(lastStripRestart) > 2 {
+            DebugLog.log("updateCapture: strip thumbnail, no frame yet, restarting stream")
+            lastStripRestart = Date()
+            restartCapture()
+            return
+        }
         let target = current
         Task {
             do {
