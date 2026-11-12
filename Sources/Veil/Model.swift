@@ -1088,6 +1088,7 @@ final class VeilModel: NSObject, ObservableObject {
         guard let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first else { return nil }
         if mode == .allow, canvasMode != .fullDisplay, let stripWindow = stripThumbnailWindow(),
            sourceRect(for: stripWindow.frame.insetBy(dx: 12, dy: 12), on: display) == nil {
+            DebugLog.log("strip: guard nil, window \(stripWindow.windowID) frame \(stripWindow.frame) onScreen=\(stripWindow.isOnScreen)")
             return nil
         }
         let config = SCStreamConfiguration()
@@ -1118,6 +1119,7 @@ final class VeilModel: NSObject, ObservableObject {
             let scale = scaleFactor(stripWindow.frame)
             config.width = max(2, Int(rect.width * scale))
             config.height = max(2, Int(rect.height * scale))
+            DebugLog.log("strip: branch window \(stripWindow.windowID) frame \(stripWindow.frame) rect \(rect) config \(config.width)x\(config.height)")
         } else if mode == .allow, selectedWindowIDs.count == 1,
                   let onlyID = selectedWindowIDs.first,
                   let onlyWindow = capturedWindows.first(where: { $0.windowID == onlyID }) {
@@ -1187,13 +1189,15 @@ final class VeilModel: NSObject, ObservableObject {
                 stopStreamOnly()
                 status = "Selected window is off screen."
             } else if stripThumbnailWindow() != nil, Date().timeIntervalSince(lastStripRetry) > 1 {
+                DebugLog.log("updateCapture: filter nil, strip thumbnail, retrying refresh")
                 lastStripRetry = Date()
                 refreshCaptureFilter()
             }
-            DebugLog.log("updateCapture: filter nil, nothingSelected=\(isNothingSelected) offScreen=\(isSelectionOffScreen)")
+            DebugLog.log("updateCapture: filter nil, nothingSelected=\(isNothingSelected) offScreen=\(isSelectionOffScreen) strip=\(stripThumbnailWindow() != nil)")
             return
         }
         CaptureRouting.shared.setExpectedMainFrameSize(CGSize(width: config.width, height: config.height))
+        DebugLog.log("updateCapture: expected size \(config.width)x\(config.height)")
         let target = current
         Task {
             do {
@@ -2120,6 +2124,9 @@ extension VeilModel: SCStreamOutput {
                     let sizeMismatch = expected.width > 0 && expected.height > 0
                         && (abs(CGFloat(frameWidth) - expected.width) / expected.width > 0.1
                             || abs(CGFloat(frameHeight) - expected.height) / expected.height > 0.1)
+                    if sizeMismatch, CaptureRouting.shared.recordSkippedFrame() <= 5 {
+                        DebugLog.log("delegate: skipped frame #\(frameIndex) \(frameWidth)x\(frameHeight), expected \(Int(expected.width))x\(Int(expected.height))")
+                    }
                     if !sizeMismatch {
                         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
                         if let cgImage = Self.sharedFrameContext.createCGImage(ciImage, from: ciImage.extent) {

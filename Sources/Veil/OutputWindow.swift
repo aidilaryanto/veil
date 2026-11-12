@@ -786,6 +786,7 @@ final class CaptureRouting {
     private var lastBlackRestart = Date.distantPast
     private var droppedFrames = 0
     private var lastDroppedStatus = ""
+    private var skippedFrames = 0
     private var mainFrameCount = 0
     private var expectedMainFrameSizeValue: CGSize = .zero
     private init() {}
@@ -805,6 +806,13 @@ final class CaptureRouting {
         droppedFrames += 1
         lastDroppedStatus = status
         lock.unlock()
+    }
+    func recordSkippedFrame() -> Int {
+        lock.lock()
+        skippedFrames += 1
+        let value = skippedFrames
+        lock.unlock()
+        return value
     }
     func droppedSummary() -> (Int, String) {
         lock.lock()
