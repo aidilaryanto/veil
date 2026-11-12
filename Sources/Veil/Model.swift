@@ -1119,7 +1119,7 @@ final class VeilModel: NSObject, ObservableObject {
             let scale = scaleFactor(stripWindow.frame)
             config.width = max(2, Int(rect.width * scale))
             config.height = max(2, Int(rect.height * scale))
-            DebugLog.log("strip: branch window \(stripWindow.windowID) frame \(stripWindow.frame) rect \(rect) config \(config.width)x\(config.height)")
+            DebugLog.log("strip: branch window \(stripWindow.windowID) frame \(stripWindow.frame) rect \(rect) config \(config.width)x\(config.height) positioned=\(isPositionedCanvas) canvas=\(canvasMode)")
         } else if mode == .allow, selectedWindowIDs.count == 1,
                   let onlyID = selectedWindowIDs.first,
                   let onlyWindow = capturedWindows.first(where: { $0.windowID == onlyID }) {
