@@ -1069,13 +1069,16 @@ final class DirectStreamNSView: NSView {
         displayLayer = layer
         super.init(frame: .zero)
         wantsLayer = true
-        self.layer = displayLayer
     }
     required init?(coder: NSCoder) {
         fatalError()
     }
+    override func makeBackingLayer() -> CALayer {
+        return displayLayer
+    }
     func syncDrawableSize() {
         let scale = window?.backingScaleFactor ?? layer?.contentsScale ?? 1
+        displayLayer.bounds = CGRect(origin: .zero, size: bounds.size)
         displayLayer.drawableSize = CGSize(width: bounds.width * scale, height: bounds.height * scale)
     }
     override func viewDidMoveToWindow() {
