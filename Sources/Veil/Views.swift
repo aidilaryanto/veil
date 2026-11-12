@@ -2346,46 +2346,64 @@ struct OutputContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         } else if model.shouldShowStreamPreview {
-            ZStack {
-                if model.isPositionedCanvas {
-                    if let frame = model.positionedImageFrame(in: outputSize) {
-                        ZStack(alignment: .topLeading) {
-                            DirectStreamView(layer: isPreview ? StreamDisplayLayers.shared.preview : StreamDisplayLayers.shared.output, gravity: .resize)
-                                .frame(width: frame.width, height: frame.height)
-                                .offset(x: frame.origin.x, y: frame.origin.y)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .clipped()
-                    } else {
-                        DirectStreamView(layer: isPreview ? StreamDisplayLayers.shared.preview : StreamDisplayLayers.shared.output, gravity: .resizeAspectFill)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .clipped()
+            if let liveImage = model.previewLiveImage {
+                if model.isPositionedCanvas, let frame = model.positionedImageFrame(in: outputSize) {
+                    ZStack(alignment: .topLeading) {
+                        Image(nsImage: liveImage)
+                            .resizable()
+                            .frame(width: frame.width, height: frame.height)
+                            .offset(x: frame.origin.x, y: frame.origin.y)
                     }
-                } else if model.canvasMode == .isolated {
-                    if model.framing == .dynamic {
-                        if let imageSize = model.dynamicImageSize(in: outputSize) {
-                            DirectStreamView(layer: isPreview ? StreamDisplayLayers.shared.preview : StreamDisplayLayers.shared.output, gravity: .resize)
-                                .frame(width: imageSize.width, height: imageSize.height)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .clipped()
+                } else {
+                    Image(nsImage: liveImage)
+                        .resizable()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
+                }
+            } else {
+                ZStack {
+                    if model.isPositionedCanvas {
+                        if let frame = model.positionedImageFrame(in: outputSize) {
+                            ZStack(alignment: .topLeading) {
+                                DirectStreamView(layer: isPreview ? StreamDisplayLayers.shared.preview : StreamDisplayLayers.shared.output, gravity: .resize)
+                                    .frame(width: frame.width, height: frame.height)
+                                    .offset(x: frame.origin.x, y: frame.origin.y)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            .clipped()
                         } else {
-                            DirectStreamView(layer: isPreview ? StreamDisplayLayers.shared.preview : StreamDisplayLayers.shared.output, gravity: .resizeAspect)
+                            DirectStreamView(layer: isPreview ? StreamDisplayLayers.shared.preview : StreamDisplayLayers.shared.output, gravity: .resizeAspectFill)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .clipped()
+                        }
+                    } else if model.canvasMode == .isolated {
+                        if model.framing == .dynamic {
+                            if let imageSize = model.dynamicImageSize(in: outputSize) {
+                                DirectStreamView(layer: isPreview ? StreamDisplayLayers.shared.preview : StreamDisplayLayers.shared.output, gravity: .resize)
+                                    .frame(width: imageSize.width, height: imageSize.height)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else {
+                                DirectStreamView(layer: isPreview ? StreamDisplayLayers.shared.preview : StreamDisplayLayers.shared.output, gravity: .resizeAspect)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
+                        } else {
+                            DirectStreamView(layer: isPreview ? StreamDisplayLayers.shared.preview : StreamDisplayLayers.shared.output, gravity: .resize)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .clipped()
                         }
                     } else {
                         DirectStreamView(layer: isPreview ? StreamDisplayLayers.shared.preview : StreamDisplayLayers.shared.output, gravity: .resize)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .clipped()
                     }
-                } else {
-                    DirectStreamView(layer: isPreview ? StreamDisplayLayers.shared.preview : StreamDisplayLayers.shared.output, gravity: .resize)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
+                    if !model.streamHasFrame, let snapshot = model.previewSnapshotImage {
+                        snapshotImageView(snapshot, outputSize: outputSize)
+                    }
                 }
-                if !model.streamHasFrame, let snapshot = model.previewSnapshotImage {
-                    snapshotImageView(snapshot, outputSize: outputSize)
-                }
+                .id(model.previewStreamToken)
             }
-            .id(model.previewStreamToken)
         } else if let image = model.previewSnapshotImage {
             snapshotImageView(image, outputSize: outputSize)
         } else {

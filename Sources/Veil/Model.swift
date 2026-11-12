@@ -261,6 +261,8 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var previewImage: NSImage?
     @Published var streamHasFrame = false
     @Published var previewStreamToken = 0
+    @Published var previewLiveImage: NSImage?
+    private var liveImageCounter = 0
     @Published var previewSnapshotImage: NSImage?
     @Published var livePositionedFrame: CGRect?
     var livePositionedWindowID: CGWindowID?
@@ -2082,6 +2084,16 @@ extension VeilModel: SCStreamOutput {
                         self.stopPreviewSnapshotTimer()
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                             self.previewStreamToken += 1
+                        }
+                    }
+                }
+                liveImageCounter += 1
+                if liveImageCounter % 2 == 0 {
+                    let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+                    if let cgImage = Self.sharedFrameContext.createCGImage(ciImage, from: ciImage.extent) {
+                        let liveImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+                        Task { @MainActor in
+                            self.previewLiveImage = liveImage
                         }
                     }
                 }
