@@ -507,6 +507,10 @@ final class VeilModel: NSObject, ObservableObject {
     }
     func updateRatioFromImage(_ image: NSImage) {
         guard filePreviewImage == nil, image.size.width > 0, image.size.height > 0 else { return }
+        if image.size.width < 400, image.size.height < 400 {
+            let imageRatio = image.size.width / image.size.height
+            if imageRatio > 0.8, imageRatio < 1.25 { return }
+        }
         let ratio = image.size.width / image.size.height
         if abs(ratio - sourceAspectRatio) > 0.0005 {
             sourceAspectRatio = ratio
@@ -573,9 +577,9 @@ final class VeilModel: NSObject, ObservableObject {
         var size: CGSize?
         if let image = filePreviewImage {
             size = image.size
-        } else if let image = previewImage {
+        } else if let image = previewImage, !CaptureRouting.shared.isStripCapture() {
             size = image.size
-        } else if !isSharing, let image = previewSnapshotImage {
+        } else if !isSharing, let image = previewSnapshotImage, !CaptureRouting.shared.isStripCapture() {
             size = image.size
         } else if selectedWindowIDs.count == 1,
                   let onlyID = selectedWindowIDs.first,
@@ -613,9 +617,9 @@ final class VeilModel: NSObject, ObservableObject {
             return
         }
         var size: CGSize?
-        if let image = previewImage {
+        if let image = previewImage, !CaptureRouting.shared.isStripCapture() {
             size = image.size
-        } else if !isSharing, let image = previewSnapshotImage {
+        } else if !isSharing, let image = previewSnapshotImage, !CaptureRouting.shared.isStripCapture() {
             size = image.size
         } else if selectedWindowIDs.count == 1,
            let onlyID = selectedWindowIDs.first,
