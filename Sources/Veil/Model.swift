@@ -313,6 +313,7 @@ final class VeilModel: NSObject, ObservableObject {
     private var launchAutoStart = true
     private var launchRetryPending = false
     private var lastStripRetry = Date.distantPast
+    private var lastWindowRatio: CGFloat = 0
     private var isFirstRefresh = true
     private var initialRefreshStarted = false
     override init() {
@@ -554,12 +555,24 @@ final class VeilModel: NSObject, ObservableObject {
     }
     func stripCaptureRect(for window: SCWindow) -> CGRect {
         let frame = window.frame
-        return CGRect(
-            x: frame.minX + 12,
-            y: frame.minY + 36,
-            width: max(1, frame.width - 24),
-            height: max(1, frame.height - 12 - 36)
-        )
+        var ratio = lastWindowRatio
+        if ratio <= 0,
+           let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first,
+           display.height > 0 {
+            ratio = CGFloat(display.width) / CGFloat(display.height)
+        }
+        if ratio <= 0 { ratio = 1 }
+        let maxWidth = max(1, frame.width - 24)
+        let maxHeight = max(1, frame.height - 24)
+        var width = maxWidth
+        var height = width / ratio
+        if height > maxHeight {
+            height = maxHeight
+            width = height * ratio
+        }
+        let x = frame.minX + 12 + (maxWidth - width) / 2
+        let y = frame.maxY - 12 - height
+        return CGRect(x: x, y: y, width: width, height: height)
     }
     var effectiveSingleWindowID: CGWindowID? {
         if selectedWindowIDs.count == 1 {
@@ -598,6 +611,9 @@ final class VeilModel: NSObject, ObservableObject {
                 size = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
             } else {
                 size = window.frame.size
+                if window.frame.height > 0 {
+                    lastWindowRatio = window.frame.width / window.frame.height
+                }
             }
         } else if mode == .allow, framing == .dynamic, !selectedWindowIDs.isEmpty {
             if let union = dynamicUnionFrame() {
@@ -638,6 +654,9 @@ final class VeilModel: NSObject, ObservableObject {
                 size = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
             } else {
                 size = window.frame.size
+                if window.frame.height > 0 {
+                    lastWindowRatio = window.frame.width / window.frame.height
+                }
             }
         } else if mode == .allow, framing == .dynamic, !selectedWindowIDs.isEmpty {
             if let union = dynamicUnionFrame() {
