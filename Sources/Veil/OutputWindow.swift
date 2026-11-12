@@ -786,6 +786,7 @@ final class CaptureRouting {
     private var droppedFrames = 0
     private var lastDroppedStatus = ""
     private var skippedFrames = 0
+    private var stripCapture = false
     private var mainFrameCount = 0
     private var expectedMainFrameSizeValue: CGSize = .zero
     private init() {}
@@ -810,6 +811,17 @@ final class CaptureRouting {
         lock.lock()
         skippedFrames += 1
         let value = skippedFrames
+        lock.unlock()
+        return value
+    }
+    func setStripCapture(_ value: Bool) {
+        lock.lock()
+        stripCapture = value
+        lock.unlock()
+    }
+    func isStripCapture() -> Bool {
+        lock.lock()
+        let value = stripCapture
         lock.unlock()
         return value
     }

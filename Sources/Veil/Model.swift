@@ -579,8 +579,13 @@ final class VeilModel: NSObject, ObservableObject {
             size = image.size
         } else if selectedWindowIDs.count == 1,
                   let onlyID = selectedWindowIDs.first,
-                  let frame = capturedWindows.first(where: { $0.windowID == onlyID })?.frame {
-            size = frame.size
+                  let window = capturedWindows.first(where: { $0.windowID == onlyID }) {
+            if isStripThumbnail(window),
+               let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first {
+                size = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
+            } else {
+                size = window.frame.size
+            }
         } else if mode == .allow, framing == .dynamic, !selectedWindowIDs.isEmpty {
             if let union = dynamicUnionFrame() {
                 size = union.size
@@ -614,8 +619,13 @@ final class VeilModel: NSObject, ObservableObject {
             size = image.size
         } else if selectedWindowIDs.count == 1,
            let onlyID = selectedWindowIDs.first,
-           let frame = capturedWindows.first(where: { $0.windowID == onlyID })?.frame {
-            size = frame.size
+           let window = capturedWindows.first(where: { $0.windowID == onlyID }) {
+            if isStripThumbnail(window),
+               let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first {
+                size = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
+            } else {
+                size = window.frame.size
+            }
         } else if mode == .allow, framing == .dynamic, !selectedWindowIDs.isEmpty {
             if let union = dynamicUnionFrame() {
                 size = union.size
@@ -1082,6 +1092,7 @@ final class VeilModel: NSObject, ObservableObject {
     }
     func captureFilterAndConfig() -> (SCContentFilter, SCStreamConfiguration)? {
         pendingDynamicUnion = nil
+        CaptureRouting.shared.setStripCapture(false)
         guard selectedDisplayID != nil else { return nil }
         guard !isNothingSelected else { return nil }
         guard !isSelectionOffScreen else { return nil }
@@ -1119,6 +1130,7 @@ final class VeilModel: NSObject, ObservableObject {
             let scale = scaleFactor(stripWindow.frame)
             config.width = max(2, Int(rect.width * scale))
             config.height = max(2, Int(rect.height * scale))
+            CaptureRouting.shared.setStripCapture(true)
             DebugLog.log("strip: branch window \(stripWindow.windowID) frame \(stripWindow.frame) rect \(rect) config \(config.width)x\(config.height) positioned=\(isPositionedCanvas) canvas=\(canvasMode)")
         } else if mode == .allow, selectedWindowIDs.count == 1,
                   let onlyID = selectedWindowIDs.first,
@@ -2140,7 +2152,7 @@ extension VeilModel: SCStreamOutput {
             }
             if frameWidth > 0, frameHeight > 0 {
                 let ratio = CGFloat(frameWidth) / CGFloat(frameHeight)
-                if CaptureRouting.shared.checkRatio(ratio) {
+                if !CaptureRouting.shared.isStripCapture(), CaptureRouting.shared.checkRatio(ratio) {
                     Task { @MainActor in
                         self.sourceAspectRatio = ratio
                         self.resizeCaptureAreaWindow()
