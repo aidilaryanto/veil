@@ -1085,6 +1085,10 @@ final class VeilModel: NSObject, ObservableObject {
         guard !isNothingSelected else { return nil }
         guard !isSelectionOffScreen else { return nil }
         guard let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first else { return nil }
+        if mode == .allow, canvasMode != .fullDisplay, let stripWindow = stripThumbnailWindow(),
+           sourceRect(for: stripWindow.frame.insetBy(dx: 8, dy: 8), on: display) == nil {
+            return nil
+        }
         let config = SCStreamConfiguration()
         config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
         config.queueDepth = 5
