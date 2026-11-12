@@ -535,7 +535,7 @@ final class VeilModel: NSObject, ObservableObject {
         let frame = window.frame
         return frame.width <= 200 && frame.height <= 200 && frame.origin.x < 100
     }
-    private func stripThumbnailWindow() -> SCWindow? {
+    func stripThumbnailWindow() -> SCWindow? {
         if selectedWindowIDs.count == 1, let onlyID = selectedWindowIDs.first,
            let onlyWindow = capturedWindows.first(where: { $0.windowID == onlyID }),
            isStripThumbnail(onlyWindow) {

@@ -107,6 +107,7 @@ extension VeilModel {
         guard filePreviewImage == nil, mode == .allow,
               framing == .full, canvasMode == .isolated,
               selectedWindowIDs.count == 1 || dynamicUnionWindows().count == 1 else { return nil }
+        guard stripThumbnailWindow() == nil else { return nil }
         if let frame = previewSourceFrame() {
             return NSScreen.screens.first(where: { $0.frame.intersects(frame) }) ?? NSScreen.main
         }
