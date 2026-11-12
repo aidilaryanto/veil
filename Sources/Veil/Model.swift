@@ -1106,7 +1106,7 @@ final class VeilModel: NSObject, ObservableObject {
             config.width = display.width
             config.height = display.height
         } else if mode == .allow, let stripWindow = stripThumbnailWindow(),
-                  let rect = sourceRect(for: stripWindow.frame, on: display) {
+                  let rect = sourceRect(for: stripWindow.frame.insetBy(dx: 8, dy: 8), on: display) {
             let veilWindows = capturedWindows.filter { $0.owningApplication?.bundleIdentifier == Bundle.main.bundleIdentifier }
             filter = SCContentFilter(display: display, excludingWindows: veilWindows)
             config.sourceRect = rect
