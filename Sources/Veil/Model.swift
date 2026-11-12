@@ -312,6 +312,7 @@ final class VeilModel: NSObject, ObservableObject {
     private let lastSessionKey = "Veil.v2.lastSession"
     private var launchAutoStart = true
     private var launchRetryPending = false
+    private var lastStripRetry = Date.distantPast
     private var isFirstRefresh = true
     private var initialRefreshStarted = false
     override init() {
@@ -1086,7 +1087,7 @@ final class VeilModel: NSObject, ObservableObject {
         guard !isSelectionOffScreen else { return nil }
         guard let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first else { return nil }
         if mode == .allow, canvasMode != .fullDisplay, let stripWindow = stripThumbnailWindow(),
-           sourceRect(for: stripWindow.frame.insetBy(dx: 8, dy: 8), on: display) == nil {
+           sourceRect(for: stripWindow.frame.insetBy(dx: 12, dy: 12), on: display) == nil {
             return nil
         }
         let config = SCStreamConfiguration()
@@ -1110,7 +1111,7 @@ final class VeilModel: NSObject, ObservableObject {
             config.width = display.width
             config.height = display.height
         } else if mode == .allow, let stripWindow = stripThumbnailWindow(),
-                  let rect = sourceRect(for: stripWindow.frame.insetBy(dx: 8, dy: 8), on: display) {
+                  let rect = sourceRect(for: stripWindow.frame.insetBy(dx: 12, dy: 12), on: display) {
             let veilWindows = capturedWindows.filter { $0.owningApplication?.bundleIdentifier == Bundle.main.bundleIdentifier }
             filter = SCContentFilter(display: display, excludingWindows: veilWindows)
             config.sourceRect = rect
@@ -1185,6 +1186,9 @@ final class VeilModel: NSObject, ObservableObject {
             } else if isSelectionOffScreen {
                 stopStreamOnly()
                 status = "Selected window is off screen."
+            } else if stripThumbnailWindow() != nil, Date().timeIntervalSince(lastStripRetry) > 1 {
+                lastStripRetry = Date()
+                refreshCaptureFilter()
             }
             DebugLog.log("updateCapture: filter nil, nothingSelected=\(isNothingSelected) offScreen=\(isSelectionOffScreen)")
             return
