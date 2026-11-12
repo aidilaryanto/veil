@@ -260,6 +260,7 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var annotationExpanded = false
     @Published var previewImage: NSImage?
     @Published var streamHasFrame = false
+    @Published var previewStreamToken = 0
     @Published var previewSnapshotImage: NSImage?
     @Published var livePositionedFrame: CGRect?
     var livePositionedWindowID: CGWindowID?
@@ -2077,6 +2078,7 @@ extension VeilModel: SCStreamOutput {
                     DebugLog.log("delegate: first non-black frame #\(frameIndex) \(frameWidth)x\(frameHeight), streamHasFrame=true")
                     Task { @MainActor in
                         self.streamHasFrame = true
+                        self.previewStreamToken += 1
                         self.previewSnapshotImage = nil
                         self.stopPreviewSnapshotTimer()
                     }

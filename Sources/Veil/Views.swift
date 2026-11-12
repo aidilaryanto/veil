@@ -2385,6 +2385,7 @@ struct OutputContentView: View {
                     snapshotImageView(snapshot, outputSize: outputSize)
                 }
             }
+            .id(model.previewStreamToken)
         } else if let image = model.previewSnapshotImage {
             snapshotImageView(image, outputSize: outputSize)
         } else {
