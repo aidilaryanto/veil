@@ -260,7 +260,6 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var annotationExpanded = false
     @Published var previewImage: NSImage?
     @Published var streamHasFrame = false
-    @Published var previewStreamToken = 0
     @Published var previewLiveImage: NSImage?
     @Published var previewSnapshotImage: NSImage?
     @Published var livePositionedFrame: CGRect?
@@ -1352,7 +1351,7 @@ final class VeilModel: NSObject, ObservableObject {
             previewImage = nil
             streamHasFrame = false
             CaptureRouting.shared.setFirstFrame(false)
-            StreamDisplayLayers.shared.flush()
+            previewLiveImage = nil
             closeFile()
             closeCaptureAreaWindow()
             endSharingActivity()
@@ -1372,7 +1371,7 @@ final class VeilModel: NSObject, ObservableObject {
         previewSnapshotImage = nil
         streamHasFrame = false
         CaptureRouting.shared.setFirstFrame(false)
-        StreamDisplayLayers.shared.flush()
+        previewLiveImage = nil
         endSharingActivity()
         Task { try? await oldStream?.stopCapture() }
     }
@@ -2055,7 +2054,6 @@ extension VeilModel: SCStreamOutput {
                 self.stopSnapshotStream()
             }
         } else if CaptureRouting.shared.isMainStreamID(streamID), !CaptureRouting.shared.isPaused() {
-            StreamDisplayLayers.shared.render(sampleBuffer)
             let frameWidth = CVPixelBufferGetWidth(pixelBuffer)
             let frameHeight = CVPixelBufferGetHeight(pixelBuffer)
             let frameIndex = CaptureRouting.shared.nextMainFrameIndex()
@@ -2081,9 +2079,6 @@ extension VeilModel: SCStreamOutput {
                         self.streamHasFrame = true
                         self.previewSnapshotImage = nil
                         self.stopPreviewSnapshotTimer()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                            self.previewStreamToken += 1
-                        }
                     }
                 }
                 if frameIndex % 2 == 0 {
@@ -2122,7 +2117,7 @@ extension VeilModel: SCStreamDelegate {
             self.previewImage = nil
             self.streamHasFrame = false
             CaptureRouting.shared.setFirstFrame(false)
-            StreamDisplayLayers.shared.flush()
+            self.previewLiveImage = nil
             self.closeCaptureAreaWindow()
             self.endSharingActivity()
             self.status = "Stream stopped: \(error.localizedDescription). Select a source or quit and reopen Veil to start again."
