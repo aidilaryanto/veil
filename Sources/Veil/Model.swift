@@ -1189,6 +1189,7 @@ final class VeilModel: NSObject, ObservableObject {
             DebugLog.log("updateCapture: filter nil, nothingSelected=\(isNothingSelected) offScreen=\(isSelectionOffScreen)")
             return
         }
+        CaptureRouting.shared.setExpectedMainFrameSize(CGSize(width: config.width, height: config.height))
         let target = current
         Task {
             do {
@@ -1295,6 +1296,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
         let selectedFrames = capturedWindows.filter { selectedWindowIDs.contains($0.windowID) }.map { "\($0.windowID):\(Int($0.frame.width))x\(Int($0.frame.height))@\(Int($0.frame.origin.x)),\(Int($0.frame.origin.y)) onScreen=\($0.isOnScreen)" }.joined(separator: ",")
         DebugLog.log("startCapture: filter ok, config=\(config.width)x\(config.height) showsCursor=\(config.showsCursor) selected=[\(selectedFrames)] mode=\(mode.rawValue) framing=\(framing.rawValue) canvas=\(canvasMode.rawValue)")
+        CaptureRouting.shared.setExpectedMainFrameSize(CGSize(width: config.width, height: config.height))
         lastCaptureSignature = captureSignature()
         lastPositionSignature = positionSignature()
         startPositionPoller()
@@ -2110,11 +2112,17 @@ extension VeilModel: SCStreamOutput {
                     }
                 }
                 if frameIndex % 2 == 0 {
-                    let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-                    if let cgImage = Self.sharedFrameContext.createCGImage(ciImage, from: ciImage.extent) {
-                        let liveImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
-                        Task { @MainActor in
-                            self.previewLiveImage = liveImage
+                    let expected = CaptureRouting.shared.expectedMainFrameSize()
+                    let sizeMismatch = expected.width > 0 && expected.height > 0
+                        && (abs(CGFloat(frameWidth) - expected.width) / expected.width > 0.1
+                            || abs(CGFloat(frameHeight) - expected.height) / expected.height > 0.1)
+                    if !sizeMismatch {
+                        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+                        if let cgImage = Self.sharedFrameContext.createCGImage(ciImage, from: ciImage.extent) {
+                            let liveImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+                            Task { @MainActor in
+                                self.previewLiveImage = liveImage
+                            }
                         }
                     }
                 }
