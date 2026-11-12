@@ -235,7 +235,7 @@ struct SkyLightCapture {
         }
         guard let (fn, connection) = cached else { return nil }
         var wid = windowID
-        let options: UInt32 = (1 << 11) | (1 << 8) | (1 << 19)
+        let options: UInt32 = (1 << 11) | (1 << 9) | (1 << 19)
         guard let array = fn(connection, &wid, 1, options)?.takeRetainedValue() else { return nil }
         let images = array as! [CGImage]
         return images.first
@@ -1438,7 +1438,7 @@ final class VeilModel: NSObject, ObservableObject {
         stopStripPolling()
         stripPollTask = Task {
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 100_000_000)
+                try? await Task.sleep(nanoseconds: 200_000_000)
                 guard !Task.isCancelled else { break }
                 let shouldContinue = await MainActor.run {
                     self.isSharing && self.stripThumbnailWindow()?.windowID == windowID
