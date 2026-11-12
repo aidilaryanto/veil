@@ -958,7 +958,7 @@ final class VeilModel: NSObject, ObservableObject {
                     if launchAutoStart, !isSharing, !isPanic, filePreviewImage == nil, selectedDisplayID != nil {
                         launchAutoStart = false
                         Task {
-                            try? await Task.sleep(nanoseconds: 1_500_000_000)
+                            try? await Task.sleep(nanoseconds: 800_000_000)
                             await MainActor.run {
                                 if !self.isSharing, !self.isPanic, self.filePreviewImage == nil, self.selectedDisplayID != nil {
                                     self.startCapture()
