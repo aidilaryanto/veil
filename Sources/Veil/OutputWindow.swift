@@ -787,6 +787,8 @@ final class CaptureRouting {
     private var droppedFrames = 0
     private var lastDroppedStatus = ""
     private var skippedFrames = 0
+    private var settlingUntil = Date.distantPast
+    private var settlingSkipLogged = false
     private var mainFrameCount = 0
     private var expectedMainFrameSizeValue: CGSize = .zero
     private init() {}
@@ -813,6 +815,25 @@ final class CaptureRouting {
         let value = skippedFrames
         lock.unlock()
         return value
+    }
+    func markSettling() {
+        lock.lock()
+        settlingUntil = Date().addingTimeInterval(0.5)
+        settlingSkipLogged = false
+        lock.unlock()
+    }
+    func isSettling() -> Bool {
+        lock.lock()
+        let value = Date() < settlingUntil
+        lock.unlock()
+        return value
+    }
+    func shouldLogSettlingSkip() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard Date() < settlingUntil, !settlingSkipLogged else { return false }
+        settlingSkipLogged = true
+        return true
     }
     func droppedSummary() -> (Int, String) {
         lock.lock()

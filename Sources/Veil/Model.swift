@@ -1508,6 +1508,7 @@ final class VeilModel: NSObject, ObservableObject {
                 sources = Self.sourceItems(from: content.windows)
                 lastCaptureSignature = newContentSignature
                 lastPositionSignature = newPositionSignature
+                CaptureRouting.shared.markSettling()
                 updateCapture()
             } else {
                 lastPositionSignature = newPositionSignature
@@ -2128,11 +2129,17 @@ extension VeilModel: SCStreamOutput {
                         DebugLog.log("delegate: skipped frame #\(frameIndex) \(frameWidth)x\(frameHeight), expected \(Int(expected.width))x\(Int(expected.height))")
                     }
                     if !sizeMismatch {
-                        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-                        if let cgImage = Self.sharedFrameContext.createCGImage(ciImage, from: ciImage.extent) {
-                            let liveImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
-                            Task { @MainActor in
-                                self.previewLiveImage = liveImage
+                        if CaptureRouting.shared.isSettling() {
+                            if CaptureRouting.shared.shouldLogSettlingSkip() {
+                                DebugLog.log("delegate: holding frame #\(frameIndex) \(frameWidth)x\(frameHeight) while window settles")
+                            }
+                        } else {
+                            let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+                            if let cgImage = Self.sharedFrameContext.createCGImage(ciImage, from: ciImage.extent) {
+                                let liveImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+                                Task { @MainActor in
+                                    self.previewLiveImage = liveImage
+                                }
                             }
                         }
                     }
