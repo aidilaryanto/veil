@@ -313,7 +313,6 @@ final class VeilModel: NSObject, ObservableObject {
     private var launchAutoStart = true
     private var launchRetryPending = false
     private var lastStripRetry = Date.distantPast
-    private var lastStripRestart = Date.distantPast
     private var lastWindowRatio: CGFloat = 0
     private var isFirstRefresh = true
     private var initialRefreshStarted = false
@@ -553,6 +552,27 @@ final class VeilModel: NSObject, ObservableObject {
             return singleWindow
         }
         return nil
+    }
+    func stripCaptureRect(for window: SCWindow) -> CGRect {
+        let frame = window.frame
+        var ratio = lastWindowRatio
+        if ratio <= 0,
+           let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first,
+           display.height > 0 {
+            ratio = CGFloat(display.width) / CGFloat(display.height)
+        }
+        if ratio <= 0 { ratio = 1 }
+        let maxWidth = max(1, frame.width - 24)
+        let maxHeight = max(1, frame.height - 24)
+        var width = maxWidth
+        var height = width / ratio
+        if height > maxHeight {
+            height = maxHeight
+            width = height * ratio
+        }
+        let x = frame.minX + 12 + (maxWidth - width) / 2
+        let y = frame.maxY - 12 - height
+        return CGRect(x: x, y: y, width: width, height: height)
     }
     var effectiveSingleWindowID: CGWindowID? {
         if selectedWindowIDs.count == 1 {
@@ -1116,6 +1136,11 @@ final class VeilModel: NSObject, ObservableObject {
         guard !isNothingSelected else { return nil }
         guard !isSelectionOffScreen else { return nil }
         guard let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first else { return nil }
+        if mode == .allow, canvasMode != .fullDisplay, let stripWindow = stripThumbnailWindow(),
+           sourceRect(for: stripCaptureRect(for: stripWindow), on: display) == nil {
+            DebugLog.log("strip: guard nil, window \(stripWindow.windowID) frame \(stripWindow.frame) onScreen=\(stripWindow.isOnScreen)")
+            return nil
+        }
         let config = SCStreamConfiguration()
         config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
         config.queueDepth = 5
@@ -1136,14 +1161,16 @@ final class VeilModel: NSObject, ObservableObject {
             }
             config.width = display.width
             config.height = display.height
-        } else if mode == .allow, let stripWindow = stripThumbnailWindow() {
-            let frame = stripWindow.frame
-            let scale = scaleFactor(frame)
-            filter = SCContentFilter(desktopIndependentWindow: stripWindow)
-            config.width = max(2, Int(frame.width * scale))
-            config.height = max(2, Int(frame.height * scale))
+        } else if mode == .allow, let stripWindow = stripThumbnailWindow(),
+                  let rect = sourceRect(for: stripCaptureRect(for: stripWindow), on: display) {
+            let veilWindows = capturedWindows.filter { $0.owningApplication?.bundleIdentifier == Bundle.main.bundleIdentifier }
+            filter = SCContentFilter(display: display, excludingWindows: veilWindows)
+            config.sourceRect = rect
+            let scale = scaleFactor(stripWindow.frame)
+            config.width = max(2, Int(rect.width * scale))
+            config.height = max(2, Int(rect.height * scale))
             CaptureRouting.shared.setStripCapture(true)
-            DebugLog.log("strip: branch window \(stripWindow.windowID) frame \(stripWindow.frame) config \(config.width)x\(config.height) positioned=\(isPositionedCanvas) canvas=\(canvasMode)")
+            DebugLog.log("strip: branch window \(stripWindow.windowID) frame \(stripWindow.frame) rect \(rect) config \(config.width)x\(config.height) positioned=\(isPositionedCanvas) canvas=\(canvasMode)")
         } else if mode == .allow, selectedWindowIDs.count == 1,
                   let onlyID = selectedWindowIDs.first,
                   let onlyWindow = capturedWindows.first(where: { $0.windowID == onlyID }) {
@@ -1222,12 +1249,6 @@ final class VeilModel: NSObject, ObservableObject {
         }
         CaptureRouting.shared.setExpectedMainFrameSize(CGSize(width: config.width, height: config.height))
         DebugLog.log("updateCapture: expected size \(config.width)x\(config.height)")
-        if CaptureRouting.shared.isStripCapture(), !streamHasFrame, Date().timeIntervalSince(lastStripRestart) > 2 {
-            DebugLog.log("updateCapture: strip thumbnail, no frame yet, restarting stream")
-            lastStripRestart = Date()
-            restartCapture()
-            return
-        }
         let target = current
         Task {
             do {
