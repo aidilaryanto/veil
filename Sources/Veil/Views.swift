@@ -1091,21 +1091,20 @@ struct ContentView: View {
     private func selectCanvasMode(_ mode: CanvasMode) {
         model.canvasMode = mode
         if mode == .fullDisplay {
-            model.selectedWindowIDs.removeAll()
             model.previewSnapshotImage = nil
             model.stopPreviewSnapshotTimer()
-            model.closeFile()
-            model.activePresetID = nil
         }
-        if model.filePreviewImage != nil {
+        if mode == .fullDisplay || model.filePreviewImage == nil {
+            if model.isSharing {
+                model.updateSourceAspectRatio()
+                model.updateCapture()
+            } else {
+                model.stopSnapshotStream()
+                model.startCapture()
+            }
+        } else {
             model.updateSourceAspectRatioFromSelection()
             model.resizeCaptureAreaWindow()
-        } else if model.isSharing {
-            model.updateSourceAspectRatio()
-            model.updateCapture()
-        } else {
-            model.stopSnapshotStream()
-            model.startCapture()
         }
     }
     private func selectBackground(_ background: CanvasBackground) {
@@ -2330,21 +2329,13 @@ struct OutputContentView: View {
     }
     @ViewBuilder
     private func mainImageView(outputSize: CGSize) -> some View {
-        if let fileImage = model.filePreviewImage {
-            if model.canvasMode == .isolated {
-                Image(nsImage: fileImage)
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(8)
-            } else {
-                Image(nsImage: fileImage)
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+        if let fileImage = model.filePreviewImage, model.canvasMode != .fullDisplay {
+            Image(nsImage: fileImage)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(8)
         } else if model.shouldShowStreamPreview, let liveImage = model.previewLiveImage {
             if model.isPositionedCanvas, let frame = model.positionedImageFrame(in: outputSize) {
                 ZStack(alignment: .topLeading) {
