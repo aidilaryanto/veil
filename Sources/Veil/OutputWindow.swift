@@ -1080,6 +1080,7 @@ final class DirectStreamNSView: NSView {
     }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        DebugLog.log("view: didMoveToWindow window=\(window != nil) bounds=\(bounds) layerIsShared=\(layer === displayLayer)")
         if window != nil {
             syncDrawableSize()
             DispatchQueue.main.async {

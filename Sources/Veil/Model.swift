@@ -2078,9 +2078,11 @@ extension VeilModel: SCStreamOutput {
                     DebugLog.log("delegate: first non-black frame #\(frameIndex) \(frameWidth)x\(frameHeight), streamHasFrame=true")
                     Task { @MainActor in
                         self.streamHasFrame = true
-                        self.previewStreamToken += 1
                         self.previewSnapshotImage = nil
                         self.stopPreviewSnapshotTimer()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            self.previewStreamToken += 1
+                        }
                     }
                 }
             }
