@@ -1175,7 +1175,6 @@ struct ContentView: View {
         DispatchQueue.main.async {
             panel.level = .modalPanel
             panel.orderFrontRegardless()
-            panel.makeKey()
         }
     }
     private var customPresets: [Preset] {

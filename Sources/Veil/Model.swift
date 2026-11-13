@@ -1649,7 +1649,6 @@ final class VeilModel: NSObject, ObservableObject {
         DispatchQueue.main.async {
             panel.level = .modalPanel
             panel.orderFrontRegardless()
-            panel.makeKey()
         }
     }
     func choosePresentationFile(completion: @escaping (Bool) -> Void) {
@@ -1693,7 +1692,6 @@ final class VeilModel: NSObject, ObservableObject {
         DispatchQueue.main.async {
             panel.level = .modalPanel
             panel.orderFrontRegardless()
-            panel.makeKey()
         }
     }
     func syncActivePresetFiles() {
