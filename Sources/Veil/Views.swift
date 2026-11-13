@@ -300,7 +300,7 @@ struct ContentView: View {
             }
             .allowsHitTesting(false)
             VStack(alignment: .leading, spacing: 2) {
-                Text((model.isSharing || model.activeFile != nil) ? "Stream Running" : (model.mode == .allow && model.canvasMode == .isolated && model.selectedWindowIDs.isEmpty && model.activeFile == nil ? "Nothing is currently selected to share" : "Stream Stopped"))
+                Text((model.isSharing || model.activeFile != nil) ? "Stream Running" : (model.mode == .allow && model.canvasMode == .isolated && model.selectedWindowIDs.isEmpty && model.activeFile == nil ? "Nothing selected" : "Stream Stopped"))
                     .font(.subheadline).bold()
                 Text("\(model.appCount) apps • \(model.sources.count) windows")
                     .font(.caption)
