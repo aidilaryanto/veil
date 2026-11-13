@@ -1158,7 +1158,6 @@ struct ContentView: View {
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.png, .jpeg, .image]
-        NSApp.activate(ignoringOtherApps: true)
         model.lowerWindowsForPicker()
         DebugLog.log("canvas: picker showing")
         panel.begin { result in
@@ -1177,6 +1176,7 @@ struct ContentView: View {
         DispatchQueue.main.async {
             panel.level = .modalPanel
             panel.orderFrontRegardless()
+            panel.makeKey()
         }
     }
     private var customPresets: [Preset] {

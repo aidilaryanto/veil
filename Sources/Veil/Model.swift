@@ -1605,7 +1605,6 @@ final class VeilModel: NSObject, ObservableObject {
             UTType(filenameExtension: "pptx") ?? .data,
             .folder
         ]
-        NSApp.activate(ignoringOtherApps: true)
         lowerWindowsForPicker()
         DebugLog.log("filePicker: showing")
         panel.begin { [weak self] result in
@@ -1652,6 +1651,7 @@ final class VeilModel: NSObject, ObservableObject {
         DispatchQueue.main.async {
             panel.level = .modalPanel
             panel.orderFrontRegardless()
+            panel.makeKey()
         }
     }
     func choosePresentationFile(completion: @escaping (Bool) -> Void) {
@@ -1665,7 +1665,6 @@ final class VeilModel: NSObject, ObservableObject {
             UTType(filenameExtension: "ppt") ?? .data,
             UTType(filenameExtension: "pptx") ?? .data
         ]
-        NSApp.activate(ignoringOtherApps: true)
         lowerWindowsForPicker()
         DebugLog.log("chooseFile: showing")
         panel.begin { [weak self] result in
@@ -1697,6 +1696,7 @@ final class VeilModel: NSObject, ObservableObject {
         DispatchQueue.main.async {
             panel.level = .modalPanel
             panel.orderFrontRegardless()
+            panel.makeKey()
         }
     }
     func syncActivePresetFiles() {
