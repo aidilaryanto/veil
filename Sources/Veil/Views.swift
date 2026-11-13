@@ -1158,12 +1158,9 @@ struct ContentView: View {
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.png, .jpeg, .image]
-        model.lowerWindowsForPicker()
-        let captureWasVisible = model.showCaptureAreaForPicker()
         DebugLog.log("canvas: picker showing")
-        panel.begin { result in
+        model.showPickerSheet(panel) { result in
             Task { @MainActor in
-                self.model.hideCaptureAreaAfterPicker(wasVisible: captureWasVisible)
                 self.model.applyAlwaysOnTop()
                 if result == .OK, let url = panel.url, let image = NSImage(contentsOf: url) {
                     DebugLog.log("canvas: custom image \(url.lastPathComponent)")
@@ -1173,10 +1170,6 @@ struct ContentView: View {
                     DebugLog.log("canvas: custom image cancelled")
                 }
             }
-        }
-        DispatchQueue.main.async {
-            panel.level = .modalPanel
-            panel.orderFrontRegardless()
         }
     }
     private var customPresets: [Preset] {

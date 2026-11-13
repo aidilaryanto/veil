@@ -875,16 +875,11 @@ final class VeilModel: NSObject, ObservableObject {
             window.level = .normal
         }
     }
-    func showCaptureAreaForPicker() -> Bool {
-        let wasVisible = isCaptureAreaVisible
-        if !wasVisible {
-            openCaptureAreaWindow()
-        }
-        return wasVisible
-    }
-    func hideCaptureAreaAfterPicker(wasVisible: Bool) {
-        if !wasVisible {
-            closeCaptureAreaWindow()
+    func showPickerSheet(_ panel: NSOpenPanel, completion: @escaping (NSApplication.ModalResponse) -> Void) {
+        if let parent = PanelWindowStore.shared.window {
+            panel.beginSheetModal(for: parent, completionHandler: completion)
+        } else {
+            panel.begin(completionHandler: completion)
         }
     }
     private static func normalLayerWindowIDs() -> Set<CGWindowID>? {
@@ -1617,13 +1612,10 @@ final class VeilModel: NSObject, ObservableObject {
             UTType(filenameExtension: "pptx") ?? .data,
             .folder
         ]
-        lowerWindowsForPicker()
-        let captureWasVisible = showCaptureAreaForPicker()
         DebugLog.log("filePicker: showing")
-        panel.begin { [weak self] result in
+        showPickerSheet(panel) { [weak self] result in
             guard result == .OK else {
                 Task { @MainActor in
-                    self?.hideCaptureAreaAfterPicker(wasVisible: captureWasVisible)
                     self?.applyAlwaysOnTop()
                     DebugLog.log("filePicker: cancelled")
                 }
@@ -1647,7 +1639,6 @@ final class VeilModel: NSObject, ObservableObject {
             }
             Task { @MainActor in
                 guard let self else { return }
-                self.hideCaptureAreaAfterPicker(wasVisible: captureWasVisible)
                 self.applyAlwaysOnTop()
                 let added = urls.sorted { $0.path < $1.path }.compactMap { self.addFile(url: $0) }.count
                 DebugLog.log("filePicker: added=\(added)")
@@ -1661,10 +1652,6 @@ final class VeilModel: NSObject, ObservableObject {
                 }
             }
         }
-        DispatchQueue.main.async {
-            panel.level = .modalPanel
-            panel.orderFrontRegardless()
-        }
     }
     func choosePresentationFile(completion: @escaping (Bool) -> Void) {
         let panel = NSOpenPanel()
@@ -1677,13 +1664,10 @@ final class VeilModel: NSObject, ObservableObject {
             UTType(filenameExtension: "ppt") ?? .data,
             UTType(filenameExtension: "pptx") ?? .data
         ]
-        lowerWindowsForPicker()
-        let captureWasVisible = showCaptureAreaForPicker()
         DebugLog.log("chooseFile: showing")
-        panel.begin { [weak self] result in
+        showPickerSheet(panel) { [weak self] result in
             Task { @MainActor in
                 guard let self else { completion(false); return }
-                self.hideCaptureAreaAfterPicker(wasVisible: captureWasVisible)
                 self.applyAlwaysOnTop()
                 guard result == .OK, !panel.urls.isEmpty else {
                     DebugLog.log("chooseFile: cancelled")
@@ -1705,10 +1689,6 @@ final class VeilModel: NSObject, ObservableObject {
                 self.syncActivePresetFiles()
                 completion(true)
             }
-        }
-        DispatchQueue.main.async {
-            panel.level = .modalPanel
-            panel.orderFrontRegardless()
         }
     }
     func syncActivePresetFiles() {
