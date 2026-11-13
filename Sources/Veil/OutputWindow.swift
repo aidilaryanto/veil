@@ -386,7 +386,7 @@ extension VeilModel {
         window.isMovableByWindowBackground = true
     }
     private var captureAreaRatio: CGFloat {
-        (isPreviewVisible && previewRenderedRatio > 0) ? previewRenderedRatio : previewRatio()
+        previewRatio()
     }
     func captureAreaWindowSize(width: CGFloat) -> CGSize {
         let ratio = captureAreaRatio
@@ -709,6 +709,7 @@ extension VeilModel {
             dockAnnotationControlToCaptureArea()
             return
         }
+        guard isCaptureAreaVisible else { return }
         let size = captureAreaWindowSize(width: window.frame.width)
         if let screen = window.screen ?? NSScreen.main {
             let visible = nativeFullscreenScreen()?.frame ?? screen.visibleFrame
