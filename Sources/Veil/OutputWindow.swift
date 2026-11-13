@@ -176,6 +176,21 @@ extension VeilModel {
     }
     func positionedImageFrame(in canvasSize: CGSize) -> CGRect? {
         guard let screen = positionedCanvasScreen() else { return nil }
+        if let live = previewLiveImage, live.size.height > 0,
+           let main = NSScreen.main, main.backingScaleFactor > 0,
+           abs(live.size.width / main.backingScaleFactor - main.frame.width) < 1,
+           canvasSize.width > 0, canvasSize.height > 0 {
+            let imageRatio = live.size.width / live.size.height
+            let outputRatio = canvasSize.width / canvasSize.height
+            if imageRatio >= outputRatio {
+                let width = canvasSize.width
+                let height = width / imageRatio
+                return CGRect(x: 0, y: (canvasSize.height - height) / 2, width: width, height: height)
+            }
+            let height = canvasSize.height
+            let width = height * imageRatio
+            return CGRect(x: (canvasSize.width - width) / 2, y: 0, width: width, height: height)
+        }
         let frame: CGRect
         if let live = livePositionedFrame, let liveID = livePositionedWindowID,
            mode == .allow, let effectiveID = effectiveSingleWindowID, effectiveID == liveID {
