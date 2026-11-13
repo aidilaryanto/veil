@@ -709,7 +709,6 @@ extension VeilModel {
             dockAnnotationControlToCaptureArea()
             return
         }
-        guard isCaptureAreaVisible else { return }
         let size = captureAreaWindowSize(width: window.frame.width)
         if let screen = window.screen ?? NSScreen.main {
             let visible = nativeFullscreenScreen()?.frame ?? screen.visibleFrame
