@@ -66,6 +66,19 @@ extension VeilModel {
               frame.width > 0, frame.height > 0 else { return nil }
         return frame.size
     }
+    func isFullscreenSourceWindow() -> Bool {
+        guard filePreviewImage == nil, mode == .allow, selectedWindowIDs.count == 1,
+              let onlyID = selectedWindowIDs.first,
+              let window = capturedWindows.first(where: { $0.windowID == onlyID }),
+              window.frame.width > 0, window.frame.height > 0 else { return false }
+        if window.isOnScreen { return false }
+        for screen in NSScreen.screens {
+            if abs(window.frame.width - screen.frame.width) < 1 {
+                return true
+            }
+        }
+        return false
+    }
     func fullscreenSourceScreen() -> NSScreen? {
         guard filePreviewImage == nil, mode == .allow, selectedWindowIDs.count == 1,
               let onlyID = selectedWindowIDs.first,
@@ -75,6 +88,13 @@ extension VeilModel {
             let visible = screen.visibleFrame
             if frame.width >= visible.width - 1, frame.height >= visible.height - 1 {
                 return screen
+            }
+        }
+        if isFullscreenSourceWindow() {
+            for screen in NSScreen.screens {
+                if abs(frame.width - screen.frame.width) < 1 {
+                    return screen
+                }
             }
         }
         return nil
@@ -99,6 +119,13 @@ extension VeilModel {
         for screen in NSScreen.screens where screen.frame.intersects(frame) {
             if abs(frame.width - screen.frame.width) < 1, abs(frame.height - screen.frame.height) < 1 {
                 return screen
+            }
+        }
+        if isFullscreenSourceWindow() {
+            for screen in NSScreen.screens {
+                if abs(frame.width - screen.frame.width) < 1 {
+                    return screen
+                }
             }
         }
         return nil
@@ -159,6 +186,18 @@ extension VeilModel {
         } else { return nil }
         let canvas = positionedCanvasRect(for: screen)
         guard canvas.width > 0, canvas.height > 0, canvasSize.width > 0, canvasSize.height > 0 else { return nil }
+        if isFullscreenSourceWindow(), frame.height > 0 {
+            let imageRatio = frame.width / frame.height
+            let outputRatio = canvasSize.width / canvasSize.height
+            if imageRatio >= outputRatio {
+                let width = canvasSize.width
+                let height = width / imageRatio
+                return CGRect(x: 0, y: (canvasSize.height - height) / 2, width: width, height: height)
+            }
+            let height = canvasSize.height
+            let width = height * imageRatio
+            return CGRect(x: (canvasSize.width - width) / 2, y: 0, width: width, height: height)
+        }
         let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
         let mainHeight = NSScreen.main?.frame.height ?? screen.frame.height
         let screenQuartzTop = mainHeight - screen.frame.maxY
