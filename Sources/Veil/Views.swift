@@ -945,6 +945,7 @@ struct ContentView: View {
         .pointingHandOnHover()
     }
     private func selectDisplay(_ id: UInt32?) {
+        DebugLog.log("display: selected \(id.map(String.init) ?? "none")")
         model.selectedDisplayID = id
         if model.isSharing {
             if id == nil {
@@ -1089,6 +1090,7 @@ struct ContentView: View {
         }
     }
     private func selectCanvasMode(_ mode: CanvasMode) {
+        DebugLog.log("canvas: \(mode)")
         model.canvasMode = mode
         if mode == .fullDisplay {
             model.previewSnapshotImage = nil
@@ -1108,6 +1110,7 @@ struct ContentView: View {
         }
     }
     private func selectBackground(_ background: CanvasBackground) {
+        DebugLog.log("canvas: background \(background)")
         if background == .custom, model.canvasImage == nil || model.canvasBackground == .custom {
             pickCanvasImage()
         } else {
@@ -1156,8 +1159,11 @@ struct ContentView: View {
         NSApp.activate(ignoringOtherApps: true)
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.15))
         if panel.runModal() == .OK, let url = panel.url, let image = NSImage(contentsOf: url) {
+            DebugLog.log("canvas: custom image \(url.lastPathComponent)")
             model.canvasImage = image
             model.canvasBackground = .custom
+        } else {
+            DebugLog.log("canvas: custom image cancelled")
         }
         model.bringSelectedAppToFront()
     }

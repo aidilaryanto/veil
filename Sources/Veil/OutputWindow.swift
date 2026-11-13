@@ -680,6 +680,7 @@ extension VeilModel {
         window.setFrameOrigin(CGPoint(x: visible.maxX, y: visible.minY - window.frame.height))
     }
     func closeCaptureAreaWindow() {
+        DebugLog.log("captureArea: hide")
         closeFileControlWindow()
         closeTimerControlWindow()
         closeAnnotationControlWindow()
@@ -697,6 +698,7 @@ extension VeilModel {
                 return
             }
             isCaptureAreaVisible = true
+            DebugLog.log("captureArea: show")
             if let screen = NSScreen.main {
                 let visible = screen.visibleFrame
                 let origin = CGPoint(

@@ -236,7 +236,7 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var canvasBackground: CanvasBackground = .gray { didSet { saveLastSession() } }
     @Published var canvasImage: NSImage? { didSet { saveLastCanvasImage(canvasImage) } }
     @Published var alwaysOnTop = true
-    @Published var cameraEnabled = true { didSet { saveLastSession() } }
+    @Published var cameraEnabled = true { didSet { DebugLog.log("camera: \(cameraEnabled ? "on" : "off")"); saveLastSession() } }
     @Published var cameraPosition: CameraPosition = .bottomRight { didSet { saveLastSession() } }
     @Published var cameraShape: CameraShape = .rounded { didSet { saveLastSession() } }
     @Published var cameraSize: Double = 110 { didSet { saveLastSession() } }
@@ -391,6 +391,7 @@ final class VeilModel: NSObject, ObservableObject {
                 canvasBackground = .gray
             }
         }
+        DebugLog.log("session: restored mode=\(session.mode) canvas=\(session.canvasMode) windows=\(session.selectedWindowIDs.count) display=\(session.displayID ?? 0) preset=\(session.activePresetID != nil) sharing=\(session.wasSharing)")
         launchAutoStart = true
     }
     private func lastCanvasImageURL() -> URL? {
@@ -786,6 +787,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
     }
     func resetPresentationTimer() {
+        DebugLog.log("timer: reset")
         presentationTimerActive = false
         presentationAccumulated = 0
         presentationCountingSince = nil
@@ -799,9 +801,11 @@ final class VeilModel: NSObject, ObservableObject {
             }
             presentationElapsed = presentationAccumulated
             presentationTimerActive = false
+            DebugLog.log("timer: pause \(presentationTimerText)")
         } else {
             presentationCountingSince = Date()
             presentationTimerActive = true
+            DebugLog.log("timer: start \(presentationTimerMode)")
         }
     }
     var presentationTimerRunning: Bool {
@@ -812,6 +816,7 @@ final class VeilModel: NSObject, ObservableObject {
     }
     func toggleTimerMode() {
         presentationTimerMode = presentationTimerMode == .countUp ? .countDown : .countUp
+        DebugLog.log("timer: mode \(presentationTimerMode)")
         presentationAccumulated = 0
         presentationCountingSince = presentationTimerActive ? Date() : nil
         presentationElapsed = 0
@@ -821,6 +826,7 @@ final class VeilModel: NSObject, ObservableObject {
     }
     func setCountdownDuration(_ duration: TimeInterval) {
         countdownDuration = max(60, min(duration, 36000))
+        DebugLog.log("timer: countdown \(Int(countdownDuration))s")
         presentationAccumulated = 0
         presentationCountingSince = presentationTimerActive ? Date() : nil
         presentationElapsed = 0
@@ -1047,6 +1053,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
     }
     func resetAllSources() {
+        DebugLog.log("sources: reset all")
         clearSelection()
         closeFile()
     }
@@ -1569,6 +1576,7 @@ final class VeilModel: NSObject, ObservableObject {
     }
     func togglePanic() {
         isPanic.toggle()
+        DebugLog.log("panic: \(isPanic ? "on" : "off")")
         if isPanic {
             stopCapture()
             previewImage = nil
@@ -1596,7 +1604,10 @@ final class VeilModel: NSObject, ObservableObject {
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.15))
         let result = panel.runModal()
         bringSelectedAppToFront()
-        guard result == .OK else { return }
+        guard result == .OK else {
+            DebugLog.log("filePicker: cancelled")
+            return
+        }
         var urls: [URL] = []
         for url in panel.urls {
             var isDirectory: ObjCBool = false
@@ -1614,6 +1625,7 @@ final class VeilModel: NSObject, ObservableObject {
             }
         }
         let added = urls.sorted { $0.path < $1.path }.compactMap { addFile(url: $0) }.count
+        DebugLog.log("filePicker: added=\(added)")
         if added > 0 { syncActivePresetFiles() }
         if added == 0 {
             status = "No new PDF or PPT files added."
@@ -1638,7 +1650,10 @@ final class VeilModel: NSObject, ObservableObject {
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.15))
         let result = panel.runModal()
         bringSelectedAppToFront()
-        guard result == .OK, !panel.urls.isEmpty else { return false }
+        guard result == .OK, !panel.urls.isEmpty else {
+            DebugLog.log("chooseFile: cancelled")
+            return false
+        }
         clearActivePreset()
         fileSources.removeAll()
         var first: FileSource?
@@ -1685,16 +1700,19 @@ final class VeilModel: NSObject, ObservableObject {
             guard let document = PDFDocument(url: url) else { return nil }
             let item = FileSource(name: name, url: url, kind: .pdf, pageCount: max(1, document.pageCount))
             fileSources.append(item)
+            DebugLog.log("file: added \(name) pdf pages=\(item.pageCount)")
             return item
         } else if ext == "ppt" || ext == "pptx" {
             let item = FileSource(name: name, url: url, kind: .ppt, pageCount: 1)
             fileSources.append(item)
+            DebugLog.log("file: added \(name) ppt")
             return item
         } else {
             return nil
         }
     }
     func activateFile(_ item: FileSource) {
+        DebugLog.log("file: activate \(item.name) \(item.kind) pages=\(item.pageCount)")
         activeFileID = item.id
         filePageIndex = 0
         filePageCache.removeAll()
@@ -1724,6 +1742,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
     }
     func closeFile() {
+        DebugLog.log("file: close")
         activeFileID = nil
         pdfDocument = nil
         filePageCache.removeAll()
@@ -1758,6 +1777,7 @@ final class VeilModel: NSObject, ObservableObject {
     func nextFilePage() -> Bool {
         guard let item = activeFile, filePageIndex + 1 < item.pageCount else { return false }
         filePageIndex += 1
+        DebugLog.log("file: page \(filePageIndex + 1)/\(item.pageCount)")
         renderFilePage()
         return true
     }
@@ -1765,12 +1785,14 @@ final class VeilModel: NSObject, ObservableObject {
     func previousFilePage() -> Bool {
         guard filePageIndex > 0 else { return false }
         filePageIndex -= 1
+        DebugLog.log("file: page \(filePageIndex + 1)/\(activeFile?.pageCount ?? 0)")
         renderFilePage()
         return true
     }
     func goToFilePage(_ index: Int) {
         guard let item = activeFile, index >= 0, index < item.pageCount else { return }
         filePageIndex = index
+        DebugLog.log("file: page \(filePageIndex + 1)/\(item.pageCount)")
         renderFilePage()
     }
     func filePageThumbnail(at index: Int) -> NSImage? {
@@ -1910,6 +1932,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
     }
     func clearAnnotations() {
+        DebugLog.log("annotation: clear")
         annotationStrokes.removeAll()
         laserPosition = nil
     }
@@ -1940,6 +1963,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
     }
     func applyPreset(_ preset: Preset) {
+        DebugLog.log("preset: apply \(preset.name)")
         activePresetID = preset.id
         mode = preset.mode
         framing = preset.framing
@@ -1979,6 +2003,7 @@ final class VeilModel: NSObject, ObservableObject {
             activePresetID = nil
             return
         }
+        DebugLog.log("preset: clear \(preset.name)")
         let keptWindows = selectedWindowIDs
         let presetHasFile = !preset.files.isEmpty || preset.fileURL != nil
         activePresetID = nil
