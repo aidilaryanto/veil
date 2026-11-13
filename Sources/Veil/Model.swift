@@ -273,6 +273,7 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var sourceAspectRatio: CGFloat = 0
     var lastLoggedCanvasRatio: CGFloat = 0
     var lastLoggedPositionedFrame: CGRect = .zero
+    var lastPosImageLogTime: TimeInterval = 0
     var lastLoggedResizeSize: CGSize = .zero
     @Published var fileSources: [FileSource] = []
     @Published var activeFileID: UUID?

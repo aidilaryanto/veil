@@ -193,8 +193,12 @@ extension VeilModel {
                 frame = CGRect(x: (canvasSize.width - width) / 2, y: 0, width: width, height: height)
             }
             if abs(frame.width - lastLoggedPositionedFrame.width) > 0.5 || abs(frame.height - lastLoggedPositionedFrame.height) > 0.5 {
-                lastLoggedPositionedFrame = frame
-                DebugLog.log("posImage: fullscreen live=\(Int(live.size.width))x\(Int(live.size.height)) canvas=\(Int(canvasSize.width))x\(Int(canvasSize.height)) frame=\(Int(frame.width))x\(Int(frame.height))@\(Int(frame.origin.x)),\(Int(frame.origin.y))")
+                let now = Date().timeIntervalSince1970
+                if now - lastPosImageLogTime > 2.0 {
+                    lastPosImageLogTime = now
+                    lastLoggedPositionedFrame = frame
+                    DebugLog.log("posImage: fullscreen live=\(Int(live.size.width))x\(Int(live.size.height)) canvas=\(Int(canvasSize.width))x\(Int(canvasSize.height)) frame=\(Int(frame.width))x\(Int(frame.height))@\(Int(frame.origin.x)),\(Int(frame.origin.y))")
+                }
             }
             return frame
         }
@@ -721,7 +725,6 @@ extension VeilModel {
             dockAnnotationControlToCaptureArea()
             return
         }
-        guard isCaptureAreaVisible else { return }
         let size = captureAreaWindowSize(width: window.frame.width)
         if abs(size.width - lastLoggedResizeSize.width) > 0.5 || abs(size.height - lastLoggedResizeSize.height) > 0.5 {
             lastLoggedResizeSize = size
@@ -739,16 +742,21 @@ extension VeilModel {
         }
         var frame = window.frame
         frame.size = size
-        if let screen = window.screen ?? NSScreen.main {
-            let visible = nativeFullscreenScreen()?.frame ?? screen.visibleFrame
-            if positionedCanvasScreen() != nil || fullscreenVisibleSize() != nil {
-                frame.origin.x = max(visible.minX, min(frame.origin.x, visible.maxX - frame.width))
-                let oldTop = window.frame.maxY
-                frame.origin.y = max(visible.minY, min(oldTop - frame.height, visible.maxY - frame.height))
-            } else {
-                frame.origin.x = max(visible.minX - frame.width + 100, min(frame.origin.x, visible.maxX - 100))
-                frame.origin.y = max(visible.minY - frame.height + 100, min(frame.origin.y, visible.maxY - 100))
+        if isCaptureAreaVisible {
+            if let screen = window.screen ?? NSScreen.main {
+                let visible = nativeFullscreenScreen()?.frame ?? screen.visibleFrame
+                if positionedCanvasScreen() != nil || fullscreenVisibleSize() != nil {
+                    frame.origin.x = max(visible.minX, min(frame.origin.x, visible.maxX - frame.width))
+                    let oldTop = window.frame.maxY
+                    frame.origin.y = max(visible.minY, min(oldTop - frame.height, visible.maxY - frame.height))
+                } else {
+                    frame.origin.x = max(visible.minX - frame.width + 100, min(frame.origin.x, visible.maxX - 100))
+                    frame.origin.y = max(visible.minY - frame.height + 100, min(frame.origin.y, visible.maxY - 100))
+                }
             }
+        } else if let screen = window.screen ?? NSScreen.main {
+            let visible = nativeFullscreenScreen()?.frame ?? screen.visibleFrame
+            frame.origin = CGPoint(x: visible.maxX, y: visible.minY - frame.height)
         }
         if abs(frame.width - window.frame.width) > 1 || abs(frame.height - window.frame.height) > 1
             || abs(frame.origin.x - window.frame.origin.x) > 1 || abs(frame.origin.y - window.frame.origin.y) > 1 {
