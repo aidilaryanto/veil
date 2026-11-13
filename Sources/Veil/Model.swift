@@ -875,6 +875,18 @@ final class VeilModel: NSObject, ObservableObject {
             window.level = .normal
         }
     }
+    func showCaptureAreaForPicker() -> Bool {
+        let wasVisible = isCaptureAreaVisible
+        if !wasVisible {
+            openCaptureAreaWindow()
+        }
+        return wasVisible
+    }
+    func hideCaptureAreaAfterPicker(wasVisible: Bool) {
+        if !wasVisible {
+            closeCaptureAreaWindow()
+        }
+    }
     private static func normalLayerWindowIDs() -> Set<CGWindowID>? {
         guard let info = CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID) as? [[CFString: Any]] else { return nil }
         var ids = Set<CGWindowID>()
@@ -1606,10 +1618,12 @@ final class VeilModel: NSObject, ObservableObject {
             .folder
         ]
         lowerWindowsForPicker()
+        let captureWasVisible = showCaptureAreaForPicker()
         DebugLog.log("filePicker: showing")
         panel.begin { [weak self] result in
             guard result == .OK else {
                 Task { @MainActor in
+                    self?.hideCaptureAreaAfterPicker(wasVisible: captureWasVisible)
                     self?.applyAlwaysOnTop()
                     DebugLog.log("filePicker: cancelled")
                 }
@@ -1633,6 +1647,7 @@ final class VeilModel: NSObject, ObservableObject {
             }
             Task { @MainActor in
                 guard let self else { return }
+                self.hideCaptureAreaAfterPicker(wasVisible: captureWasVisible)
                 self.applyAlwaysOnTop()
                 let added = urls.sorted { $0.path < $1.path }.compactMap { self.addFile(url: $0) }.count
                 DebugLog.log("filePicker: added=\(added)")
@@ -1663,10 +1678,12 @@ final class VeilModel: NSObject, ObservableObject {
             UTType(filenameExtension: "pptx") ?? .data
         ]
         lowerWindowsForPicker()
+        let captureWasVisible = showCaptureAreaForPicker()
         DebugLog.log("chooseFile: showing")
         panel.begin { [weak self] result in
             Task { @MainActor in
                 guard let self else { completion(false); return }
+                self.hideCaptureAreaAfterPicker(wasVisible: captureWasVisible)
                 self.applyAlwaysOnTop()
                 guard result == .OK, !panel.urls.isEmpty else {
                     DebugLog.log("chooseFile: cancelled")
