@@ -234,8 +234,8 @@ extension VeilModel {
             return size.width / size.height
         }
         if let live = previewLiveImage, live.size.height > 0,
-           let frame = previewSourceFrame(), frame.height > 0, frame.minY > 100,
-           NSScreen.screens.contains(where: { abs(frame.width - $0.frame.width) < 1 }) {
+           let screen = NSScreen.main, screen.backingScaleFactor > 0,
+           abs(live.size.width / screen.backingScaleFactor - screen.frame.width) < 1 {
             return live.size.width / live.size.height
         }
         if let screen = positionedCanvasScreen() {
