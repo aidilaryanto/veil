@@ -866,7 +866,9 @@ struct ContentView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Button {
-                    if model.choosePresentationFile() { popup = nil; showSourcesPopover = false }
+                    model.choosePresentationFile { success in
+                        if success { popup = nil; showSourcesPopover = false }
+                    }
                 } label: {
                     Label("Choose PDF / PPT", systemImage: "doc")
                         .font(.subheadline)
@@ -1157,15 +1159,18 @@ struct ContentView: View {
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.png, .jpeg, .image]
         NSApp.activate(ignoringOtherApps: true)
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.15))
-        if panel.runModal() == .OK, let url = panel.url, let image = NSImage(contentsOf: url) {
-            DebugLog.log("canvas: custom image \(url.lastPathComponent)")
-            model.canvasImage = image
-            model.canvasBackground = .custom
-        } else {
-            DebugLog.log("canvas: custom image cancelled")
+        panel.begin { result in
+            Task { @MainActor in
+                if result == .OK, let url = panel.url, let image = NSImage(contentsOf: url) {
+                    DebugLog.log("canvas: custom image \(url.lastPathComponent)")
+                    self.model.canvasImage = image
+                    self.model.canvasBackground = .custom
+                } else {
+                    DebugLog.log("canvas: custom image cancelled")
+                }
+                self.model.bringSelectedAppToFront()
+            }
         }
-        model.bringSelectedAppToFront()
     }
     private var customPresets: [Preset] {
         model.presets.filter { !$0.isBuiltIn }

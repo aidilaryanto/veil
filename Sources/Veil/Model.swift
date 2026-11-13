@@ -1601,41 +1601,44 @@ final class VeilModel: NSObject, ObservableObject {
             .folder
         ]
         NSApp.activate(ignoringOtherApps: true)
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.15))
-        let result = panel.runModal()
-        bringSelectedAppToFront()
-        guard result == .OK else {
-            DebugLog.log("filePicker: cancelled")
-            return
-        }
-        var urls: [URL] = []
-        for url in panel.urls {
-            var isDirectory: ObjCBool = false
-            if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
-               isDirectory.boolValue,
-               let enumerator = FileManager.default.enumerator(
-                   at: url, includingPropertiesForKeys: nil,
-                   options: [.skipsHiddenFiles, .skipsPackageDescendants]
-               ) {
-                for case let fileURL as URL in enumerator {
-                    urls.append(fileURL)
+        panel.begin { [weak self] result in
+            Task { @MainActor in
+                guard let self else { return }
+                self.bringSelectedAppToFront()
+                guard result == .OK else {
+                    DebugLog.log("filePicker: cancelled")
+                    return
                 }
-            } else {
-                urls.append(url)
+                var urls: [URL] = []
+                for url in panel.urls {
+                    var isDirectory: ObjCBool = false
+                    if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+                       isDirectory.boolValue,
+                       let enumerator = FileManager.default.enumerator(
+                           at: url, includingPropertiesForKeys: nil,
+                           options: [.skipsHiddenFiles, .skipsPackageDescendants]
+                       ) {
+                        for case let fileURL as URL in enumerator {
+                            urls.append(fileURL)
+                        }
+                    } else {
+                        urls.append(url)
+                    }
+                }
+                let added = urls.sorted { $0.path < $1.path }.compactMap { self.addFile(url: $0) }.count
+                DebugLog.log("filePicker: added=\(added)")
+                if added > 0 { self.syncActivePresetFiles() }
+                if added == 0 {
+                    self.status = "No new PDF or PPT files added."
+                } else if added == 1 {
+                    self.status = "1 file added. Click a file name to show it."
+                } else {
+                    self.status = "\(added) files added. Click a file name to show it."
+                }
             }
         }
-        let added = urls.sorted { $0.path < $1.path }.compactMap { addFile(url: $0) }.count
-        DebugLog.log("filePicker: added=\(added)")
-        if added > 0 { syncActivePresetFiles() }
-        if added == 0 {
-            status = "No new PDF or PPT files added."
-        } else if added == 1 {
-            status = "1 file added. Click a file name to show it."
-        } else {
-            status = "\(added) files added. Click a file name to show it."
-        }
     }
-    func choosePresentationFile() -> Bool {
+    func choosePresentationFile(completion: @escaping (Bool) -> Void) {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
@@ -1647,27 +1650,31 @@ final class VeilModel: NSObject, ObservableObject {
             UTType(filenameExtension: "pptx") ?? .data
         ]
         NSApp.activate(ignoringOtherApps: true)
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.15))
-        let result = panel.runModal()
-        bringSelectedAppToFront()
-        guard result == .OK, !panel.urls.isEmpty else {
-            DebugLog.log("chooseFile: cancelled")
-            return false
-        }
-        clearActivePreset()
-        fileSources.removeAll()
-        var first: FileSource?
-        for url in panel.urls.sorted(by: { $0.path < $1.path }) {
-            if let existing = fileSources.first(where: { $0.url.path == url.path }) {
-                if first == nil { first = existing }
-            } else if let added = addFile(url: url), first == nil {
-                first = added
+        panel.begin { [weak self] result in
+            Task { @MainActor in
+                guard let self else { completion(false); return }
+                self.bringSelectedAppToFront()
+                guard result == .OK, !panel.urls.isEmpty else {
+                    DebugLog.log("chooseFile: cancelled")
+                    completion(false)
+                    return
+                }
+                self.clearActivePreset()
+                self.fileSources.removeAll()
+                var first: FileSource?
+                for url in panel.urls.sorted(by: { $0.path < $1.path }) {
+                    if let existing = self.fileSources.first(where: { $0.url.path == url.path }) {
+                        if first == nil { first = existing }
+                    } else if let added = self.addFile(url: url), first == nil {
+                        first = added
+                    }
+                }
+                guard let active = first else { completion(false); return }
+                self.activateFile(active)
+                self.syncActivePresetFiles()
+                completion(true)
             }
         }
-        guard let active = first else { return false }
-        activateFile(active)
-        syncActivePresetFiles()
-        return true
     }
     func syncActivePresetFiles() {
         guard let id = activePresetID,
