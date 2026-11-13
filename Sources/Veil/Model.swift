@@ -1593,6 +1593,7 @@ final class VeilModel: NSObject, ObservableObject {
             .folder
         ]
         NSApp.activate(ignoringOtherApps: true)
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.15))
         let result = panel.runModal()
         bringSelectedAppToFront()
         guard result == .OK else { return }
@@ -1634,6 +1635,7 @@ final class VeilModel: NSObject, ObservableObject {
             UTType(filenameExtension: "pptx") ?? .data
         ]
         NSApp.activate(ignoringOtherApps: true)
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.15))
         let result = panel.runModal()
         bringSelectedAppToFront()
         guard result == .OK, !panel.urls.isEmpty else { return false }

@@ -1154,6 +1154,7 @@ struct ContentView: View {
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.png, .jpeg, .image]
         NSApp.activate(ignoringOtherApps: true)
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.15))
         if panel.runModal() == .OK, let url = panel.url, let image = NSImage(contentsOf: url) {
             model.canvasImage = image
             model.canvasBackground = .custom
