@@ -405,6 +405,14 @@ extension VeilModel {
         previewRatio()
     }
     func captureAreaWindowSize(width: CGFloat) -> CGSize {
+        if let live = previewLiveImage, live.size.height > 0,
+           let screen = NSScreen.main, screen.backingScaleFactor > 0,
+           abs(live.size.width / screen.backingScaleFactor - screen.frame.width) < 1 {
+            let sourceSize = CGSize(width: live.size.width / screen.backingScaleFactor, height: live.size.height / screen.backingScaleFactor)
+            if sourceSize.width >= 320 && sourceSize.height >= 180 {
+                return sourceSize
+            }
+        }
         let ratio = captureAreaRatio
         guard ratio > 0 else { return CGSize(width: width, height: width) }
         var w = width
