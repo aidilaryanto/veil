@@ -71,7 +71,6 @@ extension VeilModel {
               let onlyID = selectedWindowIDs.first,
               let window = capturedWindows.first(where: { $0.windowID == onlyID }),
               window.frame.width > 0, window.frame.height > 0 else { return false }
-        if window.isOnScreen { return false }
         for screen in NSScreen.screens {
             if abs(window.frame.width - screen.frame.width) < 1 {
                 return true
@@ -186,7 +185,7 @@ extension VeilModel {
         } else { return nil }
         let canvas = positionedCanvasRect(for: screen)
         guard canvas.width > 0, canvas.height > 0, canvasSize.width > 0, canvasSize.height > 0 else { return nil }
-        if isFullscreenSourceWindow(), frame.height > 0 {
+        if frame.height > 0, (abs(frame.width - screen.frame.width) < 1 || isFullscreenSourceWindow()) {
             let imageRatio = frame.width / frame.height
             let outputRatio = canvasSize.width / canvasSize.height
             if imageRatio >= outputRatio {
