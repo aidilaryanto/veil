@@ -553,6 +553,14 @@ final class VeilModel: NSObject, ObservableObject {
         }
         return nil
     }
+    func bringSelectedAppToFront() {
+        guard let id = selectedWindowIDs.first,
+              let window = capturedWindows.first(where: { $0.windowID == id }),
+              let pid = window.owningApplication?.processID,
+              let app = NSRunningApplication(processIdentifier: pid) else { return }
+        app.activate()
+        DebugLog.log("bringToFront: activated pid=\(pid) window=\(window.windowID)")
+    }
     var effectiveSingleWindowID: CGWindowID? {
         if selectedWindowIDs.count == 1 {
             return selectedWindowIDs.first
@@ -956,11 +964,12 @@ final class VeilModel: NSObject, ObservableObject {
                     }
                     if launchAutoStart, !isSharing, !isPanic, filePreviewImage == nil, selectedDisplayID != nil {
                         launchAutoStart = false
+                        bringSelectedAppToFront()
                         Task {
                             try? await Task.sleep(nanoseconds: 800_000_000)
                             await MainActor.run {
                                 if !self.isSharing, !self.isPanic, self.filePreviewImage == nil, self.selectedDisplayID != nil {
-                                    self.startCapture()
+                                    self.startCaptureWithFreshSources()
                                 }
                             }
                         }
@@ -1025,8 +1034,12 @@ final class VeilModel: NSObject, ObservableObject {
         updateSourceAspectRatioFromSelection()
         if isSharing {
             stopPreviewSnapshotTimer()
+            if wasAdding {
+                bringSelectedAppToFront()
+            }
             updateCapture()
         } else if wasAdding, !selectedWindowIDs.isEmpty {
+            bringSelectedAppToFront()
             startCaptureWithFreshSources()
         } else {
             refreshPreviewSnapshot()
@@ -1056,8 +1069,12 @@ final class VeilModel: NSObject, ObservableObject {
         updateSourceAspectRatioFromSelection()
         if isSharing {
             stopPreviewSnapshotTimer()
+            if wasAdded {
+                bringSelectedAppToFront()
+            }
             updateCapture()
         } else if wasAdded, !selectedWindowIDs.isEmpty {
+            bringSelectedAppToFront()
             startCaptureWithFreshSources()
         } else {
             refreshPreviewSnapshot()
