@@ -233,6 +233,9 @@ extension VeilModel {
         if canvasMode == .fullDisplay, let size = fullDisplayFrameSize(), size.height > 0 {
             return size.width / size.height
         }
+        if let live = previewLiveImage, live.size.height > 0 {
+            return live.size.width / live.size.height
+        }
         if let screen = positionedCanvasScreen() {
             if let frame = previewSourceFrame(), frame.height > 0,
                abs(frame.width - screen.frame.width) < 1 {
