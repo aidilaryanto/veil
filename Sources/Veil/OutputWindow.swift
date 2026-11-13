@@ -185,6 +185,19 @@ extension VeilModel {
         } else { return nil }
         let canvas = positionedCanvasRect(for: screen)
         guard canvas.width > 0, canvas.height > 0, canvasSize.width > 0, canvasSize.height > 0 else { return nil }
+        if let sourceFrame = previewSourceFrame(), sourceFrame.height > 0,
+           abs(sourceFrame.width - screen.frame.width) < 1 {
+            let imageRatio = sourceFrame.width / sourceFrame.height
+            let outputRatio = canvasSize.width / canvasSize.height
+            if imageRatio >= outputRatio {
+                let width = canvasSize.width
+                let height = width / imageRatio
+                return CGRect(x: 0, y: (canvasSize.height - height) / 2, width: width, height: height)
+            }
+            let height = canvasSize.height
+            let width = height * imageRatio
+            return CGRect(x: (canvasSize.width - width) / 2, y: 0, width: width, height: height)
+        }
         if frame.height > 0, (abs(frame.width - screen.frame.width) < 1 || isFullscreenSourceWindow()) {
             let imageRatio = frame.width / frame.height
             let outputRatio = canvasSize.width / canvasSize.height
