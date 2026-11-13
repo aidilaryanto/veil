@@ -874,14 +874,14 @@ struct ContentView: View {
                         .font(.subheadline)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.black.opacity(0.45))
+                        )
+                        .contentShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.white)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.black.opacity(0.45))
-                )
-                .contentShape(RoundedRectangle(cornerRadius: 10))
                 .pointingHandOnHover()
             }
         }

@@ -1675,6 +1675,7 @@ final class VeilModel: NSObject, ObservableObject {
                     return
                 }
                 self.clearActivePreset()
+                self.clearSelection()
                 self.fileSources.removeAll()
                 var first: FileSource?
                 for url in panel.urls.sorted(by: { $0.path < $1.path }) {
