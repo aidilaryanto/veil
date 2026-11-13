@@ -1159,9 +1159,11 @@ struct ContentView: View {
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.png, .jpeg, .image]
         NSApp.activate(ignoringOtherApps: true)
-        panel.level = .modalPanel
+        model.lowerWindowsForPicker()
+        DebugLog.log("canvas: picker showing")
         panel.begin { result in
             Task { @MainActor in
+                self.model.applyAlwaysOnTop()
                 if result == .OK, let url = panel.url, let image = NSImage(contentsOf: url) {
                     DebugLog.log("canvas: custom image \(url.lastPathComponent)")
                     self.model.canvasImage = image

@@ -870,6 +870,11 @@ final class VeilModel: NSObject, ObservableObject {
             }
         }
     }
+    func lowerWindowsForPicker() {
+        for window in NSApp.windows {
+            window.level = .normal
+        }
+    }
     private static func normalLayerWindowIDs() -> Set<CGWindowID>? {
         guard let info = CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID) as? [[CFString: Any]] else { return nil }
         var ids = Set<CGWindowID>()
@@ -1601,10 +1606,12 @@ final class VeilModel: NSObject, ObservableObject {
             .folder
         ]
         NSApp.activate(ignoringOtherApps: true)
-        panel.level = .modalPanel
+        lowerWindowsForPicker()
+        DebugLog.log("filePicker: showing")
         panel.begin { [weak self] result in
             guard result == .OK else {
                 Task { @MainActor in
+                    self?.applyAlwaysOnTop()
                     self?.bringSelectedAppToFront()
                     DebugLog.log("filePicker: cancelled")
                 }
@@ -1628,6 +1635,7 @@ final class VeilModel: NSObject, ObservableObject {
             }
             Task { @MainActor in
                 guard let self else { return }
+                self.applyAlwaysOnTop()
                 self.bringSelectedAppToFront()
                 let added = urls.sorted { $0.path < $1.path }.compactMap { self.addFile(url: $0) }.count
                 DebugLog.log("filePicker: added=\(added)")
@@ -1654,10 +1662,12 @@ final class VeilModel: NSObject, ObservableObject {
             UTType(filenameExtension: "pptx") ?? .data
         ]
         NSApp.activate(ignoringOtherApps: true)
-        panel.level = .modalPanel
+        lowerWindowsForPicker()
+        DebugLog.log("chooseFile: showing")
         panel.begin { [weak self] result in
             Task { @MainActor in
                 guard let self else { completion(false); return }
+                self.applyAlwaysOnTop()
                 self.bringSelectedAppToFront()
                 guard result == .OK, !panel.urls.isEmpty else {
                     DebugLog.log("chooseFile: cancelled")
