@@ -182,14 +182,21 @@ extension VeilModel {
            canvasSize.width > 0, canvasSize.height > 0 {
             let imageRatio = live.size.width / live.size.height
             let outputRatio = canvasSize.width / canvasSize.height
+            let frame: CGRect
             if imageRatio >= outputRatio {
                 let width = canvasSize.width
                 let height = width / imageRatio
-                return CGRect(x: 0, y: (canvasSize.height - height) / 2, width: width, height: height)
+                frame = CGRect(x: 0, y: (canvasSize.height - height) / 2, width: width, height: height)
+            } else {
+                let height = canvasSize.height
+                let width = height * imageRatio
+                frame = CGRect(x: (canvasSize.width - width) / 2, y: 0, width: width, height: height)
             }
-            let height = canvasSize.height
-            let width = height * imageRatio
-            return CGRect(x: (canvasSize.width - width) / 2, y: 0, width: width, height: height)
+            if abs(frame.width - lastLoggedPositionedFrame.width) > 0.5 || abs(frame.height - lastLoggedPositionedFrame.height) > 0.5 {
+                lastLoggedPositionedFrame = frame
+                DebugLog.log("posImage: fullscreen live=\(Int(live.size.width))x\(Int(live.size.height)) canvas=\(Int(canvasSize.width))x\(Int(canvasSize.height)) frame=\(Int(frame.width))x\(Int(frame.height))@\(Int(frame.origin.x)),\(Int(frame.origin.y))")
+            }
+            return frame
         }
         let frame: CGRect
         if let live = livePositionedFrame, let liveID = livePositionedWindowID,
@@ -251,7 +258,12 @@ extension VeilModel {
         if let live = previewLiveImage, live.size.height > 0,
            let screen = NSScreen.main, screen.backingScaleFactor > 0,
            abs(live.size.width / screen.backingScaleFactor - screen.frame.width) < 1 {
-            return live.size.width / live.size.height
+            let ratio = live.size.width / live.size.height
+            if abs(ratio - lastLoggedCanvasRatio) > 0.0005 {
+                lastLoggedCanvasRatio = ratio
+                DebugLog.log("canvasRatio: fullscreen live=\(Int(live.size.width))x\(Int(live.size.height)) ratio=\(ratio)")
+            }
+            return ratio
         }
         if let screen = positionedCanvasScreen() {
             if let frame = previewSourceFrame(), frame.height > 0,
@@ -711,6 +723,10 @@ extension VeilModel {
         }
         guard isCaptureAreaVisible else { return }
         let size = captureAreaWindowSize(width: window.frame.width)
+        if abs(size.width - lastLoggedResizeSize.width) > 0.5 || abs(size.height - lastLoggedResizeSize.height) > 0.5 {
+            lastLoggedResizeSize = size
+            DebugLog.log("resizeCA: ratio=\(captureAreaRatio) size=\(Int(size.width))x\(Int(size.height)) window=\(Int(window.frame.width))x\(Int(window.frame.height)) visible=\(isCaptureAreaVisible)")
+        }
         if let screen = window.screen ?? NSScreen.main {
             let visible = nativeFullscreenScreen()?.frame ?? screen.visibleFrame
             if abs(window.frame.width - visible.width) < 2 && abs(window.frame.height - visible.height) < 2

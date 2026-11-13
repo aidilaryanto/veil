@@ -271,6 +271,9 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var isCaptureAreaVisible = false
     @Published var previewRenderedRatio: CGFloat = 0
     @Published var sourceAspectRatio: CGFloat = 0
+    var lastLoggedCanvasRatio: CGFloat = 0
+    var lastLoggedPositionedFrame: CGRect = .zero
+    var lastLoggedResizeSize: CGSize = .zero
     @Published var fileSources: [FileSource] = []
     @Published var activeFileID: UUID?
     @Published var filePageIndex = 0
