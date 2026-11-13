@@ -1159,6 +1159,7 @@ struct ContentView: View {
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.png, .jpeg, .image]
         NSApp.activate(ignoringOtherApps: true)
+        panel.level = .modalPanel
         panel.begin { result in
             Task { @MainActor in
                 if result == .OK, let url = panel.url, let image = NSImage(contentsOf: url) {

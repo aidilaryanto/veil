@@ -1601,6 +1601,7 @@ final class VeilModel: NSObject, ObservableObject {
             .folder
         ]
         NSApp.activate(ignoringOtherApps: true)
+        panel.level = .modalPanel
         panel.begin { [weak self] result in
             guard result == .OK else {
                 Task { @MainActor in
@@ -1653,6 +1654,7 @@ final class VeilModel: NSObject, ObservableObject {
             UTType(filenameExtension: "pptx") ?? .data
         ]
         NSApp.activate(ignoringOtherApps: true)
+        panel.level = .modalPanel
         panel.begin { [weak self] result in
             Task { @MainActor in
                 guard let self else { completion(false); return }
