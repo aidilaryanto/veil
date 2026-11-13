@@ -1153,10 +1153,12 @@ struct ContentView: View {
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.png, .jpeg, .image]
+        NSApp.activate(ignoringOtherApps: true)
         if panel.runModal() == .OK, let url = panel.url, let image = NSImage(contentsOf: url) {
             model.canvasImage = image
             model.canvasBackground = .custom
         }
+        model.bringSelectedAppToFront()
     }
     private var customPresets: [Preset] {
         model.presets.filter { !$0.isBuiltIn }

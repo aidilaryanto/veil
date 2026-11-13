@@ -1592,7 +1592,10 @@ final class VeilModel: NSObject, ObservableObject {
             UTType(filenameExtension: "pptx") ?? .data,
             .folder
         ]
-        guard panel.runModal() == .OK else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        let result = panel.runModal()
+        bringSelectedAppToFront()
+        guard result == .OK else { return }
         var urls: [URL] = []
         for url in panel.urls {
             var isDirectory: ObjCBool = false
@@ -1630,7 +1633,10 @@ final class VeilModel: NSObject, ObservableObject {
             UTType(filenameExtension: "ppt") ?? .data,
             UTType(filenameExtension: "pptx") ?? .data
         ]
-        guard panel.runModal() == .OK, !panel.urls.isEmpty else { return false }
+        NSApp.activate(ignoringOtherApps: true)
+        let result = panel.runModal()
+        bringSelectedAppToFront()
+        guard result == .OK, !panel.urls.isEmpty else { return false }
         clearActivePreset()
         fileSources.removeAll()
         var first: FileSource?
