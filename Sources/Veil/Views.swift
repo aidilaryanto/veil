@@ -1174,6 +1174,10 @@ struct ContentView: View {
                 self.model.bringSelectedAppToFront()
             }
         }
+        DispatchQueue.main.async {
+            panel.level = .modalPanel
+            panel.orderFrontRegardless()
+        }
     }
     private var customPresets: [Preset] {
         model.presets.filter { !$0.isBuiltIn }
