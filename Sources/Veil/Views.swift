@@ -523,7 +523,7 @@ struct ContentView: View {
             gridButton(title: "Preview", subtitle: model.isPreviewVisible ? "Visible" : "Hidden", icon: "eye", tint: model.isPreviewVisible ? Color.accentColor : nil) {
                 model.togglePreviewWindow()
             }
-            gridButton(title: "Sources", subtitle: model.canvasMode == .fullDisplay ? "Disabled" : "\(model.sourceRuleCount) rules", icon: "list.bullet", disabled: model.canvasMode == .fullDisplay) { showSourcesPopover.toggle() }
+            gridButton(title: "Sources", subtitle: model.canvasMode == .fullDisplay ? "Disabled" : (model.sourceRuleCount == 0 ? "Choose" : "\(model.sourceRuleCount) rules"), icon: "list.bullet", disabled: model.canvasMode == .fullDisplay) { showSourcesPopover.toggle() }
                 .popover(isPresented: $showSourcesPopover, arrowEdge: .top) {
                     sourcesPopup
                         .preferredColorScheme(.dark)
