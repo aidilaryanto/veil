@@ -474,6 +474,9 @@ final class VeilModel: NSObject, ObservableObject {
         guard !selectedWindowIDs.isEmpty, canvasMode != .fullDisplay, mode == .allow, framing == .dynamic else { return false }
         guard let display = displays.first(where: { $0.displayID == selectedDisplayID }) ?? displays.first else { return false }
         guard let union = dynamicUnionFrame() else { return false }
+        if NSScreen.screens.contains(where: { abs(union.width - $0.frame.width) < 1 }) {
+            return false
+        }
         return sourceRect(for: union, on: display) == nil
     }
     var activeFile: FileSource? {
@@ -1556,7 +1559,10 @@ final class VeilModel: NSObject, ObservableObject {
                 .filter { selectedWindowIDs.contains($0.windowID) }
                 .sorted { $0.windowID < $1.windowID }
             let newContentSignature = "\(canvasMode.rawValue)|\(mode.rawValue)|\(framing.rawValue)|\(selectedDisplayID ?? 0)|" + selected.map { "\($0.windowID):\(Int($0.frame.width))x\(Int($0.frame.height))" }.joined(separator: ",")
-            let newPositionSignature = selected.map { "\($0.windowID):\(Int($0.frame.origin.x)),\(Int($0.frame.origin.y))" }.joined(separator: ",")
+            let newPositionSignature = selected.map { window in
+                let x = NSScreen.screens.contains(where: { abs(window.frame.width - $0.frame.width) < 1 }) ? 0 : Int(window.frame.origin.x)
+                return "\(window.windowID):\(x),\(Int(window.frame.origin.y))"
+            }.joined(separator: ",")
             guard newContentSignature != lastCaptureSignature || newPositionSignature != lastPositionSignature else { return }
             DebugLog.log("watchdog: signature changed, oldContent=\(lastCaptureSignature) newContent=\(newContentSignature) oldPos=\(lastPositionSignature) newPos=\(newPositionSignature)")
             capturedWindows = content.windows
