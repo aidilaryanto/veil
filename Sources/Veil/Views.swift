@@ -1170,7 +1170,6 @@ struct ContentView: View {
                 } else {
                     DebugLog.log("canvas: custom image cancelled")
                 }
-                self.model.bringSelectedAppToFront()
             }
         }
         DispatchQueue.main.async {

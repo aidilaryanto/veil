@@ -1611,7 +1611,6 @@ final class VeilModel: NSObject, ObservableObject {
             guard result == .OK else {
                 Task { @MainActor in
                     self?.applyAlwaysOnTop()
-                    self?.bringSelectedAppToFront()
                     DebugLog.log("filePicker: cancelled")
                 }
                 return
@@ -1635,7 +1634,6 @@ final class VeilModel: NSObject, ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 self.applyAlwaysOnTop()
-                self.bringSelectedAppToFront()
                 let added = urls.sorted { $0.path < $1.path }.compactMap { self.addFile(url: $0) }.count
                 DebugLog.log("filePicker: added=\(added)")
                 if added > 0 { self.syncActivePresetFiles() }
@@ -1671,7 +1669,6 @@ final class VeilModel: NSObject, ObservableObject {
             Task { @MainActor in
                 guard let self else { completion(false); return }
                 self.applyAlwaysOnTop()
-                self.bringSelectedAppToFront()
                 guard result == .OK, !panel.urls.isEmpty else {
                     DebugLog.log("chooseFile: cancelled")
                     completion(false)
