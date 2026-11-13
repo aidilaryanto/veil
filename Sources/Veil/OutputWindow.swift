@@ -234,10 +234,6 @@ extension VeilModel {
             return size.width / size.height
         }
         if let screen = positionedCanvasScreen() {
-            if let frame = previewSourceFrame(), frame.height > 0,
-               abs(frame.width - screen.frame.width) < 1 {
-                return frame.width / frame.height
-            }
             let canvas = positionedCanvasRect(for: screen)
             if canvas.height > 0 {
                 return canvas.width / canvas.height
