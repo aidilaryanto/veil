@@ -1602,29 +1602,32 @@ final class VeilModel: NSObject, ObservableObject {
         ]
         NSApp.activate(ignoringOtherApps: true)
         panel.begin { [weak self] result in
+            guard result == .OK else {
+                Task { @MainActor in
+                    self?.bringSelectedAppToFront()
+                    DebugLog.log("filePicker: cancelled")
+                }
+                return
+            }
+            var urls: [URL] = []
+            for url in panel.urls {
+                var isDirectory: ObjCBool = false
+                if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+                   isDirectory.boolValue,
+                   let enumerator = FileManager.default.enumerator(
+                       at: url, includingPropertiesForKeys: nil,
+                       options: [.skipsHiddenFiles, .skipsPackageDescendants]
+                   ) {
+                    for case let fileURL as URL in enumerator {
+                        urls.append(fileURL)
+                    }
+                } else {
+                    urls.append(url)
+                }
+            }
             Task { @MainActor in
                 guard let self else { return }
                 self.bringSelectedAppToFront()
-                guard result == .OK else {
-                    DebugLog.log("filePicker: cancelled")
-                    return
-                }
-                var urls: [URL] = []
-                for url in panel.urls {
-                    var isDirectory: ObjCBool = false
-                    if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
-                       isDirectory.boolValue,
-                       let enumerator = FileManager.default.enumerator(
-                           at: url, includingPropertiesForKeys: nil,
-                           options: [.skipsHiddenFiles, .skipsPackageDescendants]
-                       ) {
-                        for case let fileURL as URL in enumerator {
-                            urls.append(fileURL)
-                        }
-                    } else {
-                        urls.append(url)
-                    }
-                }
                 let added = urls.sorted { $0.path < $1.path }.compactMap { self.addFile(url: $0) }.count
                 DebugLog.log("filePicker: added=\(added)")
                 if added > 0 { self.syncActivePresetFiles() }
