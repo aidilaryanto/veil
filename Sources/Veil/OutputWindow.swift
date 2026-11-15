@@ -72,7 +72,8 @@ extension VeilModel {
               let window = capturedWindows.first(where: { $0.windowID == onlyID }),
               window.frame.width > 0, window.frame.height > 0 else { return false }
         for screen in NSScreen.screens {
-            if abs(window.frame.width - screen.frame.width) < 1 {
+            if abs(window.frame.width - screen.frame.width) < 1,
+               abs(window.frame.maxY - screen.frame.maxY) < 1 {
                 return true
             }
         }
@@ -261,9 +262,9 @@ extension VeilModel {
         if canvasMode == .fullDisplay, let size = fullDisplayFrameSize(), size.height > 0 {
             return size.width / size.height
         }
-        if let live = previewLiveImage, live.size.height > 0,
-           let screen = NSScreen.main, screen.backingScaleFactor > 0,
-           abs(live.size.width / screen.backingScaleFactor - screen.frame.width) < 1 {
+        if isFullscreenSourceWindow(),
+           let live = previewLiveImage, live.size.height > 0,
+           let screen = NSScreen.main, screen.backingScaleFactor > 0 {
             let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
             let displayHeight = screen.frame.height - menuBarHeight
             let ratio = displayHeight > 0 ? screen.frame.width / displayHeight : live.size.width / live.size.height
@@ -409,9 +410,9 @@ extension VeilModel {
         previewRatio()
     }
     func captureAreaWindowSize(width: CGFloat) -> CGSize {
-        if let live = previewLiveImage, live.size.height > 0,
-           let screen = NSScreen.main, screen.backingScaleFactor > 0,
-           abs(live.size.width / screen.backingScaleFactor - screen.frame.width) < 1 {
+        if isFullscreenSourceWindow(),
+           let live = previewLiveImage, live.size.height > 0,
+           let screen = NSScreen.main, screen.backingScaleFactor > 0 {
             let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
             let fullscreenSize = CGSize(width: screen.frame.width, height: screen.frame.height - menuBarHeight)
             if fullscreenSize.width >= 320 && fullscreenSize.height >= 180 {
