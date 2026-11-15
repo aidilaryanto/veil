@@ -417,7 +417,7 @@ extension VeilModel {
         previewRatio()
     }
     func captureAreaWindowSize(width: CGFloat) -> CGSize {
-        if isFullscreenSourceWindow(),
+        if canvasMode == .isolated, isFullscreenSourceWindow(),
            let live = previewLiveImage, live.size.height > 0,
            let screen = NSScreen.main, screen.backingScaleFactor > 0 {
             let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
