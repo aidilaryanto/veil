@@ -901,11 +901,9 @@ final class VeilModel: NSObject, ObservableObject {
     }
     private static func isFullscreenWindow(_ window: SCWindow) -> Bool {
         let frame = window.frame
+        guard frame.width > 0 && frame.height > 0 else { return false }
         return NSScreen.screens.contains { screen in
-            abs(frame.origin.x - screen.frame.origin.x) < 2 &&
-            abs(frame.origin.y - screen.frame.origin.y) < 2 &&
-            abs(frame.width - screen.frame.width) < 2 &&
-            abs(frame.height - screen.frame.height) < 2
+            abs(frame.width - screen.frame.width) < 1 && abs(frame.maxY - screen.frame.maxY) < 1
         }
     }
     private static func sourceItems(from windows: [SCWindow]) -> [SourceItem] {
@@ -922,6 +920,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
         let base = withoutLayer.filter { window in
             if let normal = normalLayers, !normal.contains(window.windowID) { return false }
+            if !window.isOnScreen && !isFullscreenWindow(window) { return false }
             return true
         }
         var kept: [SCWindow] = []
