@@ -421,9 +421,18 @@ extension VeilModel {
            let live = previewLiveImage, live.size.height > 0,
            let screen = NSScreen.main, screen.backingScaleFactor > 0 {
             let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
-            let fullscreenSize = CGSize(width: screen.frame.width, height: screen.frame.height - menuBarHeight)
-            if fullscreenSize.width >= 320 && fullscreenSize.height >= 180 {
-                return fullscreenSize
+            let fullscreenRatio = screen.frame.width / (screen.frame.height - menuBarHeight)
+            if fullscreenRatio > 0 {
+                var w = width
+                var h = w / fullscreenRatio
+                let visible = nativeFullscreenScreen()?.frame ?? screen.visibleFrame
+                let maxH = max(180, visible.height)
+                let maxW = max(320, visible.width)
+                if h > maxH { h = maxH; w = h * fullscreenRatio }
+                if w > maxW { w = maxW; h = w / fullscreenRatio }
+                if w < 320 { h = h * 320 / w; w = 320 }
+                if h < 180 { w = w * 180 / h; h = 180 }
+                return CGSize(width: w, height: h)
             }
         }
         let ratio = captureAreaRatio
@@ -840,7 +849,13 @@ extension VeilModel {
             return
         }
         updateSourceAspectRatio()
-        let size = captureAreaWindowSize(width: 960)
+        let initialWidth: CGFloat
+        if isFullscreenSourceWindow(), let screen = NSScreen.main {
+            initialWidth = screen.frame.width
+        } else {
+            initialWidth = 960
+        }
+        let size = captureAreaWindowSize(width: initialWidth)
         var origin = CGPoint(x: 100, y: 100)
         if let screen = nativeFullscreenScreen() {
             origin = screen.frame.origin
