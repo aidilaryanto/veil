@@ -913,6 +913,7 @@ final class CaptureRouting {
     private var stripCapture = false
     private var mainFrameCount = 0
     private var expectedMainFrameSizeValue: CGSize = .zero
+    private var diagnosticFrameTaken = false
     private init() {}
     func setExpectedMainFrameSize(_ size: CGSize) {
         lock.lock()
@@ -1005,6 +1006,15 @@ final class CaptureRouting {
         let value = !firstFrame
         if value {
             firstFrame = true
+        }
+        lock.unlock()
+        return value
+    }
+    func takeDiagnosticFrame() -> Bool {
+        lock.lock()
+        let value = !diagnosticFrameTaken
+        if value {
+            diagnosticFrameTaken = true
         }
         lock.unlock()
         return value

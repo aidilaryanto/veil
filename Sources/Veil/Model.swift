@@ -2155,6 +2155,31 @@ extension VeilModel: SCStreamOutput {
         }
         return true
     }
+    nonisolated private static func frameMetadata(from sampleBuffer: CMSampleBuffer) -> (contentRect: CGRect, contentScale: CGFloat, scaleFactor: CGFloat) {
+        guard let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
+              let first = attachments.first else {
+            return (.zero, 0, 0)
+        }
+        let rect: CGRect
+        if let r = first[.contentRect] as? CGRect {
+            rect = r
+        } else if let v = first[.contentRect] as? NSValue {
+            rect = v.cgRectValue
+        } else {
+            rect = .zero
+        }
+        let contentScale = (first[.contentScale] as? NSNumber)?.doubleValue ?? 0
+        let scaleFactor = (first[.scaleFactor] as? NSNumber)?.doubleValue ?? 0
+        return (rect, CGFloat(contentScale), CGFloat(scaleFactor))
+    }
+    nonisolated private static func saveDiagnosticPNG(_ cgImage: CGImage) {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        guard let url = base?.appendingPathComponent("Veil/veil-frame-diagnostic.png") else { return }
+        let rep = NSBitmapImageRep(cgImage: cgImage)
+        guard let data = rep.representation(using: .png, properties: [:]) else { return }
+        try? data.write(to: url)
+        DebugLog.log("delegate: diagnostic PNG saved \(cgImage.width)x\(cgImage.height) to \(url.path)")
+    }
     nonisolated func stream(
         _ stream: SCStream,
         didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
@@ -2208,6 +2233,10 @@ extension VeilModel: SCStreamOutput {
             if frameIndex % 120 == 0 {
                 DebugLog.log("delegate: frame #\(frameIndex) \(frameWidth)x\(frameHeight) black=\(isBlack)")
             }
+            if frameIndex <= 5 || frameIndex % 120 == 0 {
+                let meta = Self.frameMetadata(from: sampleBuffer)
+                DebugLog.log("delegate: meta frame #\(frameIndex) buffer=\(frameWidth)x\(frameHeight) contentRect=\(Int(meta.contentRect.width))x\(Int(meta.contentRect.height))@\(Int(meta.contentRect.origin.x)),\(Int(meta.contentRect.origin.y)) contentScale=\(meta.contentScale) scaleFactor=\(meta.scaleFactor)")
+            }
             if isBlack {
                 if CaptureRouting.shared.recordBlackFrame() {
                     DebugLog.log("delegate: 15 black frames in a row, restarting capture")
@@ -2236,6 +2265,9 @@ extension VeilModel: SCStreamOutput {
                     if !sizeMismatch {
                         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
                         if let cgImage = Self.sharedFrameContext.createCGImage(ciImage, from: ciImage.extent) {
+                            if CaptureRouting.shared.takeDiagnosticFrame() {
+                                Self.saveDiagnosticPNG(cgImage)
+                            }
                             let liveImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
                             Task { @MainActor in
                                 self.previewLiveImage = liveImage
