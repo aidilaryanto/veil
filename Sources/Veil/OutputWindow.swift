@@ -67,8 +67,8 @@ extension VeilModel {
         return frame.size
     }
     func isFullscreenSourceWindow() -> Bool {
-        guard filePreviewImage == nil, mode == .allow, selectedWindowIDs.count == 1,
-              let onlyID = selectedWindowIDs.first,
+        guard filePreviewImage == nil, mode == .allow,
+              let onlyID = effectiveSingleWindowID,
               let window = capturedWindows.first(where: { $0.windowID == onlyID }),
               window.frame.width > 0, window.frame.height > 0 else { return false }
         for screen in NSScreen.screens {
@@ -80,8 +80,8 @@ extension VeilModel {
         return false
     }
     func fullscreenSourceScreen() -> NSScreen? {
-        guard filePreviewImage == nil, mode == .allow, selectedWindowIDs.count == 1,
-              let onlyID = selectedWindowIDs.first,
+        guard filePreviewImage == nil, mode == .allow,
+              let onlyID = effectiveSingleWindowID,
               let frame = capturedWindows.first(where: { $0.windowID == onlyID })?.frame,
               frame.width > 0, frame.height > 0 else { return nil }
         for screen in NSScreen.screens where screen.frame.intersects(frame) {
