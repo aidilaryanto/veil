@@ -1153,6 +1153,7 @@ final class VeilModel: NSObject, ObservableObject {
     func captureFilterAndConfig() -> (SCContentFilter, SCStreamConfiguration)? {
         pendingDynamicUnion = nil
         CaptureRouting.shared.setStripCapture(false)
+        CaptureRouting.shared.setDisplayCapture(canvasMode == .fullDisplay)
         guard selectedDisplayID != nil else { return nil }
         guard !isNothingSelected else { return nil }
         guard !isSelectionOffScreen else { return nil }
@@ -2240,7 +2241,7 @@ extension VeilModel: SCStreamOutput {
             let frameIndex = CaptureRouting.shared.nextMainFrameIndex()
             let isBlack = Self.isBlackPixelBuffer(pixelBuffer)
             let meta = Self.frameMetadata(from: sampleBuffer)
-            let cropRect = Self.contentCropRect(bufferWidth: frameWidth, bufferHeight: frameHeight, metadata: meta)
+            let cropRect = CaptureRouting.shared.isDisplayCapture() ? nil : Self.contentCropRect(bufferWidth: frameWidth, bufferHeight: frameHeight, metadata: meta)
             if frameIndex <= 5 {
                 DebugLog.log("delegate: main frame #\(frameIndex) \(frameWidth)x\(frameHeight) black=\(isBlack)")
             }
