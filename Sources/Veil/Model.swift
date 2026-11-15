@@ -2164,7 +2164,7 @@ extension VeilModel: SCStreamOutput {
         if let r = first[.contentRect] as? CGRect {
             rect = r
         } else if let v = first[.contentRect] as? NSValue {
-            rect = v.cgRectValue
+            rect = v.rectValue
         } else {
             rect = .zero
         }
