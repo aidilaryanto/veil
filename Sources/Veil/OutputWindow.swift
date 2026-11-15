@@ -769,6 +769,8 @@ extension VeilModel {
         if abs(frame.width - window.frame.width) > 1 || abs(frame.height - window.frame.height) > 1
             || abs(frame.origin.x - window.frame.origin.x) > 1 || abs(frame.origin.y - window.frame.origin.y) > 1 {
             window.setFrame(frame, display: true)
+            let panel = PanelWindowStore.shared.window
+            DebugLog.log("resizeCA: applied ca=\(Int(window.frame.width))x\(Int(window.frame.height))@\(Int(window.frame.origin.x)),\(Int(window.frame.origin.y)) panel=\(Int(panel?.frame.width ?? 0))x\(Int(panel?.frame.height ?? 0))")
         }
         dockFileControlToCaptureArea()
         dockTimerControlToCaptureArea()
