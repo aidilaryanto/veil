@@ -410,9 +410,10 @@ extension VeilModel {
         if let live = previewLiveImage, live.size.height > 0,
            let screen = NSScreen.main, screen.backingScaleFactor > 0,
            abs(live.size.width / screen.backingScaleFactor - screen.frame.width) < 1 {
-            let sourceSize = CGSize(width: live.size.width / screen.backingScaleFactor, height: live.size.height / screen.backingScaleFactor)
-            if sourceSize.width >= 320 && sourceSize.height >= 180 {
-                return sourceSize
+            let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
+            let fullscreenSize = CGSize(width: screen.frame.width, height: screen.frame.height - menuBarHeight)
+            if fullscreenSize.width >= 320 && fullscreenSize.height >= 180 {
+                return fullscreenSize
             }
         }
         let ratio = captureAreaRatio
