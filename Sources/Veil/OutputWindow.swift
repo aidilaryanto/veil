@@ -264,7 +264,9 @@ extension VeilModel {
         if let live = previewLiveImage, live.size.height > 0,
            let screen = NSScreen.main, screen.backingScaleFactor > 0,
            abs(live.size.width / screen.backingScaleFactor - screen.frame.width) < 1 {
-            let ratio = live.size.width / live.size.height
+            let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
+            let displayHeight = screen.frame.height - menuBarHeight
+            let ratio = displayHeight > 0 ? screen.frame.width / displayHeight : live.size.width / live.size.height
             if abs(ratio - lastLoggedCanvasRatio) > 0.0005 {
                 lastLoggedCanvasRatio = ratio
                 DebugLog.log("canvasRatio: fullscreen live=\(Int(live.size.width))x\(Int(live.size.height)) ratio=\(ratio)")
