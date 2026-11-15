@@ -2352,7 +2352,6 @@ struct OutputContentView: View {
                 .padding(8)
         } else if model.shouldShowStreamPreview, let liveImage = model.previewLiveImage {
             if model.isFullscreenSourceWindow() {
-                DebugLog.log("mainImage: fullscreen live=\(Int(liveImage.size.width))x\(Int(liveImage.size.height)) output=\(Int(outputSize.width))x\(Int(outputSize.height))")
                 Image(nsImage: liveImage)
                     .resizable()
                     .scaledToFit()
