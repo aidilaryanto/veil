@@ -183,7 +183,9 @@ extension VeilModel {
             let imageRatio = live.size.width / live.size.height
             let outputRatio = canvasSize.width / canvasSize.height
             let frame: CGRect
-            if imageRatio >= outputRatio {
+            if abs(imageRatio - outputRatio) < 0.01 {
+                frame = CGRect(origin: .zero, size: canvasSize)
+            } else if imageRatio >= outputRatio {
                 let width = canvasSize.width
                 let height = width / imageRatio
                 frame = CGRect(x: 0, y: (canvasSize.height - height) / 2, width: width, height: height)
