@@ -67,23 +67,30 @@ extension VeilModel {
         return frame.size
     }
     func isFullscreenSourceWindow() -> Bool {
-        guard filePreviewImage == nil, mode == .allow,
-              let onlyID = effectiveSingleWindowID,
-              let window = capturedWindows.first(where: { $0.windowID == onlyID }),
-              window.frame.width > 0, window.frame.height > 0 else { return false }
-        for screen in NSScreen.screens {
-            if abs(window.frame.width - screen.frame.width) < 1,
-               abs(window.frame.maxY - screen.frame.maxY) < 1 {
-                return true
+        guard filePreviewImage == nil, mode == .allow, !selectedWindowIDs.isEmpty else { return false }
+        for onlyID in selectedWindowIDs {
+            guard let window = capturedWindows.first(where: { $0.windowID == onlyID }),
+                  window.frame.width > 0, window.frame.height > 0 else { continue }
+            for screen in NSScreen.screens {
+                if abs(window.frame.width - screen.frame.width) < 1,
+                   abs(window.frame.maxY - screen.frame.maxY) < 1 {
+                    return true
+                }
             }
         }
         return false
     }
     func fullscreenSourceScreen() -> NSScreen? {
-        guard filePreviewImage == nil, mode == .allow,
-              let onlyID = effectiveSingleWindowID,
-              let frame = capturedWindows.first(where: { $0.windowID == onlyID })?.frame,
-              frame.width > 0, frame.height > 0 else { return nil }
+        guard filePreviewImage == nil, mode == .allow, !selectedWindowIDs.isEmpty else { return nil }
+        var frame: CGRect?
+        for onlyID in selectedWindowIDs {
+            if let found = capturedWindows.first(where: { $0.windowID == onlyID })?.frame,
+               found.width > 0, found.height > 0 {
+                frame = found
+                break
+            }
+        }
+        guard let frame = frame else { return nil }
         for screen in NSScreen.screens where screen.frame.intersects(frame) {
             let visible = screen.visibleFrame
             if frame.width >= visible.width - 1, frame.height >= visible.height - 1 {
