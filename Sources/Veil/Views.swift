@@ -2351,7 +2351,13 @@ struct OutputContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(8)
         } else if model.shouldShowStreamPreview, let liveImage = model.previewLiveImage {
-            if model.isPositionedCanvas, let frame = model.positionedImageFrame(in: outputSize) {
+            if model.isFullscreenSourceWindow() {
+                Image(nsImage: liveImage)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            } else if model.isPositionedCanvas, let frame = model.positionedImageFrame(in: outputSize) {
                 ZStack(alignment: .topLeading) {
                     Image(nsImage: liveImage)
                         .resizable()
