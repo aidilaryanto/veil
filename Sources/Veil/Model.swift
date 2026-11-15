@@ -2180,6 +2180,19 @@ extension VeilModel: SCStreamOutput {
         try? data.write(to: url)
         DebugLog.log("delegate: diagnostic PNG saved \(cgImage.width)x\(cgImage.height) to \(url.path)")
     }
+    nonisolated private static func contentCropRect(bufferWidth: Int, bufferHeight: Int, metadata: (contentRect: CGRect, contentScale: CGFloat, scaleFactor: CGFloat)) -> CGRect? {
+        if metadata.contentRect.width > 0 && metadata.contentRect.height > 0 {
+            let scale = metadata.scaleFactor > 0 ? metadata.scaleFactor : 1
+            return CGRect(x: metadata.contentRect.origin.x * scale, y: metadata.contentRect.origin.y * scale, width: metadata.contentRect.width * scale, height: metadata.contentRect.height * scale)
+        }
+        if metadata.contentScale > 0 && metadata.contentScale < 1 {
+            let width = CGFloat(bufferWidth) * metadata.contentScale
+            if width > 0 && width < CGFloat(bufferWidth) {
+                return CGRect(x: 0, y: 0, width: width, height: CGFloat(bufferHeight))
+            }
+        }
+        return nil
+    }
     nonisolated func stream(
         _ stream: SCStream,
         didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
@@ -2227,6 +2240,8 @@ extension VeilModel: SCStreamOutput {
             let frameHeight = CVPixelBufferGetHeight(pixelBuffer)
             let frameIndex = CaptureRouting.shared.nextMainFrameIndex()
             let isBlack = Self.isBlackPixelBuffer(pixelBuffer)
+            let meta = Self.frameMetadata(from: sampleBuffer)
+            let cropRect = Self.contentCropRect(bufferWidth: frameWidth, bufferHeight: frameHeight, metadata: meta)
             if frameIndex <= 5 {
                 DebugLog.log("delegate: main frame #\(frameIndex) \(frameWidth)x\(frameHeight) black=\(isBlack)")
             }
@@ -2234,7 +2249,6 @@ extension VeilModel: SCStreamOutput {
                 DebugLog.log("delegate: frame #\(frameIndex) \(frameWidth)x\(frameHeight) black=\(isBlack)")
             }
             if frameIndex <= 5 || frameIndex % 120 == 0 {
-                let meta = Self.frameMetadata(from: sampleBuffer)
                 DebugLog.log("delegate: meta frame #\(frameIndex) buffer=\(frameWidth)x\(frameHeight) contentRect=\(Int(meta.contentRect.width))x\(Int(meta.contentRect.height))@\(Int(meta.contentRect.origin.x)),\(Int(meta.contentRect.origin.y)) contentScale=\(meta.contentScale) scaleFactor=\(meta.scaleFactor)")
             }
             if isBlack {
@@ -2268,7 +2282,16 @@ extension VeilModel: SCStreamOutput {
                             if CaptureRouting.shared.takeDiagnosticFrame() {
                                 Self.saveDiagnosticPNG(cgImage)
                             }
-                            let liveImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+                            let displayCGImage: CGImage
+                            if let crop = cropRect, let cropped = cgImage.cropping(to: crop) {
+                                displayCGImage = cropped
+                                if frameIndex <= 5 || frameIndex % 120 == 0 {
+                                    DebugLog.log("delegate: cropped frame #\(frameIndex) to \(Int(crop.width))x\(Int(crop.height))")
+                                }
+                            } else {
+                                displayCGImage = cgImage
+                            }
+                            let liveImage = NSImage(cgImage: displayCGImage, size: NSSize(width: displayCGImage.width, height: displayCGImage.height))
                             Task { @MainActor in
                                 self.previewLiveImage = liveImage
                             }
@@ -2277,7 +2300,12 @@ extension VeilModel: SCStreamOutput {
                 }
             }
             if frameWidth > 0, frameHeight > 0 {
-                let ratio = CGFloat(frameWidth) / CGFloat(frameHeight)
+                let ratio: CGFloat
+                if let crop = cropRect, crop.height > 0 {
+                    ratio = crop.width / crop.height
+                } else {
+                    ratio = CGFloat(frameWidth) / CGFloat(frameHeight)
+                }
                 if !CaptureRouting.shared.isStripCapture(), CaptureRouting.shared.checkRatio(ratio) {
                     Task { @MainActor in
                         self.sourceAspectRatio = ratio
