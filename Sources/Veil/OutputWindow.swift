@@ -525,7 +525,10 @@ extension VeilModel {
     }
     func timerControlSize(expanded: Bool) -> CGSize {
         guard expanded else { return CGSize(width: 36, height: 36) }
-        return presentationTimerMode == .countDown ? CGSize(width: 280, height: 36) : CGSize(width: 240, height: 36)
+        let font = NSFont.monospacedSystemFont(ofSize: 16, weight: .bold)
+        let textWidth = (presentationTimerText as NSString).size(withAttributes: [.font: font]).width
+        let fixed: CGFloat = presentationTimerMode == .countDown ? 199 : 165
+        return CGSize(width: ceil(textWidth + fixed), height: 36)
     }
     func timerControlFrame(expanded: Bool) -> CGRect? {
         guard let output = CaptureAreaWindowStore.shared.window, output.isVisible,
