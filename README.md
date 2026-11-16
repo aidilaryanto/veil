@@ -17,101 +17,45 @@ drops the veil instantly.
 
 ## Features
 
-- **Sources**: windows grouped by app, with search, Allow List and
-  Block List modes, plus Reset All Sources and Refresh. The list shows
-  on-screen windows (at least 20 pt on each side) and refreshes every
-  time Sources is opened; windows that are minimised or on another
-  Space are hidden, except a window in true fullscreen, which stays
-  listed. Windows with an empty title are shown under their app name.
-  Selecting a background app brings it forward so its first live
-  frame appears right away. Reset All Sources also closes the file
-  mode.
-- **Display**: choose the display to capture, with Full Display and
-  Isolated explanations inside the popup. The built-in display is the
-  default; the display is chosen only manually and is never changed by
-  a preset or by clearing one. Choosing No Display pauses the output.
-- **Framing & Canvas**: framing Screen (the whole display) or Dynamic
-  (the capture area follows the combined frames of the selected
-  windows); canvas Full Display (the whole display, menu bar and Dock
-  included) or Isolated/Sanitized (only the selected windows over a
-  chosen background: black, white, gray, or a custom image). The
-  positioned canvas follows a window that reaches under the Dock, and
-  a fullscreen source fills the display without the menu bar. A
-  fullscreen Brave window no longer shows a white bar on the right:
-  each frame is cropped to its opaque content before display.
-- **Presets**: two built-in presets, Presentation and Meeting (both
-  Sanitized, Screen, black background, camera on), plus any presets
-  you create yourself. A new preset saves your current setup
-  automatically. Presets can be applied, overwritten with the current
-  setup, reset, renamed, reordered, and deleted. The X on a preset
-  only clears the selection — sharing keeps running. A preset stores
-  the mode, framing, canvas, windows, camera, and the active file (a
-  file counts as a source). Presets are stored in UserDefaults under
-  the key `Veil.presets`. Custom presets also appear as a horizontal
-  strip under the header, with search; `Cmd+1`–`Cmd+9` apply the first
-  nine presets in popover order.
-- **Camera**: camera overlay with 9 positions, 3 shapes (circle,
-  square, rounded), size 50%–300%,
-  position margins, a mirror option, and a device picker (built-in,
-  external, and iPhone Continuity Camera). The camera
-  is on by default at size 110. A camera toggle sits at the
-  bottom-right of the Preview.
-- **Files**: PDF sources (full page navigation via PDFKit, with
-  neighboring pages pre-rendered so next/previous feels instant) and
-  PPT/PPTX sources (first-slide preview via QuickLook). A file
-  controller pill — previous, page number, next, file list, page
-  overview, close — sits at the bottom-right of the Preview and below
-  the Capture Area window, where it never appears in the shared
-  output; the overview shows a thumbnail grid of all pages, tap to
-  jump. Slide pages can also be changed with the keyboard:
-  Right/Down/PageDown/Space for next, Left/Up/PageUp for previous.
-  Picking a new file replaces the file list; closing a file empties
-  it. Picking a PDF from Sources closes the active preset first;
-  clearing a preset whose source is a file closes the file too. File
-  pickers open as a sheet attached to the panel, so Stage Manager
-  cannot cover them.
+- **Sources**: windows grouped by app, with search, Allow/Block List
+  modes, Reset All Sources and Refresh. Windows that are minimised or
+  on another Space are hidden, except a window in true fullscreen.
+  Selecting a background app brings it forward.
+- **Display**: choose the display to capture; the built-in display is
+  the default and is never changed by a preset. Choosing No Display
+  pauses the output.
+- **Framing & Canvas**: framing Screen or Dynamic; canvas Full Display
+  (the whole display) or Isolated (selected windows over a background:
+  black, white, gray, or a custom image). A fullscreen source fills
+  the display without the menu bar, and a fullscreen Brave window no
+  longer shows a white bar on the right.
+- **Presets**: two built-ins (Presentation, Meeting) plus your own.
+  Custom presets appear as a horizontal strip with search;
+  `Cmd+1`–`Cmd+9` apply the first nine. A preset stores the mode,
+  framing, canvas, windows, camera, and active file.
+- **Camera**: overlay with 9 positions, 3 shapes, size 50%–300%,
+  mirror, and a device picker (built-in, external, iPhone Continuity
+  Camera). On by default at size 110.
+- **Files**: PDF (full page navigation) and PPT/PPTX (first-slide
+  preview). The file controller pill has previous, page number, next,
+  file list, page overview (thumbnail grid), and close — and never
+  appears in the shared output. Pages can also be changed with the
+  keyboard. Pickers open as a sheet attached to the panel.
 - **Capture Area (Output)**: the window you share in Zoom, Meet, or
-  Teams ("Veil Output — share this window"). Its size and ratio always
-  match the Preview at the same width, and it grows downward when a
-  source window reaches under the Dock. It can be resized by dragging
-  its edges or corners, and dragged to the top of the screen to fill
-  it. It starts hidden (off-screen) at launch. Open and close it with
-  the Capture Area button in the panel header.
-- **Presentation timer**: a floating pill inside the Capture Area
-  (bottom-right) that counts up or down. Tap to expand: start/pause
-  and reset. Countdown defaults to 30 minutes, with presets from 5
-  to 60 minutes or a custom duration; the time turns red in the last
-  minute.
-- **Annotation & laser**: a floating pill next to the timer, inside
-  the Capture Area. Pen and laser tools, five colors, and Clear.
-  Annotations are drawn over the shared output and are not saved.
-- **Preview**: embedded above the panel in the same window (no
-  separate Preview window), draggable with the panel, with the same
-  content and ratio as the Capture Area. It shows the file controller
-  pill and the camera toggle; it is never shared.
-- **Panic**: the Panic button and the `Cmd+Shift+P` shortcut blank the
-  output instantly (plain black) and stop capture. While Panic is on,
-  the Preview shows an eye-slash message and the Panic box reads Play
-  / Output Off. Turning Panic off resumes the stream.
-- **Always-on streaming**: there is no Start or Stop button. The
-  stream starts automatically on launch (restoring your last session),
-  and selecting a source, a preset, a display, or a canvas mode
-  starts or updates it. With nothing selected, no stream runs and the
-  header reads "Nothing selected".
-- **Always on Top**: the control window floats by default, while the
-  Capture Area window stays normal so it does not cover other work.
-- **Stage Manager**: when Stage Manager is on, opening Veil moves
-  other apps to Stage Manager, except the apps of your selected
-  sources.
-- **Session restore**: Veil remembers your last setup (mode, framing,
-  canvas, display, windows, camera, preset) and restores it on the
-  next launch, then starts sharing automatically.
-- **Current Session**: the (i) button in the panel footer opens a
-  live summary of the current setup (output, mode, display, frame,
-  canvas, discovered windows, rules, stream).
-- **Update check**: Veil checks GitHub for a newer release shortly
-  after launch (silently unless one exists), and any time from the
-  Veil menu > Check for Updates…
+  Teams. It matches the Preview's size and ratio, can be resized by
+  dragging its edges or corners, and can be dragged to the top of the
+  screen to fill it. It starts hidden at launch.
+- **Presentation timer**: a floating pill inside the Capture Area that
+  counts up or down (countdown defaults to 30 minutes, presets 5–60
+  minutes or custom).
+- **Annotation & laser**: a floating pill next to the timer with Pen,
+  laser, five colors, and Clear. Annotations are not saved.
+- **Preview**: embedded above the panel, with the same content and
+  ratio as the Capture Area. It is never shared.
+- **Panic**: `Cmd+Shift+P` (or the Panic button) blanks the output
+  instantly. Press again to resume.
+- **Update check**: checks GitHub for a newer release shortly after
+  launch, or any time from Veil menu > Check for Updates…
 
 ## Download
 
