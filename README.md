@@ -26,32 +26,28 @@ drops the veil instantly.
   pauses the output.
 - **Framing & Canvas**: framing Screen or Dynamic; canvas Full Display
   (the whole display) or Isolated (selected windows over a background:
-  black, white, gray, or a custom image). A fullscreen source fills
-  the display without the menu bar, and a fullscreen Brave window no
-  longer shows a white bar on the right.
+  black, white, gray, or a custom image).
 - **Presets**: two built-ins (Presentation, Meeting) plus your own.
   Custom presets appear as a horizontal strip with search;
   `Cmd+1`–`Cmd+9` apply the first nine. A preset stores the mode,
   framing, canvas, windows, camera, and active file.
 - **Camera**: overlay with 9 positions, 3 shapes, size 50%–300%,
   mirror, and a device picker (built-in, external, iPhone Continuity
-  Camera). On by default at size 110.
+  Camera).
 - **Files**: PDF (full page navigation) and PPT/PPTX (first-slide
   preview). The file controller pill has previous, page number, next,
-  file list, page overview (thumbnail grid), and close — and never
-  appears in the shared output. Pages can also be changed with the
-  keyboard. Pickers open as a sheet attached to the panel.
+  file list, page overview (thumbnail grid), and close.
 - **Capture Area (Output)**: the window you share in Zoom, Meet, or
   Teams. It matches the Preview's size and ratio, can be resized by
   dragging its edges or corners, and can be dragged to the top of the
-  screen to fill it. It starts hidden at launch.
+  screen to fill it.
 - **Presentation timer**: a floating pill inside the Capture Area that
   counts up or down (countdown defaults to 30 minutes, presets 5–60
   minutes or custom).
 - **Annotation & laser**: a floating pill next to the timer with Pen,
   laser, five colors, and Clear. Annotations are not saved.
-- **Preview**: embedded above the panel, with the same content and
-  ratio as the Capture Area. It is never shared.
+- **Preview**: embedded above the panel to show what will be shared,
+  with the same content and ratio as the Capture Area.
 - **Panic**: `Cmd+Shift+P` (or the Panic button) blanks the output
   instantly. Press again to resume.
 - **Update check**: checks GitHub for a newer release shortly after
