@@ -335,6 +335,8 @@ final class VeilModel: NSObject, ObservableObject {
     var windowStreams: [CGWindowID: SCStream] = [:]
     var windowFrameImages: [CGWindowID: CGImage] = [:]
     private var windowStreamFrames: [CGWindowID: CGRect] = [:]
+    private var lastMultiWindowCompositeTime: TimeInterval = 0
+    private var multiWindowCompositePending = false
     private var pdfDocument: PDFDocument?
     private var filePageCache: [Int: NSImage] = [:]
     private var fileOverviewCache: [Int: NSImage] = [:]
@@ -1546,48 +1548,66 @@ final class VeilModel: NSObject, ObservableObject {
     }
     func compositeMultiWindowImage() {
         guard isMultiWindowCapture else { return }
+        let now = Date().timeIntervalSince1970
+        if now - lastMultiWindowCompositeTime < 1.0 / 30.0 {
+            if !multiWindowCompositePending {
+                multiWindowCompositePending = true
+                let delay = 1.0 / 30.0 - (now - lastMultiWindowCompositeTime)
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: UInt64(max(0, delay) * 1_000_000_000))
+                    self.multiWindowCompositePending = false
+                    self.compositeMultiWindowImage()
+                }
+            }
+            return
+        }
+        lastMultiWindowCompositeTime = now
         let ids = multiWindowIDs
         guard ids.count >= 2, let canvas = multiWindowCanvasRect(), canvas.width > 0, canvas.height > 0 else { return }
         let screen = NSScreen.screens.first(where: { $0.frame.intersects(canvas) }) ?? NSScreen.main
         let scale = screen?.backingScaleFactor ?? 2
         let pixelWidth = max(2, Int(canvas.width * scale))
         let pixelHeight = max(2, Int(canvas.height * scale))
-        guard let ctx = CGContext(data: nil, width: pixelWidth, height: pixelHeight, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
-        ctx.translateBy(x: 0, y: CGFloat(pixelHeight))
-        ctx.scaleBy(x: 1, y: -1)
+        let canvasRect = CGRect(x: 0, y: 0, width: CGFloat(pixelWidth), height: CGFloat(pixelHeight))
+        var composite: CIImage
         if canvasBackground == .custom, let nsImage = canvasImage,
-           let bgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            let imgW = CGFloat(bgImage.width)
-            let imgH = CGFloat(bgImage.height)
+           let bgCGImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            let imgW = CGFloat(bgCGImage.width)
+            let imgH = CGFloat(bgCGImage.height)
             if imgW > 0, imgH > 0 {
                 let fillScale = max(CGFloat(pixelWidth) / imgW, CGFloat(pixelHeight) / imgH)
                 let drawW = imgW * fillScale
                 let drawH = imgH * fillScale
-                let drawX = (CGFloat(pixelWidth) - drawW) / 2
-                let drawY = (CGFloat(pixelHeight) - drawH) / 2
-                ctx.draw(bgImage, in: CGRect(x: drawX, y: drawY, width: drawW, height: drawH))
+                let tx = (CGFloat(pixelWidth) - drawW) / 2
+                let ty = (CGFloat(pixelHeight) - drawH) / 2
+                let bg = CIImage(cgImage: bgCGImage)
+                composite = bg.transformed(by: CGAffineTransform(scaleX: fillScale, y: fillScale).translatedBy(x: tx, y: ty))
             } else {
-                ctx.setFillColor(multiWindowBackgroundColor().cgColor)
-                ctx.fill(CGRect(x: 0, y: 0, width: CGFloat(pixelWidth), height: CGFloat(pixelHeight)))
+                composite = CIImage(color: CIColor(color: multiWindowBackgroundColor())).cropped(to: canvasRect)
             }
         } else {
-            ctx.setFillColor(multiWindowBackgroundColor().cgColor)
-            ctx.fill(CGRect(x: 0, y: 0, width: CGFloat(pixelWidth), height: CGFloat(pixelHeight)))
+            composite = CIImage(color: CIColor(color: multiWindowBackgroundColor())).cropped(to: canvasRect)
         }
-        let screenHeight = NSScreen.main?.frame.height ?? canvas.maxY
-        let canvasTop = CGRect(x: canvas.minX, y: screenHeight - canvas.maxY, width: canvas.width, height: canvas.height)
         for id in ids {
             guard let cgImage = windowFrameImages[id],
                   let window = capturedWindows.first(where: { $0.windowID == id }) else { continue }
             let wf = window.frame
-            let windowTop = CGRect(x: wf.minX, y: screenHeight - wf.maxY, width: wf.width, height: wf.height)
-            let dx = (windowTop.minX - canvasTop.minX) * scale
-            let dy = (windowTop.minY - canvasTop.minY) * scale
-            let dest = CGRect(x: dx, y: dy, width: wf.width * scale, height: wf.height * scale)
-            ctx.draw(cgImage, in: dest)
+            let dx = (wf.minX - canvas.minX) * scale
+            let dy = (wf.minY - canvas.minY) * scale
+            var windowCI = CIImage(cgImage: cgImage)
+            let targetW = wf.width * scale
+            let targetH = wf.height * scale
+            if abs(CGFloat(cgImage.width) - targetW) > 1 || abs(CGFloat(cgImage.height) - targetH) > 1 {
+                let sx = targetW / CGFloat(cgImage.width)
+                let sy = targetH / CGFloat(cgImage.height)
+                windowCI = windowCI.transformed(by: CGAffineTransform(scaleX: sx, y: sy))
+            }
+            let positioned = windowCI.transformed(by: CGAffineTransform(translationX: dx, y: dy))
+            composite = positioned.composited(over: composite)
         }
-        guard let composited = ctx.makeImage() else { return }
-        let image = NSImage(cgImage: composited, size: NSSize(width: composited.width, height: composited.height))
+        composite = composite.cropped(to: canvasRect)
+        guard let cgImage = Self.sharedFrameContext.createCGImage(composite, from: canvasRect) else { return }
+        let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
         previewLiveImage = image
         let ratio = canvas.width / canvas.height
         if abs(ratio - sourceAspectRatio) > 0.0005 {
