@@ -297,27 +297,37 @@ final class VeilModel: NSObject, ObservableObject {
     var isMultiWindowCapture: Bool {
         mode == .allow && canvasMode == .isolated && multiWindowIDs.count >= 2
     }
+    private func multiWindowFrame(for windowID: CGWindowID) -> CGRect? {
+        if let live = liveMultiWindowFrames[windowID] { return live }
+        return capturedWindows.first(where: { $0.windowID == windowID })?.frame
+    }
     func multiWindowCanvasRect() -> CGRect? {
         let ids = multiWindowIDs
         guard ids.count >= 2 else { return nil }
-        let frames = capturedWindows.filter { ids.contains($0.windowID) }.map { $0.frame }
+        let frames = ids.compactMap { multiWindowFrame(for: $0) }
         guard !frames.isEmpty else { return nil }
         var union = frames[0]
         for frame in frames.dropFirst() {
             union = union.union(frame)
         }
+        var fresh: CGRect
         if framing == .dynamic {
-            return union.insetBy(dx: -5, dy: -5)
-        }
-        if let screen = NSScreen.screens.first(where: { $0.frame.intersects(union) }) ?? NSScreen.main {
+            fresh = union.insetBy(dx: -5, dy: -5)
+        } else if let screen = NSScreen.screens.first(where: { $0.frame.intersects(union) }) ?? NSScreen.main {
             let visible = screen.visibleFrame
             var canvas = visible.union(union)
             canvas = canvas.intersection(screen.frame)
-            if canvas.width > 0, canvas.height > 0 {
-                return canvas
-            }
+            fresh = canvas.width > 0 && canvas.height > 0 ? canvas : union
+        } else {
+            fresh = union
         }
-        return union
+        if let last = lastMultiWindowCanvas {
+            let sticky = last.union(fresh)
+            lastMultiWindowCanvas = sticky
+            return sticky
+        }
+        lastMultiWindowCanvas = fresh
+        return fresh
     }
     var capturedWindows: [SCWindow] = []
     var capturedApplications: [SCRunningApplication] = []
@@ -337,6 +347,9 @@ final class VeilModel: NSObject, ObservableObject {
     private var windowStreamFrames: [CGWindowID: CGRect] = [:]
     private var lastMultiWindowCompositeTime: TimeInterval = 0
     private var multiWindowCompositePending = false
+    private var liveMultiWindowFrames: [CGWindowID: CGRect] = [:]
+    private var lastMultiWindowCanvas: CGRect?
+    private var multiWindowStillTicks = 0
     private var pdfDocument: PDFDocument?
     private var filePageCache: [Int: NSImage] = [:]
     private var fileOverviewCache: [Int: NSImage] = [:]
@@ -1421,6 +1434,9 @@ final class VeilModel: NSObject, ObservableObject {
         windowStreams.removeAll()
         windowStreamFrames.removeAll()
         windowFrameImages.removeAll()
+        liveMultiWindowFrames.removeAll()
+        lastMultiWindowCanvas = nil
+        multiWindowStillTicks = 0
         CaptureRouting.shared.clearWindowStreamIDs()
         for (_, oldStream) in oldStreams {
             Task { try? await oldStream.stopCapture() }
@@ -1591,8 +1607,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
         for id in ids {
             guard let cgImage = windowFrameImages[id],
-                  let window = capturedWindows.first(where: { $0.windowID == id }) else { continue }
-            let wf = window.frame
+                  let wf = multiWindowFrame(for: id) else { continue }
             let dx = (wf.minX - canvas.minX) * scale
             let dy = (wf.minY - canvas.minY) * scale
             var windowCI = CIImage(cgImage: cgImage)
@@ -1796,6 +1811,7 @@ final class VeilModel: NSObject, ObservableObject {
         positionPollTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.pollPositionedFrame()
+                self?.pollMultiWindowPositions()
             }
         }
     }
@@ -1824,6 +1840,40 @@ final class VeilModel: NSObject, ObservableObject {
         livePositionedWindowID = windowID
         livePositionedFrame = bounds
         resizeCaptureAreaWindow()
+    }
+    private func pollMultiWindowPositions() {
+        guard isSharing, mode == .allow, canvasMode == .isolated, !windowStreams.isEmpty else { return }
+        let ids = multiWindowIDs
+        guard ids.count >= 2 else { return }
+        var changed = false
+        for id in ids {
+            guard let list = CGWindowListCopyWindowInfo(.optionIncludingWindow, id) as? [[CFString: Any]],
+                  let raw = list.first?[kCGWindowBounds] else { continue }
+            var bounds: CGRect?
+            if let rect = raw as? CGRect {
+                bounds = rect
+            } else if let dict = raw as? NSDictionary, let rect = CGRect(dictionaryRepresentation: dict) {
+                bounds = rect
+            }
+            guard let bounds, bounds.width > 0, bounds.height > 0 else { continue }
+            let old = liveMultiWindowFrames[id] ?? capturedWindows.first(where: { $0.windowID == id })?.frame
+            if let old, abs(old.origin.x - bounds.origin.x) < 0.5, abs(old.origin.y - bounds.origin.y) < 0.5,
+               abs(old.width - bounds.width) < 0.5, abs(old.height - bounds.height) < 0.5 {
+                continue
+            }
+            liveMultiWindowFrames[id] = bounds
+            changed = true
+        }
+        if changed {
+            multiWindowStillTicks = 0
+            compositeMultiWindowImage()
+        } else {
+            multiWindowStillTicks += 1
+            if multiWindowStillTicks >= 60 {
+                multiWindowStillTicks = 0
+                lastMultiWindowCanvas = nil
+            }
+        }
     }
     private func startCaptureWatchdog() {
         stopCaptureWatchdog()
