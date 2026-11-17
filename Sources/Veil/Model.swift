@@ -311,9 +311,7 @@ final class VeilModel: NSObject, ObservableObject {
             union = union.union(frame)
         }
         var fresh: CGRect
-        if framing == .dynamic {
-            fresh = union.insetBy(dx: -5, dy: -5)
-        } else if let screen = NSScreen.screens.first(where: { $0.frame.intersects(union) }) ?? NSScreen.main {
+        if let screen = NSScreen.screens.first(where: { $0.frame.intersects(union) }) ?? NSScreen.main {
             let visible = screen.visibleFrame
             var canvas = visible.union(union)
             canvas = canvas.intersection(screen.frame)
