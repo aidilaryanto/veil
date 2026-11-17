@@ -321,12 +321,6 @@ final class VeilModel: NSObject, ObservableObject {
         } else {
             fresh = union
         }
-        if let last = lastMultiWindowCanvas {
-            let sticky = last.union(fresh)
-            lastMultiWindowCanvas = sticky
-            return sticky
-        }
-        lastMultiWindowCanvas = fresh
         return fresh
     }
     var capturedWindows: [SCWindow] = []
@@ -348,8 +342,6 @@ final class VeilModel: NSObject, ObservableObject {
     private var lastMultiWindowCompositeTime: TimeInterval = 0
     private var multiWindowCompositePending = false
     private var liveMultiWindowFrames: [CGWindowID: CGRect] = [:]
-    private var lastMultiWindowCanvas: CGRect?
-    private var multiWindowStillTicks = 0
     private var pdfDocument: PDFDocument?
     private var filePageCache: [Int: NSImage] = [:]
     private var fileOverviewCache: [Int: NSImage] = [:]
@@ -1435,8 +1427,6 @@ final class VeilModel: NSObject, ObservableObject {
         windowStreamFrames.removeAll()
         windowFrameImages.removeAll()
         liveMultiWindowFrames.removeAll()
-        lastMultiWindowCanvas = nil
-        multiWindowStillTicks = 0
         CaptureRouting.shared.clearWindowStreamIDs()
         for (_, oldStream) in oldStreams {
             Task { try? await oldStream.stopCapture() }
@@ -1865,14 +1855,7 @@ final class VeilModel: NSObject, ObservableObject {
             changed = true
         }
         if changed {
-            multiWindowStillTicks = 0
             compositeMultiWindowImage()
-        } else {
-            multiWindowStillTicks += 1
-            if multiWindowStillTicks >= 60 {
-                multiWindowStillTicks = 0
-                lastMultiWindowCanvas = nil
-            }
         }
     }
     private func startCaptureWatchdog() {
