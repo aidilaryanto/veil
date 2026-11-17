@@ -291,6 +291,34 @@ final class VeilModel: NSObject, ObservableObject {
     var isNothingSelected: Bool {
         mode == .allow && canvasMode == .isolated && selectedWindowIDs.isEmpty && activeFile == nil
     }
+    var multiWindowIDs: [CGWindowID] {
+        capturedWindows.filter { selectedWindowIDs.contains($0.windowID) }.map { $0.windowID }.sorted()
+    }
+    var isMultiWindowCapture: Bool {
+        mode == .allow && canvasMode == .isolated && multiWindowIDs.count >= 2
+    }
+    func multiWindowCanvasRect() -> CGRect? {
+        let ids = multiWindowIDs
+        guard ids.count >= 2 else { return nil }
+        let frames = capturedWindows.filter { ids.contains($0.windowID) }.map { $0.frame }
+        guard !frames.isEmpty else { return nil }
+        var union = frames[0]
+        for frame in frames.dropFirst() {
+            union = union.union(frame)
+        }
+        if framing == .dynamic {
+            return union.insetBy(dx: -5, dy: -5)
+        }
+        if let screen = NSScreen.screens.first(where: { $0.frame.intersects(union) }) ?? NSScreen.main {
+            let visible = screen.visibleFrame
+            var canvas = visible.union(union)
+            canvas = canvas.intersection(screen.frame)
+            if canvas.width > 0, canvas.height > 0 {
+                return canvas
+            }
+        }
+        return union
+    }
     var capturedWindows: [SCWindow] = []
     var capturedApplications: [SCRunningApplication] = []
     var dynamicCaptureUnion: CGRect?
@@ -304,6 +332,9 @@ final class VeilModel: NSObject, ObservableObject {
     private var positionPollTimer: Timer?
     private var stream: SCStream?
     private var snapshotStream: SCStream?
+    var windowStreams: [CGWindowID: SCStream] = [:]
+    var windowFrameImages: [CGWindowID: CGImage] = [:]
+    private var windowStreamFrames: [CGWindowID: CGRect] = [:]
     private var pdfDocument: PDFDocument?
     private var filePageCache: [Int: NSImage] = [:]
     private var fileOverviewCache: [Int: NSImage] = [:]
@@ -592,6 +623,14 @@ final class VeilModel: NSObject, ObservableObject {
             }
             return
         }
+        if isMultiWindowCapture, let canvas = multiWindowCanvasRect(), canvas.width > 0, canvas.height > 0 {
+            let ratio = canvas.width / canvas.height
+            if abs(ratio - sourceAspectRatio) > 0.0005 {
+                sourceAspectRatio = ratio
+                resizeCaptureAreaWindow()
+            }
+            return
+        }
         var size: CGSize?
         if let image = filePreviewImage {
             size = image.size
@@ -631,6 +670,14 @@ final class VeilModel: NSObject, ObservableObject {
         guard filePreviewImage == nil else { return }
         if canvasMode == .fullDisplay, let size = fullDisplayFrameSize(), size.width > 0, size.height > 0 {
             let ratio = size.width / size.height
+            if abs(ratio - sourceAspectRatio) > 0.0005 {
+                sourceAspectRatio = ratio
+                resizeCaptureAreaWindow()
+            }
+            return
+        }
+        if isMultiWindowCapture, let canvas = multiWindowCanvasRect(), canvas.width > 0, canvas.height > 0 {
+            let ratio = canvas.width / canvas.height
             if abs(ratio - sourceAspectRatio) > 0.0005 {
                 sourceAspectRatio = ratio
                 resizeCaptureAreaWindow()
@@ -1251,7 +1298,33 @@ final class VeilModel: NSObject, ObservableObject {
         return (filter, config)
     }
     func updateCapture() {
-        DebugLog.log("updateCapture: called, isSharing=\(isSharing) streamNil=\(stream == nil)")
+        DebugLog.log("updateCapture: called, isSharing=\(isSharing) streamNil=\(stream == nil) windowStreams=\(windowStreams.count)")
+        if isMultiWindowCapture {
+            if !windowStreams.isEmpty {
+                guard isSharing else {
+                    restartCapture()
+                    return
+                }
+                let ids = multiWindowIDs
+                let sizeChanged = ids.contains { id in
+                    guard let current = capturedWindows.first(where: { $0.windowID == id }),
+                          let created = windowStreamFrames[id] else { return true }
+                    return abs(current.frame.width - created.width) > 1 || abs(current.frame.height - created.height) > 1
+                }
+                if Set(ids) != Set(windowStreams.keys) || sizeChanged {
+                    restartCapture()
+                    return
+                }
+                compositeMultiWindowImage()
+                return
+            }
+            restartCapture()
+            return
+        }
+        if !windowStreams.isEmpty {
+            restartCapture()
+            return
+        }
         guard let current = stream, isSharing else {
             restartCapture()
             return
@@ -1303,7 +1376,7 @@ final class VeilModel: NSObject, ObservableObject {
                 capturedApplications = content.applications
                 displays = content.displays
                 sources = Self.sourceItems(from: content.windows)
-                guard isSharing, stream != nil else { return }
+                guard isSharing, stream != nil || !windowStreams.isEmpty else { return }
                 let selectedLive = content.windows.filter { selectedWindowIDs.contains($0.windowID) }.map { "\($0.windowID):\(Int($0.frame.width))x\(Int($0.frame.height))@\(Int($0.frame.origin.x)),\(Int($0.frame.origin.y))" }.joined(separator: ",")
                 DebugLog.log("refreshCaptureFilter: fetch ok, \(content.windows.count) windows, selectedLive=[\(selectedLive)]")
                 updateCapture()
@@ -1340,9 +1413,191 @@ final class VeilModel: NSObject, ObservableObject {
             }
         }
     }
+    func stopWindowStreams() {
+        let oldStreams = windowStreams
+        windowStreams.removeAll()
+        windowStreamFrames.removeAll()
+        windowFrameImages.removeAll()
+        CaptureRouting.shared.clearWindowStreamIDs()
+        for (_, oldStream) in oldStreams {
+            Task { try? await oldStream.stopCapture() }
+        }
+    }
+    func startMultiWindowCapture() {
+        stopPreviewSnapshotTimer()
+        CaptureRouting.shared.setStripCapture(false)
+        CaptureRouting.shared.setDisplayCapture(false)
+        guard !isPanic else {
+            status = "Panic mode is on, output is hidden."
+            isSharing = false
+            return
+        }
+        guard selectedDisplayID != nil, !isNothingSelected, !isSelectionOffScreen else {
+            isSharing = false
+            if isNothingSelected {
+                status = "Nothing is currently selected to share."
+            } else if isSelectionOffScreen {
+                status = "Selected window is off screen."
+            } else {
+                status = "Pause the output until a display is selected."
+            }
+            DebugLog.log("startMultiWindowCapture: guard failed, nothingSelected=\(isNothingSelected) offScreen=\(isSelectionOffScreen)")
+            return
+        }
+        let ids = multiWindowIDs
+        guard ids.count >= 2 else { return }
+        let scaleFactor: (CGRect) -> CGFloat = { rect in
+            NSScreen.screens.first(where: { $0.frame.intersects(rect) })?.backingScaleFactor
+                ?? NSScreen.main?.backingScaleFactor ?? 1
+        }
+        var started = 0
+        var created: [CGWindowID: SCStream] = [:]
+        for id in ids {
+            guard let window = capturedWindows.first(where: { $0.windowID == id }) else { continue }
+            let frame = window.frame
+            let scale = scaleFactor(frame)
+            let config = SCStreamConfiguration()
+            config.width = max(2, Int(frame.width * scale))
+            config.height = max(2, Int(frame.height * scale))
+            config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
+            config.queueDepth = 5
+            config.pixelFormat = kCVPixelFormatType_32BGRA
+            config.showsCursor = true
+            do {
+                let newStream = SCStream(filter: SCContentFilter(desktopIndependentWindow: window), configuration: config, delegate: self)
+                try newStream.addStreamOutput(
+                    self, type: .screen,
+                    sampleHandlerQueue: DispatchQueue(label: "veil.capture", qos: .userInteractive)
+                )
+                created[id] = newStream
+                windowStreamFrames[id] = frame
+                CaptureRouting.shared.setWindowStreamID(ObjectIdentifier(newStream), windowID: id)
+                started += 1
+            } catch {
+                DebugLog.log("startMultiWindowCapture: failed to create stream for window \(id): \(error.localizedDescription)")
+            }
+        }
+        guard started > 0 else {
+            status = "Failed to start capture."
+            isSharing = false
+            return
+        }
+        windowStreams = created
+        lastCaptureSignature = captureSignature()
+        lastPositionSignature = positionSignature()
+        startPositionPoller()
+        let frames = ids.map { "\($0)" }.joined(separator: ",")
+        DebugLog.log("startMultiWindowCapture: \(started) window streams, windows=[\(frames)]")
+        for (_, newStream) in created {
+            Task {
+                do {
+                    try await newStream.startCapture()
+                } catch {
+                    DebugLog.log("startMultiWindowCapture: stream start ERROR: \(error.localizedDescription)")
+                }
+            }
+        }
+        isSharing = true
+        launchRetryPending = false
+        beginSharingActivity()
+        stopPreviewSnapshotTimer()
+        status = "Sharing is live (\(selectedAppCount) \(selectedAppCount == 1 ? "app" : "apps")). Share the Output window in Zoom/Meet/Teams."
+        startCaptureWatchdog()
+        resizeCaptureAreaWindow()
+        reopenFileControlIfNeeded()
+        reopenTimerControlIfNeeded()
+        if let canvas = multiWindowCanvasRect(), canvas.width > 0, canvas.height > 0 {
+            let ratio = canvas.width / canvas.height
+            if abs(ratio - sourceAspectRatio) > 0.0005 {
+                sourceAspectRatio = ratio
+                resizeCaptureAreaWindow()
+            }
+        }
+        Task {
+            for attempt in 1...30 {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                let shouldRetry = await MainActor.run {
+                    self.isSharing && !self.windowStreams.isEmpty && !self.streamHasFrame
+                }
+                guard shouldRetry else { break }
+                DebugLog.log("multiWindow noFrameRetry attempt=\(attempt): still no frame, refetching...")
+                await MainActor.run {
+                    self.refreshCaptureFilter()
+                }
+            }
+            DebugLog.log("multiWindow noFrameRetry done: streamHasFrame=\(streamHasFrame)")
+        }
+    }
+    func storeWindowFrame(windowID: CGWindowID, image: CGImage) {
+        windowFrameImages[windowID] = image
+        if !streamHasFrame {
+            streamHasFrame = true
+            previewSnapshotImage = nil
+            stopPreviewSnapshotTimer()
+        }
+        compositeMultiWindowImage()
+    }
+    func multiWindowBackgroundColor() -> NSColor {
+        switch canvasBackground {
+        case .gray: return .darkGray
+        case .white: return .white
+        case .black, .custom: return .black
+        }
+    }
+    func compositeMultiWindowImage() {
+        guard isMultiWindowCapture else { return }
+        let ids = multiWindowIDs
+        guard ids.count >= 2, let canvas = multiWindowCanvasRect(), canvas.width > 0, canvas.height > 0 else { return }
+        let screen = NSScreen.screens.first(where: { $0.frame.intersects(canvas) }) ?? NSScreen.main
+        let scale = screen?.backingScaleFactor ?? 2
+        let pixelWidth = max(2, Int(canvas.width * scale))
+        let pixelHeight = max(2, Int(canvas.height * scale))
+        guard let ctx = CGContext(data: nil, width: pixelWidth, height: pixelHeight, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
+        ctx.translateBy(x: 0, y: CGFloat(pixelHeight))
+        ctx.scaleBy(x: 1, y: -1)
+        if canvasBackground == .custom, let nsImage = canvasImage,
+           let bgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            let imgW = CGFloat(bgImage.width)
+            let imgH = CGFloat(bgImage.height)
+            if imgW > 0, imgH > 0 {
+                let fillScale = max(CGFloat(pixelWidth) / imgW, CGFloat(pixelHeight) / imgH)
+                let drawW = imgW * fillScale
+                let drawH = imgH * fillScale
+                let drawX = (CGFloat(pixelWidth) - drawW) / 2
+                let drawY = (CGFloat(pixelHeight) - drawH) / 2
+                ctx.draw(bgImage, in: CGRect(x: drawX, y: drawY, width: drawW, height: drawH))
+            } else {
+                ctx.setFillColor(multiWindowBackgroundColor().cgColor)
+                ctx.fill(CGRect(x: 0, y: 0, width: CGFloat(pixelWidth), height: CGFloat(pixelHeight)))
+            }
+        } else {
+            ctx.setFillColor(multiWindowBackgroundColor().cgColor)
+            ctx.fill(CGRect(x: 0, y: 0, width: CGFloat(pixelWidth), height: CGFloat(pixelHeight)))
+        }
+        let screenHeight = NSScreen.main?.frame.height ?? canvas.maxY
+        let canvasTop = CGRect(x: canvas.minX, y: screenHeight - canvas.maxY, width: canvas.width, height: canvas.height)
+        for id in ids {
+            guard let cgImage = windowFrameImages[id],
+                  let window = capturedWindows.first(where: { $0.windowID == id }) else { continue }
+            let wf = window.frame
+            let windowTop = CGRect(x: wf.minX, y: screenHeight - wf.maxY, width: wf.width, height: wf.height)
+            let dx = (windowTop.minX - canvasTop.minX) * scale
+            let dy = (windowTop.minY - canvasTop.minY) * scale
+            let dest = CGRect(x: dx, y: dy, width: wf.width * scale, height: wf.height * scale)
+            ctx.draw(cgImage, in: dest)
+        }
+        guard let composited = ctx.makeImage() else { return }
+        let image = NSImage(cgImage: composited, size: NSSize(width: composited.width, height: composited.height))
+        previewLiveImage = image
+        let ratio = canvas.width / canvas.height
+        if abs(ratio - sourceAspectRatio) > 0.0005 {
+            sourceAspectRatio = ratio
+            resizeCaptureAreaWindow()
+        }
+    }
     func startCapture() {
         stopPreviewSnapshotTimer()
-        if stream != nil {
+        if stream != nil || !windowStreams.isEmpty {
             if isSharing {
                 updateCapture()
             } else {
@@ -1353,6 +1608,10 @@ final class VeilModel: NSObject, ObservableObject {
         guard !isPanic else {
             status = "Panic mode is on, output is hidden."
             isSharing = false
+            return
+        }
+        if isMultiWindowCapture {
+            startMultiWindowCapture()
             return
         }
         guard let (filter, config) = captureFilterAndConfig() else {
@@ -1455,6 +1714,7 @@ final class VeilModel: NSObject, ObservableObject {
         stopPositionPoller()
         dynamicCaptureUnion = nil
         pendingDynamicUnion = nil
+        stopWindowStreams()
         let oldStream = stream
         stream = nil
         CaptureRouting.shared.setMainStreamID(nil)
@@ -1475,6 +1735,7 @@ final class VeilModel: NSObject, ObservableObject {
         stopPositionPoller()
         dynamicCaptureUnion = nil
         pendingDynamicUnion = nil
+        stopWindowStreams()
         let oldStream = stream
         stream = nil
         CaptureRouting.shared.setMainStreamID(nil)
@@ -1559,7 +1820,7 @@ final class VeilModel: NSObject, ObservableObject {
         captureWatchdog = nil
     }
     private func checkCaptureStability() async {
-        guard isSharing, stream != nil else { return }
+        guard isSharing, stream != nil || !windowStreams.isEmpty else { return }
         resizeCaptureAreaWindow()
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false)
@@ -1588,7 +1849,9 @@ final class VeilModel: NSObject, ObservableObject {
                 updateCapture()
             } else {
                 lastPositionSignature = newPositionSignature
-                if mode == .allow, framing == .dynamic, canvasMode != .fullDisplay, !selectedWindowIDs.isEmpty {
+                if !windowStreams.isEmpty {
+                    compositeMultiWindowImage()
+                } else if mode == .allow, framing == .dynamic, canvasMode != .fullDisplay, !selectedWindowIDs.isEmpty {
                     updateCapture()
                 }
             }
@@ -2321,6 +2584,28 @@ extension VeilModel: SCStreamOutput {
                     }
                 }
             }
+        } else if let windowID = CaptureRouting.shared.windowID(forStreamID: streamID), !CaptureRouting.shared.isPaused() {
+            let frameWidth = CVPixelBufferGetWidth(pixelBuffer)
+            let frameHeight = CVPixelBufferGetHeight(pixelBuffer)
+            if frameWidth > 0, frameHeight > 0, !Self.isBlackPixelBuffer(pixelBuffer) {
+                let meta = Self.frameMetadata(from: sampleBuffer)
+                let cropRect = Self.contentCropRect(bufferWidth: frameWidth, bufferHeight: frameHeight, metadata: meta)
+                let frameIndex = CaptureRouting.shared.nextWindowFrameIndex(windowID: windowID)
+                if frameIndex % 2 == 0 {
+                    let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+                    if let cgImage = Self.sharedFrameContext.createCGImage(ciImage, from: ciImage.extent) {
+                        let displayCGImage: CGImage
+                        if let crop = cropRect, let cropped = cgImage.cropping(to: crop) {
+                            displayCGImage = cropped
+                        } else {
+                            displayCGImage = cgImage
+                        }
+                        Task { @MainActor in
+                            self.storeWindowFrame(windowID: windowID, image: displayCGImage)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -2329,6 +2614,16 @@ extension VeilModel: SCStreamDelegate {
     nonisolated func stream(_ stream: SCStream, didStopWithError error: Error) {
         DebugLog.log("stream didStopWithError: \(error.localizedDescription)")
         Task { @MainActor in
+            if let windowID = CaptureRouting.shared.windowID(forStreamID: ObjectIdentifier(stream)) {
+                self.windowStreams.removeValue(forKey: windowID)
+                self.windowFrameImages.removeValue(forKey: windowID)
+                if self.windowStreams.isEmpty, self.isSharing {
+                    self.restartCapture()
+                } else {
+                    self.compositeMultiWindowImage()
+                }
+                return
+            }
             guard self.isSharing, self.stream === stream else { return }
             self.stopCaptureWatchdog()
             self.stopPositionPoller()

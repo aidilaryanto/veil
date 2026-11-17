@@ -269,6 +269,9 @@ extension VeilModel {
         if canvasMode == .fullDisplay, let size = fullDisplayFrameSize(), size.height > 0 {
             return size.width / size.height
         }
+        if isMultiWindowCapture, let canvas = multiWindowCanvasRect(), canvas.height > 0 {
+            return canvas.width / canvas.height
+        }
         if isFullscreenSourceWindow(),
            let live = previewLiveImage, live.size.height > 0,
            let screen = NSScreen.main, screen.backingScaleFactor > 0 {
@@ -938,6 +941,8 @@ final class CaptureRouting {
     private var skippedFrames = 0
     private var stripCapture = false
     private var displayCapture = false
+    private var windowStreamIDs: [ObjectIdentifier: CGWindowID] = [:]
+    private var windowFrameCounts: [CGWindowID: Int] = [:]
     private var mainFrameCount = 0
     private var expectedMainFrameSizeValue: CGSize = .zero
     private var diagnosticFrameTaken = false
@@ -1020,6 +1025,36 @@ final class CaptureRouting {
     func isSnapshotStreamID(_ id: ObjectIdentifier) -> Bool {
         lock.lock()
         let value = snapshotStreamID == id
+        lock.unlock()
+        return value
+    }
+    func setWindowStreamID(_ id: ObjectIdentifier, windowID: CGWindowID) {
+        lock.lock()
+        windowStreamIDs[id] = windowID
+        lock.unlock()
+    }
+    func windowID(forStreamID id: ObjectIdentifier) -> CGWindowID? {
+        lock.lock()
+        let value = windowStreamIDs[id]
+        lock.unlock()
+        return value
+    }
+    func isWindowStreamID(_ id: ObjectIdentifier) -> Bool {
+        lock.lock()
+        let value = windowStreamIDs[id] != nil
+        lock.unlock()
+        return value
+    }
+    func clearWindowStreamIDs() {
+        lock.lock()
+        windowStreamIDs.removeAll()
+        windowFrameCounts.removeAll()
+        lock.unlock()
+    }
+    func nextWindowFrameIndex(windowID: CGWindowID) -> Int {
+        lock.lock()
+        let value = (windowFrameCounts[windowID] ?? 0) + 1
+        windowFrameCounts[windowID] = value
         lock.unlock()
         return value
     }
