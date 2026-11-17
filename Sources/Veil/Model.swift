@@ -310,6 +310,9 @@ final class VeilModel: NSObject, ObservableObject {
         for frame in frames.dropFirst() {
             union = union.union(frame)
         }
+        if framing == .dynamic {
+            return union.insetBy(dx: -5, dy: -5)
+        }
         var fresh: CGRect
         if let screen = NSScreen.screens.first(where: { $0.frame.intersects(union) }) ?? NSScreen.main {
             let visible = screen.visibleFrame
