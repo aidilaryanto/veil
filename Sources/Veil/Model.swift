@@ -1609,7 +1609,7 @@ final class VeilModel: NSObject, ObservableObject {
             guard let cgImage = windowFrameImages[id],
                   let wf = multiWindowFrame(for: id) else { continue }
             let dx = (wf.minX - canvas.minX) * scale
-            let dy = (wf.minY - canvas.minY) * scale
+            let dy = (canvas.maxY - wf.maxY) * scale
             var windowCI = CIImage(cgImage: cgImage)
             let targetW = wf.width * scale
             let targetH = wf.height * scale
