@@ -1594,7 +1594,7 @@ final class VeilModel: NSObject, ObservableObject {
                 }()
                 let img = windowFrameImages[id]
                 let drawX = wf.map { ($0.minX - canvas.minX) * scale } ?? 0
-                let drawY = wf.map { (canvas.maxY - $0.maxY) * scale } ?? 0
+                let drawY = wf.map { ($0.minY - canvas.minY) * scale } ?? 0
                 return "w\(id): live=\(wf.map { "\(Int($0.width))x\(Int($0.height))@\(Int($0.minX)),\(Int($0.minY)) maxY=\(Int($0.maxY))" } ?? "nil") sc=\(sc.map { "\(Int($0.width))x\(Int($0.height))@\(Int($0.minX)),\(Int($0.minY)) maxY=\(Int($0.maxY))" } ?? "nil") img=\(img.map { "\($0.width)x\($0.height)" } ?? "nil") drawX=\(Int(drawX)) drawY=\(Int(drawY))"
             }.joined(separator: " | ")
             DebugLog.log("mwDiag: framing=\(framing.rawValue) canvas=\(Int(canvas.width))x\(Int(canvas.height))@\(Int(canvas.minX)),\(Int(canvas.minY)) maxY=\(Int(canvas.maxY)) scale=\(scale) | \(parts)")
@@ -1634,7 +1634,7 @@ final class VeilModel: NSObject, ObservableObject {
             }
             for item in drawItems {
                 let x = (item.frame.minX - canvasCopy.minX) * scaleCopy
-                let y = (canvasCopy.maxY - item.frame.maxY) * scaleCopy
+                let y = (item.frame.minY - canvasCopy.minY) * scaleCopy
                 let w = item.frame.width * scaleCopy
                 let h = item.frame.height * scaleCopy
                 context.draw(item.image, in: CGRect(x: x, y: y, width: w, height: h))
