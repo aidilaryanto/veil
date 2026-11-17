@@ -1548,13 +1548,6 @@ final class VeilModel: NSObject, ObservableObject {
         }
         compositeMultiWindowImage()
     }
-    func multiWindowBackgroundCIColor() -> CIColor {
-        switch canvasBackground {
-        case .gray: return CIColor(red: 1.0 / 3.0, green: 1.0 / 3.0, blue: 1.0 / 3.0)
-        case .white: return CIColor.white
-        case .black, .custom: return CIColor.black
-        }
-    }
     func compositeMultiWindowImage() {
         guard isMultiWindowCapture else { return }
         let now = Date().timeIntervalSince1970
@@ -1577,63 +1570,62 @@ final class VeilModel: NSObject, ObservableObject {
         let scale = screen?.backingScaleFactor ?? 2
         let pixelWidth = max(2, Int(canvas.width * scale))
         let pixelHeight = max(2, Int(canvas.height * scale))
-        let canvasRect = CGRect(x: 0, y: 0, width: CGFloat(pixelWidth), height: CGFloat(pixelHeight))
         if now - lastMultiWindowDiagLog > 2 {
             lastMultiWindowDiagLog = now
             let parts = ids.map { id in
                 let wf = multiWindowFrame(for: id)
                 let sc = capturedWindows.first(where: { $0.windowID == id })?.frame
                 let img = windowFrameImages[id]
-                let dx = wf.map { ($0.minX - canvas.minX) * scale } ?? 0
-                let dy = wf.map { (canvas.maxY - $0.maxY) * scale } ?? 0
-                return "w\(id): live=\(wf.map { "\(Int($0.width))x\(Int($0.height))@\(Int($0.minX)),\(Int($0.minY)) maxY=\(Int($0.maxY))" } ?? "nil") sc=\(sc.map { "\(Int($0.width))x\(Int($0.height))@\(Int($0.minX)),\(Int($0.minY)) maxY=\(Int($0.maxY))" } ?? "nil") img=\(img.map { "\($0.width)x\($0.height)" } ?? "nil") dx=\(Int(dx)) dy=\(Int(dy))"
+                let drawX = wf.map { ($0.minX - canvas.minX) * scale } ?? 0
+                let drawY = wf.map { ($0.minY - canvas.minY) * scale } ?? 0
+                return "w\(id): live=\(wf.map { "\(Int($0.width))x\(Int($0.height))@\(Int($0.minX)),\(Int($0.minY)) maxY=\(Int($0.maxY))" } ?? "nil") sc=\(sc.map { "\(Int($0.width))x\(Int($0.height))@\(Int($0.minX)),\(Int($0.minY)) maxY=\(Int($0.maxY))" } ?? "nil") img=\(img.map { "\($0.width)x\($0.height)" } ?? "nil") drawX=\(Int(drawX)) drawY=\(Int(drawY))"
             }.joined(separator: " | ")
             DebugLog.log("mwDiag: framing=\(framing.rawValue) canvas=\(Int(canvas.width))x\(Int(canvas.height))@\(Int(canvas.minX)),\(Int(canvas.minY)) maxY=\(Int(canvas.maxY)) scale=\(scale) | \(parts)")
         }
-        var composite: CIImage
-        if canvasBackground == .custom, let nsImage = canvasImage,
-           let bgCGImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            let imgW = CGFloat(bgCGImage.width)
-            let imgH = CGFloat(bgCGImage.height)
-            if imgW > 0, imgH > 0 {
-                let fillScale = max(CGFloat(pixelWidth) / imgW, CGFloat(pixelHeight) / imgH)
-                let drawW = imgW * fillScale
-                let drawH = imgH * fillScale
-                let tx = (CGFloat(pixelWidth) - drawW) / 2
-                let ty = (CGFloat(pixelHeight) - drawH) / 2
-                let bg = CIImage(cgImage: bgCGImage)
-                composite = bg.transformed(by: CGAffineTransform(scaleX: fillScale, y: fillScale).translatedBy(x: tx, y: ty))
-            } else {
-                composite = CIImage(color: multiWindowBackgroundCIColor()).cropped(to: canvasRect)
-            }
-        } else {
-            composite = CIImage(color: multiWindowBackgroundCIColor()).cropped(to: canvasRect)
+        let drawItems: [(image: CGImage, frame: CGRect)] = ids.compactMap { id in
+            guard let cgImage = windowFrameImages[id], let wf = multiWindowFrame(for: id) else { return nil }
+            return (image: cgImage, frame: wf)
         }
-        for id in ids {
-            guard let cgImage = windowFrameImages[id],
-                  let wf = multiWindowFrame(for: id) else { continue }
-            let dx = (wf.minX - canvas.minX) * scale
-            let dy = (canvas.maxY - wf.maxY) * scale
-            var windowCI = CIImage(cgImage: cgImage)
-            let targetW = wf.width * scale
-            let targetH = wf.height * scale
-            if abs(CGFloat(cgImage.width) - targetW) > 1 || abs(CGFloat(cgImage.height) - targetH) > 1 {
-                let sx = targetW / CGFloat(cgImage.width)
-                let sy = targetH / CGFloat(cgImage.height)
-                windowCI = windowCI.transformed(by: CGAffineTransform(scaleX: sx, y: sy))
-            }
-            let positioned = windowCI.transformed(by: CGAffineTransform(translationX: dx, y: dy))
-            composite = positioned.composited(over: composite)
-        }
-        composite = composite.cropped(to: canvasRect)
+        let background = canvasBackground
+        let backgroundImage = background == .custom ? canvasImage : nil
         let ratio = canvas.width / canvas.height
-        let compositeToRender = composite
-        let canvasRectToRender = canvasRect
+        let canvasCopy = canvas
+        let scaleCopy = scale
+        let pixelWidthCopy = pixelWidth
+        let pixelHeightCopy = pixelHeight
         Self.compositeQueue.async {
-            guard let cgImage = Self.sharedFrameContext.createCGImage(compositeToRender, from: canvasRectToRender) else { return }
+            guard let context = CGContext(data: nil, width: pixelWidthCopy, height: pixelHeightCopy, bitsPerComponent: 8, bytesPerRow: pixelWidthCopy * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
+            let bgCGColor: CGColor
+            switch background {
+            case .gray: bgCGColor = CGColor(red: 1.0 / 3.0, green: 1.0 / 3.0, blue: 1.0 / 3.0, alpha: 1)
+            case .white: bgCGColor = CGColor.white
+            case .black, .custom: bgCGColor = CGColor.black
+            }
+            context.setFillColor(bgCGColor)
+            context.fill(CGRect(x: 0, y: 0, width: pixelWidthCopy, height: pixelHeightCopy))
+            if background == .custom, let nsImage = backgroundImage, let bgCGImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                let imgW = CGFloat(bgCGImage.width)
+                let imgH = CGFloat(bgCGImage.height)
+                if imgW > 0, imgH > 0 {
+                    let fillScale = max(CGFloat(pixelWidthCopy) / imgW, CGFloat(pixelHeightCopy) / imgH)
+                    let drawW = imgW * fillScale
+                    let drawH = imgH * fillScale
+                    let drawX = (CGFloat(pixelWidthCopy) - drawW) / 2
+                    let drawY = (CGFloat(pixelHeightCopy) - drawH) / 2
+                    context.draw(bgCGImage, in: CGRect(x: drawX, y: drawY, width: drawW, height: drawH))
+                }
+            }
+            for item in drawItems {
+                let x = (item.frame.minX - canvasCopy.minX) * scaleCopy
+                let y = (item.frame.minY - canvasCopy.minY) * scaleCopy
+                let w = item.frame.width * scaleCopy
+                let h = item.frame.height * scaleCopy
+                context.draw(item.image, in: CGRect(x: x, y: y, width: w, height: h))
+            }
+            guard let resultCGImage = context.makeImage() else { return }
             Task { @MainActor in
                 guard self.isMultiWindowCapture, self.isSharing else { return }
-                let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+                let image = NSImage(cgImage: resultCGImage, size: NSSize(width: resultCGImage.width, height: resultCGImage.height))
                 self.previewLiveImage = image
                 if abs(ratio - self.sourceAspectRatio) > 0.0005 {
                     self.sourceAspectRatio = ratio
