@@ -525,10 +525,17 @@ extension VeilModel {
     }
     func timerControlSize(expanded: Bool) -> CGSize {
         guard expanded else { return CGSize(width: 36, height: 36) }
+        if timerCapsuleSize.width > 0 {
+            return timerCapsuleSize
+        }
         let font = NSFont.monospacedSystemFont(ofSize: 16, weight: .bold)
         let textWidth = (presentationTimerText as NSString).size(withAttributes: [.font: font]).width
         let fixed: CGFloat = presentationTimerMode == .countDown ? 199 : 165
         return CGSize(width: ceil(textWidth + fixed), height: 36)
+    }
+    func timerCapsuleFrame(forTimerFrame timerFrame: CGRect) -> CGRect {
+        let width = timerCapsuleSize.width > 0 ? min(timerCapsuleSize.width, timerFrame.width) : timerFrame.width
+        return CGRect(x: timerFrame.maxX - width, y: timerFrame.minY, width: width, height: timerFrame.height)
     }
     func timerControlFrame(expanded: Bool) -> CGRect? {
         guard let output = CaptureAreaWindowStore.shared.window, output.isVisible,
@@ -653,8 +660,9 @@ extension VeilModel {
         let visible = screen.visibleFrame
         let size = annotationControlSize(expanded: expanded)
         let gap: CGFloat = 8
-        var x = timerFrame.minX - gap - size.width
-        var y = timerFrame.minY
+        let capsuleFrame = timerCapsuleFrame(forTimerFrame: timerFrame)
+        var x = capsuleFrame.minX - gap - size.width
+        var y = capsuleFrame.minY
         if x < visible.minX { x = visible.minX }
         if x + size.width > visible.maxX { x = visible.maxX - size.width }
         if y < visible.minY { y = visible.minY }

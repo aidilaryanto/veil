@@ -1921,6 +1921,11 @@ struct TimerControlView: View {
         .frame(height: 36)
         .background(Capsule().fill(Color.black.opacity(0.45)))
         .foregroundStyle(.white)
+        .onGeometryChange(for: CGSize.self, of: { $0.size }) { size in
+            Task { @MainActor in
+                model.updateTimerCapsuleSize(size)
+            }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.presentationTimerExpanded)
         .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.presentationTimerMode)

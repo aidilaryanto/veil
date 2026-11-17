@@ -300,7 +300,7 @@ final class VeilModel: NSObject, ObservableObject {
     private var presentationTimer: Timer?
     private var presentationAccumulated: TimeInterval = 0
     private var presentationCountingSince: Date?
-    private var lastTimerTextCount = 0
+    var timerCapsuleSize: CGSize = .zero
     private var positionPollTimer: Timer?
     private var stream: SCStream?
     private var snapshotStream: SCStream?
@@ -791,13 +791,6 @@ final class VeilModel: NSObject, ObservableObject {
                     self.presentationCountingSince = nil
                     self.presentationElapsed = self.presentationAccumulated
                 }
-                if self.presentationTimerExpanded {
-                    let count = self.presentationTimerText.count
-                    if count != self.lastTimerTextCount {
-                        self.lastTimerTextCount = count
-                        self.dockTimerControlToCaptureArea()
-                    }
-                }
             }
         }
     }
@@ -845,7 +838,11 @@ final class VeilModel: NSObject, ObservableObject {
         presentationAccumulated = 0
         presentationCountingSince = presentationTimerActive ? Date() : nil
         presentationElapsed = 0
-        if presentationTimerExpanded {
+    }
+    func updateTimerCapsuleSize(_ size: CGSize) {
+        guard presentationTimerExpanded, size.width > 0, size.height > 0 else { return }
+        if abs(size.width - timerCapsuleSize.width) > 0.5 || abs(size.height - timerCapsuleSize.height) > 0.5 {
+            timerCapsuleSize = size
             dockTimerControlToCaptureArea()
         }
     }
