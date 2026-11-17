@@ -341,6 +341,7 @@ final class VeilModel: NSObject, ObservableObject {
     private var windowStreamFrames: [CGWindowID: CGRect] = [:]
     private var lastMultiWindowCompositeTime: TimeInterval = 0
     private var multiWindowCompositePending = false
+    private var lastMultiWindowDiagLog: TimeInterval = 0
     private var liveMultiWindowFrames: [CGWindowID: CGRect] = [:]
     private var pdfDocument: PDFDocument?
     private var filePageCache: [Int: NSImage] = [:]
@@ -1576,6 +1577,18 @@ final class VeilModel: NSObject, ObservableObject {
         let pixelWidth = max(2, Int(canvas.width * scale))
         let pixelHeight = max(2, Int(canvas.height * scale))
         let canvasRect = CGRect(x: 0, y: 0, width: CGFloat(pixelWidth), height: CGFloat(pixelHeight))
+        if now - lastMultiWindowDiagLog > 2 {
+            lastMultiWindowDiagLog = now
+            let parts = ids.map { id in
+                let wf = multiWindowFrame(for: id)
+                let sc = capturedWindows.first(where: { $0.windowID == id })?.frame
+                let img = windowFrameImages[id]
+                let dx = wf.map { ($0.minX - canvas.minX) * scale } ?? 0
+                let dy = wf.map { (canvas.maxY - $0.maxY) * scale } ?? 0
+                return "w\(id): live=\(wf.map { "\(Int($0.width))x\(Int($0.height))@\(Int($0.minX)),\(Int($0.minY)) maxY=\(Int($0.maxY))" } ?? "nil") sc=\(sc.map { "\(Int($0.width))x\(Int($0.height))@\(Int($0.minX)),\(Int($0.minY)) maxY=\(Int($0.maxY))" } ?? "nil") img=\(img.map { "\($0.width)x\($0.height)" } ?? "nil") dx=\(Int(dx)) dy=\(Int(dy))"
+            }.joined(separator: " | ")
+            DebugLog.log("mwDiag: framing=\(framing.rawValue) canvas=\(Int(canvas.width))x\(Int(canvas.height))@\(Int(canvas.minX)),\(Int(canvas.minY)) maxY=\(Int(canvas.maxY)) scale=\(scale) | \(parts)")
+        }
         var composite: CIImage
         if canvasBackground == .custom, let nsImage = canvasImage,
            let bgCGImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
