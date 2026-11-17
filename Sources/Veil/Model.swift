@@ -298,8 +298,16 @@ final class VeilModel: NSObject, ObservableObject {
         mode == .allow && canvasMode == .isolated && multiWindowIDs.count >= 2
     }
     private func multiWindowFrame(for windowID: CGWindowID) -> CGRect? {
-        if let live = liveMultiWindowFrames[windowID] { return live }
-        return capturedWindows.first(where: { $0.windowID == windowID })?.frame
+        let raw: CGRect?
+        if let live = liveMultiWindowFrames[windowID] {
+            raw = live
+        } else {
+            raw = capturedWindows.first(where: { $0.windowID == windowID })?.frame
+        }
+        guard let frame = raw, frame.width > 0, frame.height > 0 else { return nil }
+        let screenHeight = NSScreen.screens.first(where: { $0.frame.intersects(frame) })?.frame.height ?? NSScreen.main?.frame.height ?? 0
+        guard screenHeight > 0 else { return frame }
+        return CGRect(x: frame.minX, y: screenHeight - frame.maxY, width: frame.width, height: frame.height)
     }
     func multiWindowCanvasRect() -> CGRect? {
         let ids = multiWindowIDs
@@ -1577,7 +1585,13 @@ final class VeilModel: NSObject, ObservableObject {
             lastMultiWindowDiagLog = now
             let parts = ids.map { id in
                 let wf = multiWindowFrame(for: id)
-                let sc = capturedWindows.first(where: { $0.windowID == id })?.frame
+                let scRaw = capturedWindows.first(where: { $0.windowID == id })?.frame
+                let sc: CGRect? = {
+                    guard let frame = scRaw, frame.width > 0, frame.height > 0 else { return nil }
+                    let screenHeight = NSScreen.screens.first(where: { $0.frame.intersects(frame) })?.frame.height ?? NSScreen.main?.frame.height ?? 0
+                    guard screenHeight > 0 else { return frame }
+                    return CGRect(x: frame.minX, y: screenHeight - frame.maxY, width: frame.width, height: frame.height)
+                }()
                 let img = windowFrameImages[id]
                 let drawX = wf.map { ($0.minX - canvas.minX) * scale } ?? 0
                 let drawY = wf.map { (canvas.maxY - $0.maxY) * scale } ?? 0
