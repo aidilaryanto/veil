@@ -1595,8 +1595,6 @@ final class VeilModel: NSObject, ObservableObject {
         let pixelHeightCopy = pixelHeight
         Self.compositeQueue.async {
             guard let context = CGContext(data: nil, width: pixelWidthCopy, height: pixelHeightCopy, bitsPerComponent: 8, bytesPerRow: pixelWidthCopy * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
-            context.translateBy(x: 0, y: CGFloat(pixelHeightCopy))
-            context.scaleBy(x: 1, y: -1)
             let bgCGColor: CGColor
             switch background {
             case .gray: bgCGColor = CGColor(red: 1.0 / 3.0, green: 1.0 / 3.0, blue: 1.0 / 3.0, alpha: 1)
