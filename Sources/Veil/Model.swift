@@ -1539,11 +1539,11 @@ final class VeilModel: NSObject, ObservableObject {
         }
         compositeMultiWindowImage()
     }
-    func multiWindowBackgroundColor() -> NSColor {
+    func multiWindowBackgroundCIColor() -> CIColor {
         switch canvasBackground {
-        case .gray: return .darkGray
-        case .white: return .white
-        case .black, .custom: return .black
+        case .gray: return CIColor(red: 1.0 / 3.0, green: 1.0 / 3.0, blue: 1.0 / 3.0)
+        case .white: return CIColor.white
+        case .black, .custom: return CIColor.black
         }
     }
     func compositeMultiWindowImage() {
@@ -1583,10 +1583,10 @@ final class VeilModel: NSObject, ObservableObject {
                 let bg = CIImage(cgImage: bgCGImage)
                 composite = bg.transformed(by: CGAffineTransform(scaleX: fillScale, y: fillScale).translatedBy(x: tx, y: ty))
             } else {
-                composite = CIImage(color: CIColor(color: multiWindowBackgroundColor())).cropped(to: canvasRect)
+                composite = CIImage(color: multiWindowBackgroundCIColor()).cropped(to: canvasRect)
             }
         } else {
-            composite = CIImage(color: CIColor(color: multiWindowBackgroundColor())).cropped(to: canvasRect)
+            composite = CIImage(color: multiWindowBackgroundCIColor()).cropped(to: canvasRect)
         }
         for id in ids {
             guard let cgImage = windowFrameImages[id],
