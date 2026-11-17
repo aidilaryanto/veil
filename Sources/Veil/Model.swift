@@ -313,8 +313,7 @@ final class VeilModel: NSObject, ObservableObject {
         var fresh: CGRect
         if let screen = NSScreen.screens.first(where: { $0.frame.intersects(union) }) ?? NSScreen.main {
             let visible = screen.visibleFrame
-            var canvas = visible.union(union)
-            canvas = canvas.intersection(screen.frame)
+            let canvas = visible.intersection(screen.frame)
             fresh = canvas.width > 0 && canvas.height > 0 ? canvas : union
         } else {
             fresh = union
@@ -1597,7 +1596,7 @@ final class VeilModel: NSObject, ObservableObject {
             guard let cgImage = windowFrameImages[id],
                   let wf = multiWindowFrame(for: id) else { continue }
             let dx = (wf.minX - canvas.minX) * scale
-            let dy = (wf.minY - canvas.minY) * scale
+            let dy = (canvas.maxY - wf.maxY) * scale
             var windowCI = CIImage(cgImage: cgImage)
             let targetW = wf.width * scale
             let targetH = wf.height * scale
