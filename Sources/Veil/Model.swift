@@ -978,6 +978,7 @@ final class VeilModel: NSObject, ObservableObject {
         let base = withoutLayer.filter { window in
             if let normal = normalLayers, !normal.contains(window.windowID) { return false }
             if !window.isOnScreen && !isFullscreenWindow(window) { return false }
+            if window.title == "Window" { return false }
             return true
         }
         var kept: [SCWindow] = []
