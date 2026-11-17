@@ -1606,13 +1606,20 @@ final class VeilModel: NSObject, ObservableObject {
             composite = positioned.composited(over: composite)
         }
         composite = composite.cropped(to: canvasRect)
-        guard let cgImage = Self.sharedFrameContext.createCGImage(composite, from: canvasRect) else { return }
-        let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
-        previewLiveImage = image
         let ratio = canvas.width / canvas.height
-        if abs(ratio - sourceAspectRatio) > 0.0005 {
-            sourceAspectRatio = ratio
-            resizeCaptureAreaWindow()
+        let compositeToRender = composite
+        let canvasRectToRender = canvasRect
+        Self.compositeQueue.async {
+            guard let cgImage = Self.sharedFrameContext.createCGImage(compositeToRender, from: canvasRectToRender) else { return }
+            Task { @MainActor in
+                guard self.isMultiWindowCapture, self.isSharing else { return }
+                let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+                self.previewLiveImage = image
+                if abs(ratio - self.sourceAspectRatio) > 0.0005 {
+                    self.sourceAspectRatio = ratio
+                    self.resizeCaptureAreaWindow()
+                }
+            }
         }
     }
     func startCapture() {
@@ -2422,6 +2429,7 @@ final class VeilModel: NSObject, ObservableObject {
 }
 extension VeilModel: SCStreamOutput {
     nonisolated private static let sharedFrameContext = CIContext()
+    nonisolated private static let compositeQueue = DispatchQueue(label: "veil.composite", qos: .userInitiated)
     nonisolated private static func isBlackPixelBuffer(_ pixelBuffer: CVPixelBuffer) -> Bool {
         CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
