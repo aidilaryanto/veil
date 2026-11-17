@@ -140,6 +140,7 @@ enum AnnotationColor: String, CaseIterable {
     case green
     case blue
     case white
+    case black
     var color: Color {
         switch self {
         case .red: return Color(red: 0.95, green: 0.30, blue: 0.25)
@@ -147,6 +148,7 @@ enum AnnotationColor: String, CaseIterable {
         case .green: return Color(red: 0.30, green: 0.85, blue: 0.40)
         case .blue: return Color(red: 0.25, green: 0.55, blue: 1.0)
         case .white: return Color.white
+        case .black: return Color.black
         }
     }
 }
@@ -284,6 +286,10 @@ final class VeilModel: NSObject, ObservableObject {
     @Published var annotationColor: AnnotationColor = .red
     @Published var annotationStrokes: [AnnotationStroke] = []
     @Published var laserPosition: CGPoint? = nil
+    @Published var whiteboardExpanded = false
+    @Published var whiteboardEnabled = false
+    @Published var whiteboardColor: AnnotationColor = .black
+    @Published var whiteboardStrokes: [AnnotationStroke] = []
     static let annotationPenWidthFraction: CGFloat = 0.004
     var shouldShowStreamPreview: Bool {
         isSharing && !(mode == .allow && canvasMode == .isolated && selectedWindowIDs.isEmpty)
@@ -2323,6 +2329,22 @@ final class VeilModel: NSObject, ObservableObject {
         DebugLog.log("annotation: clear")
         annotationStrokes.removeAll()
         laserPosition = nil
+    }
+    func startWhiteboardStroke(at point: CGPoint) {
+        whiteboardStrokes.append(AnnotationStroke(points: [point], color: whiteboardColor, widthFraction: Self.annotationPenWidthFraction))
+    }
+    func addWhiteboardPoint(_ point: CGPoint) {
+        guard !whiteboardStrokes.isEmpty else { return }
+        whiteboardStrokes[whiteboardStrokes.count - 1].points.append(point)
+    }
+    func endWhiteboardStroke() {
+        if let last = whiteboardStrokes.last, last.points.count < 2 {
+            whiteboardStrokes.removeLast()
+        }
+    }
+    func clearWhiteboard() {
+        DebugLog.log("whiteboard: clear")
+        whiteboardStrokes.removeAll()
     }
     func applyPresetFiles(_ preset: Preset) {
         var presetFiles = preset.files

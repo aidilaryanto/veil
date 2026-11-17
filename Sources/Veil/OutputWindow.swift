@@ -23,6 +23,11 @@ final class AnnotationControlWindowStore {
     var window: NSWindow?
     private init() {}
 }
+final class WhiteboardControlWindowStore {
+    static let shared = WhiteboardControlWindowStore()
+    var window: NSWindow?
+    private init() {}
+}
 final class PanelWindowStore {
     static let shared = PanelWindowStore()
     var window: NSWindow?
@@ -632,6 +637,7 @@ extension VeilModel {
             presentationTimerExpanded = false
             guard let frame = timerControlFrame(expanded: false) else { return }
             let annotationFrame = annotationFrame(forTimerFrame: frame, expanded: annotationExpanded)
+            let whiteboardFrame = annotationFrame.flatMap { whiteboardFrame(forAnnotationFrame: $0, expanded: whiteboardExpanded) }
             NSAnimationContext.runAnimationGroup({ context in
                 context.duration = 0.55
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
@@ -639,12 +645,16 @@ extension VeilModel {
                 if let annotationFrame, let annotationWindow = AnnotationControlWindowStore.shared.window {
                     annotationWindow.animator().setFrame(annotationFrame, display: true)
                 }
+                if let whiteboardFrame, let whiteboardWindow = WhiteboardControlWindowStore.shared.window {
+                    whiteboardWindow.animator().setFrame(whiteboardFrame, display: true)
+                }
             }, completionHandler: { [weak self] in
                 guard let self else { return }
                 Task { @MainActor in
                     guard !self.presentationTimerExpanded else { return }
                     self.dockTimerControlToCaptureArea()
                     self.dockAnnotationControlToCaptureArea()
+                    self.dockWhiteboardControlToCaptureArea()
                 }
             })
         }
@@ -729,6 +739,7 @@ extension VeilModel {
             || abs(frame.origin.x - current.origin.x) > 1 || abs(frame.origin.y - current.origin.y) > 1 {
             annotation.setFrame(frame, display: true)
         }
+        dockWhiteboardControlToCaptureArea()
     }
     func setAnnotationControlExpanded(_ expanded: Bool) {
         guard let window = AnnotationControlWindowStore.shared.window else {
@@ -741,18 +752,24 @@ extension VeilModel {
                 window.contentView?.layoutSubtreeIfNeeded()
             }
             annotationExpanded = true
+            dockWhiteboardControlToCaptureArea()
         } else {
             annotationExpanded = false
             guard let frame = annotationControlFrame(expanded: false) else { return }
+            let whiteboardFrame = whiteboardControlFrame(expanded: whiteboardExpanded)
             NSAnimationContext.runAnimationGroup({ context in
                 context.duration = 0.55
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().setFrame(frame, display: true)
+                if let whiteboardFrame, let whiteboardWindow = WhiteboardControlWindowStore.shared.window {
+                    whiteboardWindow.animator().setFrame(whiteboardFrame, display: true)
+                }
             }, completionHandler: { [weak self] in
                 guard let self else { return }
                 Task { @MainActor in
                     guard !self.annotationExpanded else { return }
                     self.dockAnnotationControlToCaptureArea()
+                    self.dockWhiteboardControlToCaptureArea()
                 }
             })
         }
@@ -762,11 +779,119 @@ extension VeilModel {
             openAnnotationControlWindow()
         }
     }
+    func whiteboardControlSize(expanded: Bool) -> CGSize {
+        expanded ? CGSize(width: 172, height: 36) : CGSize(width: 36, height: 36)
+    }
+    func whiteboardFrame(forAnnotationFrame annotationFrame: CGRect, expanded: Bool) -> CGRect? {
+        guard let output = CaptureAreaWindowStore.shared.window, output.isVisible,
+              let screen = output.screen ?? NSScreen.main else { return nil }
+        let visible = screen.visibleFrame
+        let size = whiteboardControlSize(expanded: expanded)
+        let gap: CGFloat = 8
+        var x = annotationFrame.minX - gap - size.width
+        var y = annotationFrame.minY
+        if x < visible.minX { x = visible.minX }
+        if x + size.width > visible.maxX { x = visible.maxX - size.width }
+        if y < visible.minY { y = visible.minY }
+        if y + size.height > visible.maxY { y = visible.maxY - size.height }
+        return CGRect(x: x, y: y, width: size.width, height: size.height)
+    }
+    func whiteboardControlFrame(expanded: Bool) -> CGRect? {
+        if let annotationWindow = AnnotationControlWindowStore.shared.window {
+            return whiteboardFrame(forAnnotationFrame: annotationWindow.frame, expanded: expanded)
+        }
+        guard let annotationFrame = annotationControlFrame(expanded: annotationExpanded) else { return nil }
+        return whiteboardFrame(forAnnotationFrame: annotationFrame, expanded: expanded)
+    }
+    func openWhiteboardControlWindow() {
+        guard CaptureAreaWindowStore.shared.window != nil, isCaptureAreaVisible else { return }
+        if let window = WhiteboardControlWindowStore.shared.window {
+            window.makeKeyAndOrderFront(nil)
+            attachWhiteboardControlWindow()
+            dockWhiteboardControlToCaptureArea()
+            return
+        }
+        let window = NSWindow(
+            contentRect: NSRect(x: 120, y: 120, width: 36, height: 36),
+            styleMask: [.closable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Veil Whiteboard Control"
+        window.level = .floating
+        window.sharingType = .none
+        window.isReleasedWhenClosed = false
+        configureCaptureAreaWindow(window)
+        window.contentView = NSHostingView(rootView: WhiteboardControlView().environmentObject(self))
+        window.makeKeyAndOrderFront(nil)
+        WhiteboardControlWindowStore.shared.window = window
+        attachWhiteboardControlWindow()
+        dockWhiteboardControlToCaptureArea()
+    }
+    func closeWhiteboardControlWindow() {
+        if let window = WhiteboardControlWindowStore.shared.window {
+            if let output = CaptureAreaWindowStore.shared.window {
+                output.removeChildWindow(window)
+            }
+            window.close()
+            WhiteboardControlWindowStore.shared.window = nil
+        }
+    }
+    func attachWhiteboardControlWindow() {
+        guard let output = CaptureAreaWindowStore.shared.window,
+              let whiteboard = WhiteboardControlWindowStore.shared.window,
+              output.childWindows?.contains(whiteboard) != true else { return }
+        output.addChildWindow(whiteboard, ordered: .above)
+    }
+    func dockWhiteboardControlToCaptureArea() {
+        guard let whiteboard = WhiteboardControlWindowStore.shared.window,
+              let output = CaptureAreaWindowStore.shared.window,
+              output.isVisible, whiteboard.isVisible else { return }
+        guard let frame = whiteboardControlFrame(expanded: whiteboardExpanded) else { return }
+        let current = whiteboard.frame
+        if abs(frame.width - current.width) > 1 || abs(frame.height - current.height) > 1
+            || abs(frame.origin.x - current.origin.x) > 1 || abs(frame.origin.y - current.origin.y) > 1 {
+            whiteboard.setFrame(frame, display: true)
+        }
+    }
+    func setWhiteboardControlExpanded(_ expanded: Bool) {
+        guard let window = WhiteboardControlWindowStore.shared.window else {
+            whiteboardExpanded = expanded
+            return
+        }
+        if expanded {
+            if let frame = whiteboardControlFrame(expanded: true) {
+                window.setFrame(frame, display: true)
+                window.contentView?.layoutSubtreeIfNeeded()
+            }
+            whiteboardExpanded = true
+        } else {
+            whiteboardExpanded = false
+            guard let frame = whiteboardControlFrame(expanded: false) else { return }
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.55
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                window.animator().setFrame(frame, display: true)
+            }, completionHandler: { [weak self] in
+                guard let self else { return }
+                Task { @MainActor in
+                    guard !self.whiteboardExpanded else { return }
+                    self.dockWhiteboardControlToCaptureArea()
+                }
+            })
+        }
+    }
+    func reopenWhiteboardControlIfNeeded() {
+        if isCaptureAreaVisible, WhiteboardControlWindowStore.shared.window == nil {
+            openWhiteboardControlWindow()
+        }
+    }
     func resizeCaptureAreaWindow() {
         guard let window = CaptureAreaWindowStore.shared.window else {
             dockFileControlToCaptureArea()
             dockTimerControlToCaptureArea()
             dockAnnotationControlToCaptureArea()
+            dockWhiteboardControlToCaptureArea()
             return
         }
         let size = captureAreaWindowSize(width: window.frame.width)
@@ -829,6 +954,7 @@ extension VeilModel {
         closeFileControlWindow()
         closeTimerControlWindow()
         closeAnnotationControlWindow()
+        closeWhiteboardControlWindow()
         if let window = CaptureAreaWindowStore.shared.window {
             moveCaptureAreaOffScreen(window)
         }
@@ -859,6 +985,7 @@ extension VeilModel {
             reopenFileControlIfNeeded()
             openTimerControlWindow()
             openAnnotationControlWindow()
+            openWhiteboardControlWindow()
             refreshCaptureFilter()
             return
         }
@@ -908,6 +1035,7 @@ extension VeilModel {
             reopenFileControlIfNeeded()
             openTimerControlWindow()
             openAnnotationControlWindow()
+            openWhiteboardControlWindow()
             refreshCaptureFilter()
         }
         CaptureAreaWindowStore.shared.closeObserver = NotificationCenter.default.addObserver(
@@ -922,6 +1050,7 @@ extension VeilModel {
                 self?.dockFileControlToCaptureArea()
                 self?.dockTimerControlToCaptureArea()
                 self?.dockAnnotationControlToCaptureArea()
+                self?.dockWhiteboardControlToCaptureArea()
             }
         }
     }

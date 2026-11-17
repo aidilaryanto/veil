@@ -77,30 +77,39 @@ struct WindowDragView: NSViewRepresentable {
 final class AnnotationInputNSView: NSView {
     var model: VeilModel?
     private var isDrawing = false
+    private var isWhiteboardDrawing = false
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func hitTest(_ point: NSPoint) -> NSView? {
-        guard let model = model, model.annotationEnabled, !model.isPanic else { return nil }
+        guard let model = model, (model.annotationEnabled || model.whiteboardEnabled), !model.isPanic else { return nil }
         return self
     }
     override func mouseDown(with event: NSEvent) {
-        guard let model = model, model.annotationEnabled, !model.isPanic else { return }
-        if model.annotationTool == .pen {
+        guard let model = model, (model.annotationEnabled || model.whiteboardEnabled), !model.isPanic else { return }
+        if model.whiteboardEnabled {
+            isWhiteboardDrawing = true
+            model.startWhiteboardStroke(at: normalizedPoint(from: event))
+        } else if model.annotationTool == .pen {
             isDrawing = true
             model.startAnnotationStroke(at: normalizedPoint(from: event))
         }
     }
     override func mouseDragged(with event: NSEvent) {
-        guard let model = model, model.annotationEnabled, !model.isPanic else { return }
+        guard let model = model, (model.annotationEnabled || model.whiteboardEnabled), !model.isPanic else { return }
         let point = normalizedPoint(from: event)
-        if model.annotationTool == .pen, isDrawing {
+        if model.whiteboardEnabled, isWhiteboardDrawing {
+            model.addWhiteboardPoint(point)
+        } else if model.annotationTool == .pen, isDrawing {
             model.addAnnotationPoint(point)
         } else if model.annotationTool == .laser {
             model.laserPosition = point
         }
     }
     override func mouseUp(with event: NSEvent) {
-        guard let model = model, model.annotationEnabled, !model.isPanic else { return }
-        if model.annotationTool == .pen {
+        guard let model = model, (model.annotationEnabled || model.whiteboardEnabled), !model.isPanic else { return }
+        if model.whiteboardEnabled {
+            isWhiteboardDrawing = false
+            model.endWhiteboardStroke()
+        } else if model.annotationTool == .pen {
             isDrawing = false
             model.endAnnotationStroke()
         }
@@ -2002,6 +2011,7 @@ struct AnnotationControlView: View {
                     } else {
                         model.annotationTool = .pen
                         model.annotationEnabled = true
+                        model.whiteboardEnabled = false
                     }
                 } label: {
                     Color.white.opacity(0.01)
@@ -2025,6 +2035,7 @@ struct AnnotationControlView: View {
                     } else {
                         model.annotationTool = .laser
                         model.annotationEnabled = true
+                        model.whiteboardEnabled = false
                     }
                 } label: {
                     Color.white.opacity(0.01)
@@ -2067,6 +2078,120 @@ struct AnnotationControlView: View {
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.annotationExpanded)
+    }
+}
+struct WhiteboardControlView: View {
+    @EnvironmentObject var model: VeilModel
+    @State private var showColorPopover = false
+    var body: some View {
+        HStack(spacing: 6) {
+            if model.whiteboardExpanded {
+                Button {
+                    model.clearWhiteboard()
+                } label: {
+                    Color.white.opacity(0.01)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                        .overlay(
+                            Image(systemName: "trash")
+                                .font(.system(size: 13))
+                        )
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .focusable(false)
+                .disabled(model.whiteboardStrokes.isEmpty)
+                .help("Clear the whiteboard")
+                .pointingHandOnHover()
+                .transition(.opacity.combined(with: .offset(x: 12)))
+                Button {
+                    showColorPopover.toggle()
+                } label: {
+                    Color.white.opacity(0.01)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                        .overlay(
+                            Circle()
+                                .fill(model.whiteboardColor.color)
+                                .frame(width: 18, height: 18)
+                                .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+                        )
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .focusable(false)
+                .help("Choose pen color")
+                .pointingHandOnHover()
+                .transition(.opacity.combined(with: .offset(x: 12)))
+                .popover(isPresented: $showColorPopover) {
+                    HStack(spacing: 8) {
+                        ForEach(AnnotationColor.allCases, id: \.self) { color in
+                            Button {
+                                model.whiteboardColor = color
+                                showColorPopover = false
+                            } label: {
+                                Circle()
+                                    .fill(color.color)
+                                    .frame(width: 24, height: 24)
+                                    .overlay(Circle().stroke(Color.white, lineWidth: model.whiteboardColor == color ? 2 : 0))
+                            }
+                            .buttonStyle(.plain)
+                            .help(color.rawValue.capitalized)
+                            .contentShape(Circle())
+                            .pointingHandOnHover()
+                        }
+                    }
+                    .padding(12)
+                    .preferredColorScheme(.dark)
+                }
+                Button {
+                    if model.whiteboardEnabled {
+                        model.whiteboardEnabled = false
+                    } else {
+                        model.whiteboardEnabled = true
+                        model.annotationEnabled = false
+                    }
+                } label: {
+                    Color.white.opacity(0.01)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                        .overlay(
+                            Image(systemName: "pencil")
+                                .font(.system(size: 13))
+                        )
+                        .background(Circle().fill(model.whiteboardEnabled ? Color.red : Color.clear))
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .focusable(false)
+                .help("Draw on the whiteboard")
+                .pointingHandOnHover()
+                .transition(.opacity.combined(with: .offset(x: 12)))
+            }
+            Button {
+                model.setWhiteboardControlExpanded(!model.whiteboardExpanded)
+            } label: {
+                Color.white.opacity(0.01)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+                    .overlay(
+                        Image(systemName: "rectangle.and.pencil.and.ellipsis")
+                            .font(.system(size: 13))
+                    )
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .focusable(false)
+            .foregroundStyle(model.whiteboardEnabled ? Color(red: 0.95, green: 0.55, blue: 0.20) : Color.white)
+            .help(model.whiteboardExpanded ? "Collapse whiteboard" : "Expand whiteboard")
+            .pointingHandOnHover()
+        }
+        .padding(.horizontal, 4)
+        .frame(height: 36)
+        .background(Capsule().fill(Color.black.opacity(0.45)))
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.whiteboardExpanded)
     }
 }
 struct FileListPopupView: View {
@@ -2243,6 +2368,28 @@ struct AnnotationOverlayView: View {
         .position(center)
     }
 }
+struct WhiteboardOverlayView: View {
+    @EnvironmentObject var model: VeilModel
+    var size: CGSize
+    var body: some View {
+        ZStack {
+            ForEach(model.whiteboardStrokes) { stroke in
+                whiteboardPath(for: stroke)
+            }
+        }
+        .frame(width: size.width, height: size.height)
+    }
+    private func whiteboardPath(for stroke: AnnotationStroke) -> some View {
+        Path { path in
+            guard let first = stroke.points.first else { return }
+            path.move(to: CGPoint(x: first.x * size.width, y: first.y * size.height))
+            for point in stroke.points.dropFirst() {
+                path.addLine(to: CGPoint(x: point.x * size.width, y: point.y * size.height))
+            }
+        }
+        .stroke(stroke.color.color, style: StrokeStyle(lineWidth: stroke.widthFraction * size.width, lineCap: .round, lineJoin: .round))
+    }
+}
 struct OutputContentView: View {
     @EnvironmentObject var model: VeilModel
     var isPreview: Bool = false
@@ -2269,6 +2416,10 @@ struct OutputContentView: View {
                 } else {
                     backgroundView
                     mainImageView(outputSize: geometry.size)
+                    if model.whiteboardEnabled {
+                        Color.white
+                        WhiteboardOverlayView(size: geometry.size)
+                    }
                     AnnotationOverlayView(size: geometry.size)
                 }
             }
