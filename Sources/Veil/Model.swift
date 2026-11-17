@@ -316,7 +316,11 @@ final class VeilModel: NSObject, ObservableObject {
         var fresh: CGRect
         if let screen = NSScreen.screens.first(where: { $0.frame.intersects(union) }) ?? NSScreen.main {
             let visible = screen.visibleFrame
-            let canvas = visible.intersection(screen.frame)
+            let bottom = min(visible.minY, union.minY)
+            let left = min(visible.minX, union.minX)
+            let right = max(visible.maxX, union.maxX)
+            var canvas = CGRect(x: left, y: bottom, width: right - left, height: visible.maxY - bottom)
+            canvas = canvas.intersection(screen.frame)
             fresh = canvas.width > 0 && canvas.height > 0 ? canvas : union
         } else {
             fresh = union
