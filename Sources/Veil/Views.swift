@@ -1932,10 +1932,10 @@ struct TimerControlView: View {
                 }
             }
         }
-        .background(Capsule().fill(Color.black.opacity(0.45)))
-        .clipped()
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        .background(Capsule().fill(Color.black.opacity(0.45)))
+        .clipped()
     }
 }
 struct AnnotationControlView: View {
@@ -2072,10 +2072,10 @@ struct AnnotationControlView: View {
             .disabled(!model.annotationExpanded)
             .offset(x: -38)
         }
-        .background(Capsule().fill(Color.black.opacity(0.45)))
-        .clipped()
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        .background(Capsule().fill(Color.black.opacity(0.45)))
+        .clipped()
     }
 }
 struct WhiteboardControlView: View {
@@ -2188,10 +2188,10 @@ struct WhiteboardControlView: View {
             .disabled(!model.whiteboardExpanded)
             .offset(x: -38)
         }
-        .background(Capsule().fill(Color.black.opacity(0.45)))
-        .clipped()
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        .background(Capsule().fill(Color.black.opacity(0.45)))
+        .clipped()
     }
 }
 struct FileListPopupView: View {
