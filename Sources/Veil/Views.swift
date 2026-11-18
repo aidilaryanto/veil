@@ -1645,6 +1645,7 @@ struct FilePageOverviewView: View {
                 }
             }
             .frame(width: 340, height: 380)
+            .background(WindowAccessor { $0.sharingType = .none })
         }
     }
 }
@@ -2264,6 +2265,7 @@ struct FileListPopupView: View {
         }
         .padding(14)
         .frame(width: 320)
+        .background(WindowAccessor { $0.sharingType = .none })
     }
 }
 struct PreviewContentView: View {
