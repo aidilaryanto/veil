@@ -637,7 +637,7 @@ extension VeilModel {
             presentationTimerExpanded = false
             guard let frame = timerControlFrame(expanded: false) else { return }
             let annotationFrame = annotationFrame(forTimerFrame: frame, expanded: annotationExpanded)
-            let whiteboardFrame = annotationFrame.flatMap { whiteboardFrame(forAnnotationFrame: $0, expanded: whiteboardExpanded) }
+            let wbFrame = annotationFrame.flatMap { self.whiteboardFrame(forAnnotationFrame: $0, expanded: whiteboardExpanded) }
             NSAnimationContext.runAnimationGroup({ context in
                 context.duration = 0.55
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
@@ -645,8 +645,8 @@ extension VeilModel {
                 if let annotationFrame, let annotationWindow = AnnotationControlWindowStore.shared.window {
                     annotationWindow.animator().setFrame(annotationFrame, display: true)
                 }
-                if let whiteboardFrame, let whiteboardWindow = WhiteboardControlWindowStore.shared.window {
-                    whiteboardWindow.animator().setFrame(whiteboardFrame, display: true)
+                if let wbFrame, let whiteboardWindow = WhiteboardControlWindowStore.shared.window {
+                    whiteboardWindow.animator().setFrame(wbFrame, display: true)
                 }
             }, completionHandler: { [weak self] in
                 guard let self else { return }
