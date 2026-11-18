@@ -627,12 +627,30 @@ extension VeilModel {
             return
         }
         if expanded {
-            if let frame = timerControlFrame(expanded: true) {
-                window.setFrame(frame, display: true)
-                window.contentView?.layoutSubtreeIfNeeded()
-            }
             presentationTimerExpanded = true
-            dockAnnotationControlToCaptureArea()
+            window.contentView?.layoutSubtreeIfNeeded()
+            guard let frame = timerControlFrame(expanded: true) else { return }
+            let annotationFrame = annotationFrame(forTimerFrame: frame, expanded: annotationExpanded)
+            let wbFrame = annotationFrame.flatMap { self.whiteboardFrame(forAnnotationFrame: $0, expanded: whiteboardExpanded) }
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.55
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                window.animator().setFrame(frame, display: true)
+                if let annotationFrame, let annotationWindow = AnnotationControlWindowStore.shared.window {
+                    annotationWindow.animator().setFrame(annotationFrame, display: true)
+                }
+                if let wbFrame, let whiteboardWindow = WhiteboardControlWindowStore.shared.window {
+                    whiteboardWindow.animator().setFrame(wbFrame, display: true)
+                }
+            }, completionHandler: { [weak self] in
+                guard let self else { return }
+                Task { @MainActor in
+                    guard self.presentationTimerExpanded else { return }
+                    self.dockTimerControlToCaptureArea()
+                    self.dockAnnotationControlToCaptureArea()
+                    self.dockWhiteboardControlToCaptureArea()
+                }
+            })
         } else {
             presentationTimerExpanded = false
             guard let frame = timerControlFrame(expanded: false) else { return }
@@ -747,12 +765,25 @@ extension VeilModel {
             return
         }
         if expanded {
-            if let frame = annotationControlFrame(expanded: true) {
-                window.setFrame(frame, display: true)
-                window.contentView?.layoutSubtreeIfNeeded()
-            }
             annotationExpanded = true
-            dockWhiteboardControlToCaptureArea()
+            window.contentView?.layoutSubtreeIfNeeded()
+            guard let frame = annotationControlFrame(expanded: true) else { return }
+            let wbFrame = whiteboardFrame(forAnnotationFrame: frame, expanded: whiteboardExpanded)
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.55
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                window.animator().setFrame(frame, display: true)
+                if let wbFrame, let whiteboardWindow = WhiteboardControlWindowStore.shared.window {
+                    whiteboardWindow.animator().setFrame(wbFrame, display: true)
+                }
+            }, completionHandler: { [weak self] in
+                guard let self else { return }
+                Task { @MainActor in
+                    guard self.annotationExpanded else { return }
+                    self.dockAnnotationControlToCaptureArea()
+                    self.dockWhiteboardControlToCaptureArea()
+                }
+            })
         } else {
             annotationExpanded = false
             guard let frame = annotationControlFrame(expanded: false) else { return }
@@ -860,11 +891,20 @@ extension VeilModel {
             return
         }
         if expanded {
-            if let frame = whiteboardControlFrame(expanded: true) {
-                window.setFrame(frame, display: true)
-                window.contentView?.layoutSubtreeIfNeeded()
-            }
             whiteboardExpanded = true
+            window.contentView?.layoutSubtreeIfNeeded()
+            guard let frame = whiteboardControlFrame(expanded: true) else { return }
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.55
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                window.animator().setFrame(frame, display: true)
+            }, completionHandler: { [weak self] in
+                guard let self else { return }
+                Task { @MainActor in
+                    guard self.whiteboardExpanded else { return }
+                    self.dockWhiteboardControlToCaptureArea()
+                }
+            })
         } else {
             whiteboardExpanded = false
             guard let frame = whiteboardControlFrame(expanded: false) else { return }

@@ -916,7 +916,32 @@ final class VeilModel: NSObject, ObservableObject {
         guard presentationTimerExpanded, size.width > 0, size.height > 0 else { return }
         if abs(size.width - timerCapsuleSize.width) > 0.5 || abs(size.height - timerCapsuleSize.height) > 0.5 {
             timerCapsuleSize = size
-            dockTimerControlToCaptureArea()
+            guard let timerWindow = TimerControlWindowStore.shared.window,
+                  let frame = timerControlFrame(expanded: true) else {
+                dockTimerControlToCaptureArea()
+                return
+            }
+            let annotationFrame = annotationFrame(forTimerFrame: frame, expanded: annotationExpanded)
+            let wbFrame = annotationFrame.flatMap { self.whiteboardFrame(forAnnotationFrame: $0, expanded: whiteboardExpanded) }
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.55
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                timerWindow.animator().setFrame(frame, display: true)
+                if let annotationFrame, let annotationWindow = AnnotationControlWindowStore.shared.window {
+                    annotationWindow.animator().setFrame(annotationFrame, display: true)
+                }
+                if let wbFrame, let whiteboardWindow = WhiteboardControlWindowStore.shared.window {
+                    whiteboardWindow.animator().setFrame(wbFrame, display: true)
+                }
+            }, completionHandler: { [weak self] in
+                guard let self else { return }
+                Task { @MainActor in
+                    guard self.presentationTimerExpanded else { return }
+                    self.dockTimerControlToCaptureArea()
+                    self.dockAnnotationControlToCaptureArea()
+                    self.dockWhiteboardControlToCaptureArea()
+                }
+            })
         }
     }
     var presentationTimerText: String {
