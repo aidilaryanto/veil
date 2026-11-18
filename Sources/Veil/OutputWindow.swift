@@ -809,7 +809,7 @@ extension VeilModel {
         }
     }
     func whiteboardControlSize(expanded: Bool) -> CGSize {
-        expanded ? CGSize(width: 172, height: 36) : CGSize(width: 36, height: 36)
+        expanded ? CGSize(width: 138, height: 36) : CGSize(width: 36, height: 36)
     }
     func whiteboardFrame(forAnnotationFrame annotationFrame: CGRect, expanded: Bool) -> CGRect? {
         guard let output = CaptureAreaWindowStore.shared.window, output.isVisible,

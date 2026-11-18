@@ -1923,6 +1923,7 @@ struct TimerControlView: View {
                 .help("Reset timer")
                 .pointingHandOnHover()
             }
+            .fixedSize(horizontal: true, vertical: false)
             .opacity(model.presentationTimerExpanded ? 1 : 0)
             .disabled(!model.presentationTimerExpanded)
             .offset(x: -38)
@@ -2068,6 +2069,7 @@ struct AnnotationControlView: View {
                 .help("Point with a laser dot that follows the mouse")
                 .pointingHandOnHover()
             }
+            .fixedSize(horizontal: true, vertical: false)
             .opacity(model.annotationExpanded ? 1 : 0)
             .disabled(!model.annotationExpanded)
             .offset(x: -38)
@@ -2184,6 +2186,7 @@ struct WhiteboardControlView: View {
                 .help("Draw on the whiteboard")
                 .pointingHandOnHover()
             }
+            .fixedSize(horizontal: true, vertical: false)
             .opacity(model.whiteboardExpanded ? 1 : 0)
             .disabled(!model.whiteboardExpanded)
             .offset(x: -38)
