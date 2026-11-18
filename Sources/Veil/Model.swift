@@ -914,7 +914,7 @@ final class VeilModel: NSObject, ObservableObject {
     }
     func updateTimerCapsuleSize(_ size: CGSize) {
         guard presentationTimerExpanded, size.width > 0, size.height > 0 else { return }
-        let fullSize = CGSize(width: size.width + 42, height: size.height)
+        let fullSize = CGSize(width: size.width + 42, height: 36)
         if abs(fullSize.width - timerCapsuleSize.width) > 0.5 || abs(fullSize.height - timerCapsuleSize.height) > 0.5 {
             timerCapsuleSize = fullSize
             guard let timerWindow = TimerControlWindowStore.shared.window,
