@@ -351,6 +351,7 @@ final class VeilModel: NSObject, ObservableObject {
     private var presentationAccumulated: TimeInterval = 0
     private var presentationCountingSince: Date?
     var timerCapsuleSize: CGSize = .zero
+    var timerControlAnimating = false
     private var positionPollTimer: Timer?
     private var stream: SCStream?
     private var snapshotStream: SCStream?
@@ -917,6 +918,7 @@ final class VeilModel: NSObject, ObservableObject {
         let fullSize = CGSize(width: size.width + 42, height: 36)
         if abs(fullSize.width - timerCapsuleSize.width) > 0.5 || abs(fullSize.height - timerCapsuleSize.height) > 0.5 {
             timerCapsuleSize = fullSize
+            guard !timerControlAnimating else { return }
             guard let timerWindow = TimerControlWindowStore.shared.window,
                   let frame = timerControlFrame(expanded: true) else {
                 dockTimerControlToCaptureArea()
@@ -924,6 +926,7 @@ final class VeilModel: NSObject, ObservableObject {
             }
             let annotationFrame = annotationFrame(forTimerFrame: frame, expanded: annotationExpanded)
             let wbFrame = annotationFrame.flatMap { self.whiteboardFrame(forAnnotationFrame: $0, expanded: whiteboardExpanded) }
+            timerControlAnimating = true
             NSAnimationContext.runAnimationGroup({ context in
                 context.duration = 0.38
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
@@ -937,6 +940,7 @@ final class VeilModel: NSObject, ObservableObject {
             }, completionHandler: { [weak self] in
                 guard let self else { return }
                 Task { @MainActor in
+                    self.timerControlAnimating = false
                     guard self.presentationTimerExpanded else { return }
                     self.dockTimerControlToCaptureArea()
                     self.dockAnnotationControlToCaptureArea()

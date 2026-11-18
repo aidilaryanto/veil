@@ -631,6 +631,7 @@ extension VeilModel {
             guard let frame = timerControlFrame(expanded: true) else { return }
             let annotationFrame = annotationFrame(forTimerFrame: frame, expanded: annotationExpanded)
             let wbFrame = annotationFrame.flatMap { self.whiteboardFrame(forAnnotationFrame: $0, expanded: whiteboardExpanded) }
+            timerControlAnimating = true
             NSAnimationContext.runAnimationGroup({ context in
                 context.duration = 0.38
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
@@ -644,6 +645,7 @@ extension VeilModel {
             }, completionHandler: { [weak self] in
                 guard let self else { return }
                 Task { @MainActor in
+                    self.timerControlAnimating = false
                     guard self.presentationTimerExpanded else { return }
                     self.dockTimerControlToCaptureArea()
                     self.dockAnnotationControlToCaptureArea()
@@ -655,6 +657,7 @@ extension VeilModel {
             guard let frame = timerControlFrame(expanded: false) else { return }
             let annotationFrame = annotationFrame(forTimerFrame: frame, expanded: annotationExpanded)
             let wbFrame = annotationFrame.flatMap { self.whiteboardFrame(forAnnotationFrame: $0, expanded: whiteboardExpanded) }
+            timerControlAnimating = true
             NSAnimationContext.runAnimationGroup({ context in
                 context.duration = 0.38
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
@@ -668,6 +671,7 @@ extension VeilModel {
             }, completionHandler: { [weak self] in
                 guard let self else { return }
                 Task { @MainActor in
+                    self.timerControlAnimating = false
                     guard !self.presentationTimerExpanded else { return }
                     self.dockTimerControlToCaptureArea()
                     self.dockAnnotationControlToCaptureArea()
