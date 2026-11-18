@@ -1917,7 +1917,6 @@ struct TimerControlView: View {
                     .overlay(
                         Image(systemName: "timer")
                             .font(.system(size: 13))
-                            .rotationEffect(.degrees(model.presentationTimerExpanded ? 90 : 0))
                     )
             }
             .buttonStyle(.plain)
@@ -2062,7 +2061,6 @@ struct AnnotationControlView: View {
                     .overlay(
                         Image(systemName: "pencil")
                             .font(.system(size: 13))
-                            .rotationEffect(.degrees(model.annotationExpanded ? 90 : 0))
                     )
             }
             .buttonStyle(.plain)
@@ -2177,7 +2175,6 @@ struct WhiteboardControlView: View {
                     .overlay(
                         Image(systemName: "rectangle.and.pencil.and.ellipsis")
                             .font(.system(size: 13))
-                            .rotationEffect(.degrees(model.whiteboardExpanded ? 90 : 0))
                     )
             }
             .buttonStyle(.plain)
