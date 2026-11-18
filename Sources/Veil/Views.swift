@@ -1818,96 +1818,101 @@ struct TimerControlView: View {
     @State private var customMinutes = ""
     var body: some View {
         HStack(spacing: 6) {
-            if model.presentationTimerExpanded {
-                Text(model.presentationTimerText)
-                    .font(.system(size: 16, weight: .bold, design: .monospaced))
-                    .foregroundStyle(model.presentationTimerMode == .countDown && model.countdownRemaining <= 60 ? Color.red : Color.white)
-                    .padding(.leading, 8)
-                    .padding(.trailing, 10)
-                    .transition(.opacity.combined(with: .offset(x: 12)))
-                Rectangle()
-                    .fill(Color.white.opacity(0.2))
-                    .frame(width: 1, height: 20)
-                    .transition(.opacity.combined(with: .offset(x: 12)))
-                Button {
-                    model.toggleTimerMode()
-                } label: {
-                    Color.white.opacity(0.01)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                        .overlay(
-                            Image(systemName: model.presentationTimerMode == .countUp ? "hourglass" : "stopwatch")
-                                .font(.system(size: 13))
-                        )
-                }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle())
-                .focusable(false)
-                .help(model.presentationTimerMode == .countUp ? "Switch to countdown" : "Switch to count-up")
-                .pointingHandOnHover()
-                .transition(.opacity.combined(with: .offset(x: 12)))
-                if model.presentationTimerMode == .countDown {
+            Group {
+                if model.presentationTimerExpanded {
+                    Text(model.presentationTimerText)
+                        .font(.system(size: 16, weight: .bold, design: .monospaced))
+                        .foregroundStyle(model.presentationTimerMode == .countDown && model.countdownRemaining <= 60 ? Color.red : Color.white)
+                        .padding(.leading, 8)
+                        .padding(.trailing, 10)
+                    .animation(.easeInOut(duration: 0.35), value: model.presentationTimerText)
+                        .transition(.opacity.combined(with: .offset(x: 12)))
+                    Rectangle()
+                        .fill(Color.white.opacity(0.2))
+                        .frame(width: 1, height: 20)
+                        .transition(.opacity.combined(with: .offset(x: 12)))
                     Button {
-                        customMinutes = String(Int(model.countdownDuration / 60))
-                        showDurationPopover = true
+                        model.toggleTimerMode()
                     } label: {
                         Color.white.opacity(0.01)
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
                             .overlay(
-                                Image(systemName: "list.bullet")
+                                Image(systemName: model.presentationTimerMode == .countUp ? "hourglass" : "stopwatch")
                                     .font(.system(size: 13))
                             )
                     }
                     .buttonStyle(.plain)
                     .contentShape(Rectangle())
                     .focusable(false)
-                    .help("Choose countdown duration")
+                    .help(model.presentationTimerMode == .countUp ? "Switch to countdown" : "Switch to count-up")
                     .pointingHandOnHover()
                     .transition(.opacity.combined(with: .offset(x: 12)))
-                    .popover(isPresented: $showDurationPopover, arrowEdge: .bottom) {
-                        CountdownDurationPopover(customMinutes: $customMinutes) {
-                            showDurationPopover = false
+                    if model.presentationTimerMode == .countDown {
+                        Button {
+                            customMinutes = String(Int(model.countdownDuration / 60))
+                            showDurationPopover = true
+                        } label: {
+                            Color.white.opacity(0.01)
+                                .frame(width: 28, height: 28)
+                                .contentShape(Rectangle())
+                                .overlay(
+                                    Image(systemName: "list.bullet")
+                                        .font(.system(size: 13))
+                                )
                         }
-                        .preferredColorScheme(.dark)
+                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+                        .focusable(false)
+                        .help("Choose countdown duration")
+                        .pointingHandOnHover()
+                        .transition(.opacity.combined(with: .offset(x: 12)))
+                        .popover(isPresented: $showDurationPopover, arrowEdge: .bottom) {
+                            CountdownDurationPopover(customMinutes: $customMinutes) {
+                                showDurationPopover = false
+                            }
+                            .preferredColorScheme(.dark)
+                        }
                     }
-                }
-                Button {
-                    model.togglePresentationTimer()
-                } label: {
-                    Color.white.opacity(0.01)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                        .overlay(
-                            Image(systemName: model.presentationTimerActive ? "pause.fill" : "play.fill")
-                                .font(.system(size: 13))
-                        )
-                }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle())
-                .focusable(false)
-                .help(model.presentationTimerActive ? "Pause timer" : "Start timer")
-                .pointingHandOnHover()
-                .transition(.opacity.combined(with: .offset(x: 12)))
-                Button {
-                    model.resetPresentationTimer()
-                } label: {
-                    Color.white.opacity(0.01)
-                        .frame(width: 24, height: 24)
-                        .contentShape(Rectangle())
-                        .overlay(
-                            Image(systemName: "arrow.counterclockwise")
-                                .font(.system(size: 11))
+                    Button {
+                        model.togglePresentationTimer()
+                    } label: {
+                        Color.white.opacity(0.01)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                            .overlay(
+                                Image(systemName: model.presentationTimerActive ? "pause.fill" : "play.fill")
+                                    .font(.system(size: 13))
                             )
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .focusable(false)
+                    .help(model.presentationTimerActive ? "Pause timer" : "Start timer")
+                    .pointingHandOnHover()
+                    .transition(.opacity.combined(with: .offset(x: 12)))
+                    Button {
+                        model.resetPresentationTimer()
+                    } label: {
+                        Color.white.opacity(0.01)
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
+                            .overlay(
+                                Image(systemName: "arrow.counterclockwise")
+                                    .font(.system(size: 11))
+                                )
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .focusable(false)
+                    .disabled(model.presentationElapsed == 0 && !model.presentationTimerActive)
+                    .help("Reset timer")
+                    .pointingHandOnHover()
+                    .transition(.opacity.combined(with: .offset(x: 12)))
                 }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle())
-                .focusable(false)
-                .disabled(model.presentationElapsed == 0 && !model.presentationTimerActive)
-                .help("Reset timer")
-                .pointingHandOnHover()
-                .transition(.opacity.combined(with: .offset(x: 12)))
             }
+            .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.presentationTimerExpanded)
+            .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.presentationTimerMode)
             Button {
                 model.setTimerControlExpanded(!model.presentationTimerExpanded)
             } label: {
@@ -1936,9 +1941,6 @@ struct TimerControlView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-        .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.presentationTimerExpanded)
-        .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.presentationTimerMode)
-        .animation(.easeInOut(duration: 0.35), value: model.presentationTimerText)
     }
 }
 struct AnnotationControlView: View {
@@ -1946,114 +1948,117 @@ struct AnnotationControlView: View {
     @State private var showColorPopover = false
     var body: some View {
         HStack(spacing: 6) {
-            if model.annotationExpanded {
-                Button {
-                    model.clearAnnotations()
-                } label: {
-                    Color.white.opacity(0.01)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                        .overlay(
-                            Image(systemName: "trash")
-                                .font(.system(size: 13))
-                        )
-                }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle())
-                .focusable(false)
-                .disabled(model.annotationStrokes.isEmpty)
-                .help("Clear all annotations")
-                .pointingHandOnHover()
-                .transition(.opacity.combined(with: .offset(x: 12)))
-                Button {
-                    showColorPopover.toggle()
-                } label: {
-                    Color.white.opacity(0.01)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                        .overlay(
-                            Circle()
-                                .fill(model.annotationColor.color)
-                                .frame(width: 18, height: 18)
-                                .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
-                        )
-                }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle())
-                .focusable(false)
-                .help("Choose pen color")
-                .pointingHandOnHover()
-                .transition(.opacity.combined(with: .offset(x: 12)))
-                .popover(isPresented: $showColorPopover) {
-                    HStack(spacing: 8) {
-                        ForEach(AnnotationColor.allCases, id: \.self) { color in
-                            Button {
-                                model.annotationColor = color
-                                showColorPopover = false
-                            } label: {
+            Group {
+                if model.annotationExpanded {
+                    Button {
+                        model.clearAnnotations()
+                    } label: {
+                        Color.white.opacity(0.01)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                            .overlay(
+                                Image(systemName: "trash")
+                                    .font(.system(size: 13))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .focusable(false)
+                    .disabled(model.annotationStrokes.isEmpty)
+                    .help("Clear all annotations")
+                    .pointingHandOnHover()
+                    .transition(.opacity.combined(with: .offset(x: 12)))
+                    Button {
+                        showColorPopover.toggle()
+                    } label: {
+                        Color.white.opacity(0.01)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                            .overlay(
                                 Circle()
-                                    .fill(color.color)
-                                    .frame(width: 24, height: 24)
-                                    .overlay(Circle().stroke(Color.white, lineWidth: model.annotationColor == color ? 2 : 0))
+                                    .fill(model.annotationColor.color)
+                                    .frame(width: 18, height: 18)
+                                    .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .focusable(false)
+                    .help("Choose pen color")
+                    .pointingHandOnHover()
+                    .transition(.opacity.combined(with: .offset(x: 12)))
+                    .popover(isPresented: $showColorPopover) {
+                        HStack(spacing: 8) {
+                            ForEach(AnnotationColor.allCases, id: \.self) { color in
+                                Button {
+                                    model.annotationColor = color
+                                    showColorPopover = false
+                                } label: {
+                                    Circle()
+                                        .fill(color.color)
+                                        .frame(width: 24, height: 24)
+                                        .overlay(Circle().stroke(Color.white, lineWidth: model.annotationColor == color ? 2 : 0))
+                                }
+                                .buttonStyle(.plain)
+                                .help(color.rawValue.capitalized)
+                                .contentShape(Circle())
+                                .pointingHandOnHover()
                             }
-                            .buttonStyle(.plain)
-                            .help(color.rawValue.capitalized)
-                            .contentShape(Circle())
-                            .pointingHandOnHover()
                         }
+                        .padding(12)
+                        .preferredColorScheme(.dark)
                     }
-                    .padding(12)
-                    .preferredColorScheme(.dark)
-                }
-                Button {
-                    if model.annotationTool == .pen && model.annotationEnabled {
-                        model.annotationEnabled = false
-                    } else {
-                        model.annotationTool = .pen
-                        model.annotationEnabled = true
-                        model.whiteboardEnabled = false
+                    Button {
+                        if model.annotationTool == .pen && model.annotationEnabled {
+                            model.annotationEnabled = false
+                        } else {
+                            model.annotationTool = .pen
+                            model.annotationEnabled = true
+                            model.whiteboardEnabled = false
+                        }
+                    } label: {
+                        Color.white.opacity(0.01)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                            .overlay(
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 13))
+                            )
+                            .background(Circle().fill(model.annotationTool == .pen && model.annotationEnabled ? Color.red : Color.clear))
                     }
-                } label: {
-                    Color.white.opacity(0.01)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                        .overlay(
-                            Image(systemName: "pencil")
-                                .font(.system(size: 13))
-                        )
-                        .background(Circle().fill(model.annotationTool == .pen && model.annotationEnabled ? Color.red : Color.clear))
-                }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle())
-                .focusable(false)
-                .help("Draw freehand strokes")
-                .pointingHandOnHover()
-                .transition(.opacity.combined(with: .offset(x: 12)))
-                Button {
-                    if model.annotationTool == .laser && model.annotationEnabled {
-                        model.annotationEnabled = false
-                    } else {
-                        model.annotationTool = .laser
-                        model.annotationEnabled = true
-                        model.whiteboardEnabled = false
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .focusable(false)
+                    .help("Draw freehand strokes")
+                    .pointingHandOnHover()
+                    .transition(.opacity.combined(with: .offset(x: 12)))
+                    Button {
+                        if model.annotationTool == .laser && model.annotationEnabled {
+                            model.annotationEnabled = false
+                        } else {
+                            model.annotationTool = .laser
+                            model.annotationEnabled = true
+                            model.whiteboardEnabled = false
+                        }
+                    } label: {
+                        Color.white.opacity(0.01)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                            .overlay(
+                                Image(systemName: "cursorarrow.rays")
+                                    .font(.system(size: 13))
+                            )
+                            .background(Circle().fill(model.annotationTool == .laser && model.annotationEnabled ? Color.red : Color.clear))
                     }
-                } label: {
-                    Color.white.opacity(0.01)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                        .overlay(
-                            Image(systemName: "cursorarrow.rays")
-                                .font(.system(size: 13))
-                        )
-                        .background(Circle().fill(model.annotationTool == .laser && model.annotationEnabled ? Color.red : Color.clear))
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .focusable(false)
+                    .help("Point with a laser dot that follows the mouse")
+                    .pointingHandOnHover()
+                    .transition(.opacity.combined(with: .offset(x: 12)))
                 }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle())
-                .focusable(false)
-                .help("Point with a laser dot that follows the mouse")
-                .pointingHandOnHover()
-                .transition(.opacity.combined(with: .offset(x: 12)))
             }
+            .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.annotationExpanded)
             Button {
                 model.setAnnotationControlExpanded(!model.annotationExpanded)
             } label: {
@@ -2077,7 +2082,6 @@ struct AnnotationControlView: View {
         .background(Capsule().fill(Color.black.opacity(0.45)))
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-        .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.annotationExpanded)
     }
 }
 struct WhiteboardControlView: View {
@@ -2085,89 +2089,92 @@ struct WhiteboardControlView: View {
     @State private var showColorPopover = false
     var body: some View {
         HStack(spacing: 6) {
-            if model.whiteboardExpanded {
-                Button {
-                    model.clearWhiteboard()
-                } label: {
-                    Color.white.opacity(0.01)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                        .overlay(
-                            Image(systemName: "trash")
-                                .font(.system(size: 13))
-                        )
-                }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle())
-                .focusable(false)
-                .disabled(model.whiteboardStrokes.isEmpty)
-                .help("Clear the whiteboard")
-                .pointingHandOnHover()
-                .transition(.opacity.combined(with: .offset(x: 12)))
-                Button {
-                    showColorPopover.toggle()
-                } label: {
-                    Color.white.opacity(0.01)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                        .overlay(
-                            Circle()
-                                .fill(model.whiteboardColor.color)
-                                .frame(width: 18, height: 18)
-                                .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
-                        )
-                }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle())
-                .focusable(false)
-                .help("Choose pen color")
-                .pointingHandOnHover()
-                .transition(.opacity.combined(with: .offset(x: 12)))
-                .popover(isPresented: $showColorPopover) {
-                    HStack(spacing: 8) {
-                        ForEach(AnnotationColor.allCases, id: \.self) { color in
-                            Button {
-                                model.whiteboardColor = color
-                                showColorPopover = false
-                            } label: {
+            Group {
+                if model.whiteboardExpanded {
+                    Button {
+                        model.clearWhiteboard()
+                    } label: {
+                        Color.white.opacity(0.01)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                            .overlay(
+                                Image(systemName: "trash")
+                                    .font(.system(size: 13))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .focusable(false)
+                    .disabled(model.whiteboardStrokes.isEmpty)
+                    .help("Clear the whiteboard")
+                    .pointingHandOnHover()
+                    .transition(.opacity.combined(with: .offset(x: 12)))
+                    Button {
+                        showColorPopover.toggle()
+                    } label: {
+                        Color.white.opacity(0.01)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                            .overlay(
                                 Circle()
-                                    .fill(color.color)
-                                    .frame(width: 24, height: 24)
-                                    .overlay(Circle().stroke(Color.white, lineWidth: model.whiteboardColor == color ? 2 : 0))
+                                    .fill(model.whiteboardColor.color)
+                                    .frame(width: 18, height: 18)
+                                    .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .focusable(false)
+                    .help("Choose pen color")
+                    .pointingHandOnHover()
+                    .transition(.opacity.combined(with: .offset(x: 12)))
+                    .popover(isPresented: $showColorPopover) {
+                        HStack(spacing: 8) {
+                            ForEach(AnnotationColor.allCases, id: \.self) { color in
+                                Button {
+                                    model.whiteboardColor = color
+                                    showColorPopover = false
+                                } label: {
+                                    Circle()
+                                        .fill(color.color)
+                                        .frame(width: 24, height: 24)
+                                        .overlay(Circle().stroke(Color.white, lineWidth: model.whiteboardColor == color ? 2 : 0))
+                                }
+                                .buttonStyle(.plain)
+                                .help(color.rawValue.capitalized)
+                                .contentShape(Circle())
+                                .pointingHandOnHover()
                             }
-                            .buttonStyle(.plain)
-                            .help(color.rawValue.capitalized)
-                            .contentShape(Circle())
-                            .pointingHandOnHover()
                         }
+                        .padding(12)
+                        .preferredColorScheme(.dark)
                     }
-                    .padding(12)
-                    .preferredColorScheme(.dark)
-                }
-                Button {
-                    if model.whiteboardEnabled {
-                        model.whiteboardEnabled = false
-                    } else {
-                        model.whiteboardEnabled = true
-                        model.annotationEnabled = false
+                    Button {
+                        if model.whiteboardEnabled {
+                            model.whiteboardEnabled = false
+                        } else {
+                            model.whiteboardEnabled = true
+                            model.annotationEnabled = false
+                        }
+                    } label: {
+                        Color.white.opacity(0.01)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                            .overlay(
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 13))
+                            )
+                            .background(Circle().fill(model.whiteboardEnabled ? Color.red : Color.clear))
                     }
-                } label: {
-                    Color.white.opacity(0.01)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                        .overlay(
-                            Image(systemName: "pencil")
-                                .font(.system(size: 13))
-                        )
-                        .background(Circle().fill(model.whiteboardEnabled ? Color.red : Color.clear))
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .focusable(false)
+                    .help("Draw on the whiteboard")
+                    .pointingHandOnHover()
+                    .transition(.opacity.combined(with: .offset(x: 12)))
                 }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle())
-                .focusable(false)
-                .help("Draw on the whiteboard")
-                .pointingHandOnHover()
-                .transition(.opacity.combined(with: .offset(x: 12)))
             }
+            .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.whiteboardExpanded)
             Button {
                 model.setWhiteboardControlExpanded(!model.whiteboardExpanded)
             } label: {
@@ -2191,7 +2198,6 @@ struct WhiteboardControlView: View {
         .background(Capsule().fill(Color.black.opacity(0.45)))
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-        .animation(.spring(response: 0.55, dampingFraction: 0.82, blendDuration: 0.15), value: model.whiteboardExpanded)
     }
 }
 struct FileListPopupView: View {
