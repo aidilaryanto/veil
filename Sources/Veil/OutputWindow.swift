@@ -756,13 +756,13 @@ extension VeilModel {
         } else {
             annotationExpanded = false
             guard let frame = annotationControlFrame(expanded: false) else { return }
-            let whiteboardFrame = whiteboardControlFrame(expanded: whiteboardExpanded)
+            let wbFrame = whiteboardFrame(forAnnotationFrame: frame, expanded: whiteboardExpanded)
             NSAnimationContext.runAnimationGroup({ context in
                 context.duration = 0.55
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().setFrame(frame, display: true)
-                if let whiteboardFrame, let whiteboardWindow = WhiteboardControlWindowStore.shared.window {
-                    whiteboardWindow.animator().setFrame(whiteboardFrame, display: true)
+                if let wbFrame, let whiteboardWindow = WhiteboardControlWindowStore.shared.window {
+                    whiteboardWindow.animator().setFrame(wbFrame, display: true)
                 }
             }, completionHandler: { [weak self] in
                 guard let self else { return }
