@@ -375,6 +375,7 @@ final class VeilModel: NSObject, ObservableObject {
     private let lastSessionKey = "Veil.v2.lastSession"
     private var launchAutoStart = true
     private var launchRetryPending = false
+    private var stoppedForOffScreen = false
     private var lastStripRetry = Date.distantPast
     private var lastWindowRatio: CGFloat = 0
     private var isFirstRefresh = true
@@ -1392,6 +1393,8 @@ final class VeilModel: NSObject, ObservableObject {
             } else if isSelectionOffScreen {
                 stopStreamOnly()
                 status = "Selected window is off screen."
+                stoppedForOffScreen = true
+                startCaptureWatchdog()
             } else if stripThumbnailWindow() != nil, Date().timeIntervalSince(lastStripRetry) > 1 {
                 DebugLog.log("updateCapture: filter nil, strip thumbnail, retrying refresh")
                 lastStripRetry = Date()
@@ -1482,6 +1485,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
     }
     func startMultiWindowCapture() {
+        stoppedForOffScreen = false
         stopPreviewSnapshotTimer()
         CaptureRouting.shared.setStripCapture(false)
         CaptureRouting.shared.setDisplayCapture(false)
@@ -1496,6 +1500,8 @@ final class VeilModel: NSObject, ObservableObject {
                 status = "Nothing is currently selected to share."
             } else if isSelectionOffScreen {
                 status = "Selected window is off screen."
+                stoppedForOffScreen = true
+                startCaptureWatchdog()
             } else {
                 status = "Pause the output until a display is selected."
             }
@@ -1688,6 +1694,7 @@ final class VeilModel: NSObject, ObservableObject {
         }
     }
     func startCapture() {
+        stoppedForOffScreen = false
         stopPreviewSnapshotTimer()
         if stream != nil || !windowStreams.isEmpty {
             if isSharing {
@@ -1715,6 +1722,8 @@ final class VeilModel: NSObject, ObservableObject {
             }
             if isSelectionOffScreen {
                 status = "Selected window is off screen."
+                stoppedForOffScreen = true
+                startCaptureWatchdog()
                 DebugLog.log("startCapture: filter nil, selection off screen")
                 return
             }
@@ -1940,6 +1949,24 @@ final class VeilModel: NSObject, ObservableObject {
         captureWatchdog = nil
     }
     private func checkCaptureStability() async {
+        if stoppedForOffScreen {
+            do {
+                let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false)
+                capturedWindows = content.windows
+                if isNothingSelected || isPanic {
+                    stoppedForOffScreen = false
+                    stopCaptureWatchdog()
+                    return
+                }
+                if !isSelectionOffScreen {
+                    stoppedForOffScreen = false
+                    DebugLog.log("watchdog: selection back on screen, resuming capture")
+                    startCapture()
+                }
+            } catch {
+            }
+            return
+        }
         guard isSharing, stream != nil || !windowStreams.isEmpty else { return }
         resizeCaptureAreaWindow()
         do {
