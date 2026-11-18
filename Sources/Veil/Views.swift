@@ -1818,17 +1818,36 @@ struct TimerControlView: View {
     @State private var customMinutes = ""
     var body: some View {
         HStack(spacing: 6) {
-            if model.presentationTimerExpanded {
+            Button {
+                model.setTimerControlExpanded(!model.presentationTimerExpanded)
+            } label: {
+                Color.white.opacity(0.01)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+                    .overlay(
+                        Image(systemName: "timer")
+                            .font(.system(size: 13))
+                    )
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .focusable(false)
+            .foregroundStyle(model.presentationTimerRunning ? Color.green : Color.white)
+            .help(model.presentationTimerExpanded ? "Collapse timer" : "Expand timer")
+            .pointingHandOnHover()
+        }
+        .padding(.horizontal, 4)
+        .frame(height: 36)
+        .overlay(alignment: .trailing) {
+            HStack(spacing: 6) {
                 Text(model.presentationTimerText)
                     .font(.system(size: 16, weight: .bold, design: .monospaced))
                     .foregroundStyle(model.presentationTimerMode == .countDown && model.countdownRemaining <= 60 ? Color.red : Color.white)
                     .padding(.leading, 8)
                     .padding(.trailing, 10)
-                    .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
                 Rectangle()
                     .fill(Color.white.opacity(0.2))
                     .frame(width: 1, height: 20)
-                    .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
                 Button {
                     model.toggleTimerMode()
                 } label: {
@@ -1845,7 +1864,6 @@ struct TimerControlView: View {
                 .focusable(false)
                 .help(model.presentationTimerMode == .countUp ? "Switch to countdown" : "Switch to count-up")
                 .pointingHandOnHover()
-                .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
                 if model.presentationTimerMode == .countDown {
                     Button {
                         customMinutes = String(Int(model.countdownDuration / 60))
@@ -1864,7 +1882,6 @@ struct TimerControlView: View {
                     .focusable(false)
                     .help("Choose countdown duration")
                     .pointingHandOnHover()
-                    .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
                     .popover(isPresented: $showDurationPopover, arrowEdge: .bottom) {
                         CountdownDurationPopover(customMinutes: $customMinutes) {
                             showDurationPopover = false
@@ -1888,7 +1905,6 @@ struct TimerControlView: View {
                 .focusable(false)
                 .help(model.presentationTimerActive ? "Pause timer" : "Start timer")
                 .pointingHandOnHover()
-                .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
                 Button {
                     model.resetPresentationTimer()
                 } label: {
@@ -1906,36 +1922,19 @@ struct TimerControlView: View {
                 .disabled(model.presentationElapsed == 0 && !model.presentationTimerActive)
                 .help("Reset timer")
                 .pointingHandOnHover()
-                .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
             }
-            Button {
-                model.setTimerControlExpanded(!model.presentationTimerExpanded)
-            } label: {
-                Color.white.opacity(0.01)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-                    .overlay(
-                        Image(systemName: "timer")
-                            .font(.system(size: 13))
-                    )
+            .opacity(model.presentationTimerExpanded ? 1 : 0)
+            .disabled(!model.presentationTimerExpanded)
+            .offset(x: -38)
+            .onGeometryChange(for: CGSize.self, of: { $0.size }) { size in
+                Task { @MainActor in
+                    model.updateTimerCapsuleSize(size)
+                }
             }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            .focusable(false)
-            .foregroundStyle(model.presentationTimerRunning ? Color.green : Color.white)
-            .help(model.presentationTimerExpanded ? "Collapse timer" : "Expand timer")
-            .pointingHandOnHover()
         }
-        .padding(.horizontal, 4)
-        .frame(height: 36)
         .background(Capsule().fill(Color.black.opacity(0.45)))
         .clipped()
         .foregroundStyle(.white)
-        .onGeometryChange(for: CGSize.self, of: { $0.size }) { size in
-            Task { @MainActor in
-                model.updateTimerCapsuleSize(size)
-            }
-        }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
     }
 }
@@ -1944,7 +1943,28 @@ struct AnnotationControlView: View {
     @State private var showColorPopover = false
     var body: some View {
         HStack(spacing: 6) {
-            if model.annotationExpanded {
+            Button {
+                model.setAnnotationControlExpanded(!model.annotationExpanded)
+            } label: {
+                Color.white.opacity(0.01)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+                    .overlay(
+                        Image(systemName: "pencil")
+                            .font(.system(size: 13))
+                    )
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .focusable(false)
+            .foregroundStyle(model.annotationEnabled ? Color(red: 0.95, green: 0.55, blue: 0.20) : Color.white)
+            .help(model.annotationExpanded ? "Collapse annotation" : "Expand annotation")
+            .pointingHandOnHover()
+        }
+        .padding(.horizontal, 4)
+        .frame(height: 36)
+        .overlay(alignment: .trailing) {
+            HStack(spacing: 6) {
                 Button {
                     model.clearAnnotations()
                 } label: {
@@ -1962,7 +1982,6 @@ struct AnnotationControlView: View {
                 .disabled(model.annotationStrokes.isEmpty)
                 .help("Clear all annotations")
                 .pointingHandOnHover()
-                .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
                 Button {
                     showColorPopover.toggle()
                 } label: {
@@ -1981,7 +2000,6 @@ struct AnnotationControlView: View {
                 .focusable(false)
                 .help("Choose pen color")
                 .pointingHandOnHover()
-                .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
                 .popover(isPresented: $showColorPopover) {
                     HStack(spacing: 8) {
                         ForEach(AnnotationColor.allCases, id: \.self) { color in
@@ -2026,7 +2044,6 @@ struct AnnotationControlView: View {
                 .focusable(false)
                 .help("Draw freehand strokes")
                 .pointingHandOnHover()
-                .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
                 Button {
                     if model.annotationTool == .laser && model.annotationEnabled {
                         model.annotationEnabled = false
@@ -2050,28 +2067,11 @@ struct AnnotationControlView: View {
                 .focusable(false)
                 .help("Point with a laser dot that follows the mouse")
                 .pointingHandOnHover()
-                .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
             }
-            Button {
-                model.setAnnotationControlExpanded(!model.annotationExpanded)
-            } label: {
-                Color.white.opacity(0.01)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-                    .overlay(
-                        Image(systemName: "pencil")
-                            .font(.system(size: 13))
-                    )
-            }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            .focusable(false)
-            .foregroundStyle(model.annotationEnabled ? Color(red: 0.95, green: 0.55, blue: 0.20) : Color.white)
-            .help(model.annotationExpanded ? "Collapse annotation" : "Expand annotation")
-            .pointingHandOnHover()
+            .opacity(model.annotationExpanded ? 1 : 0)
+            .disabled(!model.annotationExpanded)
+            .offset(x: -38)
         }
-        .padding(.horizontal, 4)
-        .frame(height: 36)
         .background(Capsule().fill(Color.black.opacity(0.45)))
         .clipped()
         .foregroundStyle(.white)
@@ -2083,7 +2083,28 @@ struct WhiteboardControlView: View {
     @State private var showColorPopover = false
     var body: some View {
         HStack(spacing: 6) {
-            if model.whiteboardExpanded {
+            Button {
+                model.setWhiteboardControlExpanded(!model.whiteboardExpanded)
+            } label: {
+                Color.white.opacity(0.01)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+                    .overlay(
+                        Image(systemName: "rectangle.and.pencil.and.ellipsis")
+                            .font(.system(size: 13))
+                    )
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .focusable(false)
+            .foregroundStyle(model.whiteboardEnabled ? Color(red: 0.95, green: 0.55, blue: 0.20) : Color.white)
+            .help(model.whiteboardExpanded ? "Collapse whiteboard" : "Expand whiteboard")
+            .pointingHandOnHover()
+        }
+        .padding(.horizontal, 4)
+        .frame(height: 36)
+        .overlay(alignment: .trailing) {
+            HStack(spacing: 6) {
                 Button {
                     model.clearWhiteboard()
                 } label: {
@@ -2101,7 +2122,6 @@ struct WhiteboardControlView: View {
                 .disabled(model.whiteboardStrokes.isEmpty)
                 .help("Clear the whiteboard")
                 .pointingHandOnHover()
-                .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
                 Button {
                     showColorPopover.toggle()
                 } label: {
@@ -2120,7 +2140,6 @@ struct WhiteboardControlView: View {
                 .focusable(false)
                 .help("Choose pen color")
                 .pointingHandOnHover()
-                .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
                 .popover(isPresented: $showColorPopover) {
                     HStack(spacing: 8) {
                         ForEach(AnnotationColor.allCases, id: \.self) { color in
@@ -2164,28 +2183,11 @@ struct WhiteboardControlView: View {
                 .focusable(false)
                 .help("Draw on the whiteboard")
                 .pointingHandOnHover()
-                .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .trailing).combined(with: .opacity)))
             }
-            Button {
-                model.setWhiteboardControlExpanded(!model.whiteboardExpanded)
-            } label: {
-                Color.white.opacity(0.01)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-                    .overlay(
-                        Image(systemName: "rectangle.and.pencil.and.ellipsis")
-                            .font(.system(size: 13))
-                    )
-            }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            .focusable(false)
-            .foregroundStyle(model.whiteboardEnabled ? Color(red: 0.95, green: 0.55, blue: 0.20) : Color.white)
-            .help(model.whiteboardExpanded ? "Collapse whiteboard" : "Expand whiteboard")
-            .pointingHandOnHover()
+            .opacity(model.whiteboardExpanded ? 1 : 0)
+            .disabled(!model.whiteboardExpanded)
+            .offset(x: -38)
         }
-        .padding(.horizontal, 4)
-        .frame(height: 36)
         .background(Capsule().fill(Color.black.opacity(0.45)))
         .clipped()
         .foregroundStyle(.white)
