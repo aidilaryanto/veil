@@ -924,7 +924,7 @@ final class VeilModel: NSObject, ObservableObject {
             let annotationFrame = annotationFrame(forTimerFrame: frame, expanded: annotationExpanded)
             let wbFrame = annotationFrame.flatMap { self.whiteboardFrame(forAnnotationFrame: $0, expanded: whiteboardExpanded) }
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.55
+                context.duration = 0.38
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 timerWindow.animator().setFrame(frame, display: true)
                 if let annotationFrame, let annotationWindow = AnnotationControlWindowStore.shared.window {

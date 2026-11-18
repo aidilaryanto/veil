@@ -623,17 +623,17 @@ extension VeilModel {
     }
     func setTimerControlExpanded(_ expanded: Bool) {
         guard let window = TimerControlWindowStore.shared.window else {
-            presentationTimerExpanded = expanded
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.78, blendDuration: 0)) { presentationTimerExpanded = expanded }
             return
         }
         if expanded {
-            presentationTimerExpanded = true
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.78, blendDuration: 0)) { presentationTimerExpanded = true }
             window.contentView?.layoutSubtreeIfNeeded()
             guard let frame = timerControlFrame(expanded: true) else { return }
             let annotationFrame = annotationFrame(forTimerFrame: frame, expanded: annotationExpanded)
             let wbFrame = annotationFrame.flatMap { self.whiteboardFrame(forAnnotationFrame: $0, expanded: whiteboardExpanded) }
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.55
+                context.duration = 0.38
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().setFrame(frame, display: true)
                 if let annotationFrame, let annotationWindow = AnnotationControlWindowStore.shared.window {
@@ -652,12 +652,12 @@ extension VeilModel {
                 }
             })
         } else {
-            presentationTimerExpanded = false
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.78, blendDuration: 0)) { presentationTimerExpanded = false }
             guard let frame = timerControlFrame(expanded: false) else { return }
             let annotationFrame = annotationFrame(forTimerFrame: frame, expanded: annotationExpanded)
             let wbFrame = annotationFrame.flatMap { self.whiteboardFrame(forAnnotationFrame: $0, expanded: whiteboardExpanded) }
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.55
+                context.duration = 0.38
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().setFrame(frame, display: true)
                 if let annotationFrame, let annotationWindow = AnnotationControlWindowStore.shared.window {
@@ -761,16 +761,16 @@ extension VeilModel {
     }
     func setAnnotationControlExpanded(_ expanded: Bool) {
         guard let window = AnnotationControlWindowStore.shared.window else {
-            annotationExpanded = expanded
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.78, blendDuration: 0)) { annotationExpanded = expanded }
             return
         }
         if expanded {
-            annotationExpanded = true
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.78, blendDuration: 0)) { annotationExpanded = true }
             window.contentView?.layoutSubtreeIfNeeded()
             guard let frame = annotationControlFrame(expanded: true) else { return }
             let wbFrame = whiteboardFrame(forAnnotationFrame: frame, expanded: whiteboardExpanded)
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.55
+                context.duration = 0.38
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().setFrame(frame, display: true)
                 if let wbFrame, let whiteboardWindow = WhiteboardControlWindowStore.shared.window {
@@ -785,11 +785,11 @@ extension VeilModel {
                 }
             })
         } else {
-            annotationExpanded = false
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.78, blendDuration: 0)) { annotationExpanded = false }
             guard let frame = annotationControlFrame(expanded: false) else { return }
             let wbFrame = whiteboardFrame(forAnnotationFrame: frame, expanded: whiteboardExpanded)
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.55
+                context.duration = 0.38
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().setFrame(frame, display: true)
                 if let wbFrame, let whiteboardWindow = WhiteboardControlWindowStore.shared.window {
@@ -887,15 +887,15 @@ extension VeilModel {
     }
     func setWhiteboardControlExpanded(_ expanded: Bool) {
         guard let window = WhiteboardControlWindowStore.shared.window else {
-            whiteboardExpanded = expanded
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.78, blendDuration: 0)) { whiteboardExpanded = expanded }
             return
         }
         if expanded {
-            whiteboardExpanded = true
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.78, blendDuration: 0)) { whiteboardExpanded = true }
             window.contentView?.layoutSubtreeIfNeeded()
             guard let frame = whiteboardControlFrame(expanded: true) else { return }
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.55
+                context.duration = 0.38
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().setFrame(frame, display: true)
             }, completionHandler: { [weak self] in
@@ -906,10 +906,10 @@ extension VeilModel {
                 }
             })
         } else {
-            whiteboardExpanded = false
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.78, blendDuration: 0)) { whiteboardExpanded = false }
             guard let frame = whiteboardControlFrame(expanded: false) else { return }
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.55
+                context.duration = 0.38
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().setFrame(frame, display: true)
             }, completionHandler: { [weak self] in
