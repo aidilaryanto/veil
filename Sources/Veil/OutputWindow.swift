@@ -1028,6 +1028,12 @@ extension VeilModel {
             openAnnotationControlWindow()
             openWhiteboardControlWindow()
             refreshCaptureFilter()
+            Task { @MainActor in
+                dockFileControlToCaptureArea()
+                dockTimerControlToCaptureArea()
+                dockAnnotationControlToCaptureArea()
+                dockWhiteboardControlToCaptureArea()
+            }
             return
         }
         updateSourceAspectRatio()
@@ -1078,6 +1084,12 @@ extension VeilModel {
             openAnnotationControlWindow()
             openWhiteboardControlWindow()
             refreshCaptureFilter()
+            Task { @MainActor in
+                dockFileControlToCaptureArea()
+                dockTimerControlToCaptureArea()
+                dockAnnotationControlToCaptureArea()
+                dockWhiteboardControlToCaptureArea()
+            }
         }
         CaptureAreaWindowStore.shared.closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
