@@ -628,7 +628,6 @@ extension VeilModel {
         }
         if expanded {
             withAnimation(.spring(response: 0.38, dampingFraction: 0.78, blendDuration: 0)) { presentationTimerExpanded = true }
-            window.contentView?.layoutSubtreeIfNeeded()
             guard let frame = timerControlFrame(expanded: true) else { return }
             let annotationFrame = annotationFrame(forTimerFrame: frame, expanded: annotationExpanded)
             let wbFrame = annotationFrame.flatMap { self.whiteboardFrame(forAnnotationFrame: $0, expanded: whiteboardExpanded) }
@@ -766,7 +765,6 @@ extension VeilModel {
         }
         if expanded {
             withAnimation(.spring(response: 0.38, dampingFraction: 0.78, blendDuration: 0)) { annotationExpanded = true }
-            window.contentView?.layoutSubtreeIfNeeded()
             guard let frame = annotationControlFrame(expanded: true) else { return }
             let wbFrame = whiteboardFrame(forAnnotationFrame: frame, expanded: whiteboardExpanded)
             NSAnimationContext.runAnimationGroup({ context in
@@ -892,7 +890,6 @@ extension VeilModel {
         }
         if expanded {
             withAnimation(.spring(response: 0.38, dampingFraction: 0.78, blendDuration: 0)) { whiteboardExpanded = true }
-            window.contentView?.layoutSubtreeIfNeeded()
             guard let frame = whiteboardControlFrame(expanded: true) else { return }
             NSAnimationContext.runAnimationGroup({ context in
                 context.duration = 0.38
